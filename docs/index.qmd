@@ -1,10 +1,8 @@
 # Preface {.unnumbered}
 
-**PAWS** (*Personal Autonomous Weather Station*) is a low-power ESP32 weather station with SD logging and a phone-based data gateway — feeding a Grafana dashboard and ML models for plant watering decisions and local weather forecasting.
+**PAWS** (*Personal Autonomous Weather Station*) is a low-powered ESP32 weather station with SD card logging, RTC timekeeping, phone-based data gateway, time-series database, online dashboard, plant watering decisions, and local weather forecasting.
 
-This document is the **single authoritative reference** for the project. It covers the complete system end-to-end: embedded firmware on an ESP32, a phone-based data gateway, a backend server on an Odroid C4, a Grafana dashboard, and machine learning models for plant watering decisions and local weather forecasting.
-
-This is primarily a **learning and experimentation project**. The design philosophy reflects that: iterate quickly, validate early, add complexity only when the foundation is solid.
+A learning-oriented project covering the full stack: embedded firmware, solar power, asynchronous data pipeline, and machine learning. This document is the **single authoritative reference** for the end-to-end design — iterate quickly, validate early, add complexity only when the foundation is solid.
 
 ::: {.callout-note}
 **Related project — 3D-PAWS** (*3D-Printed Automatic Weather Station*, UCAR/COMET): an open-source initiative for low-cost weather stations using 3D-printed sensor housings. Their sensor designs (tipping bucket rain gauge, anemometer) are a useful reference for the DIY hardware phases of this project. See [3dpaws.comet.ucar.edu](https://3dpaws.comet.ucar.edu/).
