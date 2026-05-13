@@ -8,7 +8,7 @@ book:
   repo-url: https://github.com/wg1d/personal-autonomous-weather-station
   repo-branch: main
   date: last-modified
-  reader-mode: true
+  reader-mode: false
 
   chapters:
     - index.qmd
@@ -30,10 +30,8 @@ format:
     toc: true
     toc-depth: 3
     number-sections: true
+    number-depth: 3
     highlight-style: github
     code-fold: false
-  pdf:
-    documentclass: scrbook
-    toc: true
-    number-sections: true
-    geometry: margin=2.5cm
+    html-math-method: katex
+    smooth-scroll: true
