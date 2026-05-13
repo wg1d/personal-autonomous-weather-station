@@ -35,3 +35,5 @@ format:
     code-fold: false
     html-math-method: katex
     smooth-scroll: true
+    mermaid:
+      theme: neutral

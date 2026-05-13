@@ -31,10 +31,10 @@ flowchart LR
         DL --> UL
     end
 
-    subgraph Backend["🖥️ Odroid C4 Server"]
+    subgraph Backend["🖥️ SBC Server"]
         API[REST API\nFastAPI]
         DB[Database\nTinyDB / InfluxDB]
-        DASH[Dashboard\nGrafana]
+        DASH[Dashboard\nTBD]
         ML[ML Models\nRF + LSTM]
         API --> DB --> DASH
         DB --> ML
@@ -79,21 +79,23 @@ At every boot, the firmware evaluates the system state and executes exactly one 
 stateDiagram-v2
     [*] --> BOOT
 
-    BOOT --> SERVER : Mode switch = SERVER
-    BOOT --> INIT_RTC : RTC not valid
-    BOOT --> DATA_LOGGER : Normal wake (RTC alarm)
+    BOOT --> CHECK_WAKEUP : esp_sleep_get_wakeup_cause()
 
-    SERVER --> INIT_RTC : Long button press
+    CHECK_WAKEUP --> SERVER : GPIO mode switch = SERVER
+    CHECK_WAKEUP --> INIT_RTC : Power-on / reset (or RTC invalid)
+    CHECK_WAKEUP --> DATA_LOGGER : RTC alarm interrupt
+
+    SERVER --> INIT_RTC : Long button press (NTP sync)
     INIT_RTC --> SERVER : NTP sync successful
 
     DATA_LOGGER --> DEEP_SLEEP : Measurements written
-    SERVER --> DEEP_SLEEP : Switch toggled back to MEASURE
+    SERVER --> DEEP_SLEEP : Mode switch → MEASURE
     INIT_RTC --> DEEP_SLEEP : (blocked until RTC valid)
 
     DEEP_SLEEP --> [*]
 ```
 
-States are **mutually exclusive**. The FSM is deterministic and fully observable via the status LED.
+At every boot, `esp_sleep_get_wakeup_cause()` is called first to read the hardware wakeup reason (power-on reset, RTC alarm interrupt, or GPIO change), then the mode switch GPIO is sampled to determine the target state. States are **mutually exclusive**. The FSM is deterministic and fully observable via the status LED.
 
 ---
 
@@ -103,22 +105,20 @@ The phone acts as a **store-and-forward relay**:
 
 1. User walks to the station with their phone
 2. Phone connects to the station's Wi-Fi AP (SERVER mode)
-3. User (or script) downloads the latest CSV log file(s)
-4. When back on home Wi-Fi, a script pushes the data to the Odroid C4 server
+3. User downloads the latest CSV log file(s) via the browser
+4. When back on home Wi-Fi, the user opens the server web UI and uploads the file directly from a browser form
 
-This approach requires **zero infrastructure at the station location**. The station can be in a garden, a field, or a rooftop — anywhere.
-
-A simple Python script on the phone (via Termux on Android, or a laptop) is sufficient for the gateway role.
+This approach requires **zero infrastructure at the station location** and no app or script on the phone — only a browser. The station can be in a garden, a field, or a rooftop — anywhere.
 
 ---
 
 ## Backend — server role
 
-The Odroid C4 is the home server. It is always on (or scheduled) and provides:
+The SBC is the home server. It is always on (or scheduled) and provides:
 
 - **Data ingestion** — REST endpoint that accepts uploaded CSV batches
 - **Storage** — time-series database (TinyDB prototype → InfluxDB production)
-- **Visualization** — Grafana dashboard with historical data and derived metrics
+- **Visualization** — web dashboard with historical data and derived metrics (Grafana, Plotly Dash, or similar — TBD)
 - **Inference** — runs trained ML models to produce watering recommendations and short-term weather forecasts
 
 The backend is fully independent of the station. It can operate, process, and display data even if the station has been offline for days.
@@ -137,3 +137,7 @@ These do not change across phases:
 | Data format | `YYYY-MM-DD HH:MM:SS,fields...` |
 | Firmware model | Wake-do-sleep FSM |
 | Internet at station | Never required |
+
+::: {.callout-note}
+**Future consideration:** direct upload from the station (Wi-Fi or cellular modem) could bypass the phone relay entirely, eliminating the manual data-mule step. Worth keeping in mind once the project reaches sufficient maturity.
+:::
