@@ -8,6 +8,9 @@ firmware/.pio/
 firmware/build/
 firmware/.vscode/
 
+# Firmware secrets — copy config.h.example → config.h and fill in values
+firmware/src/config.h
+
 # Backend Python
 backend/.venv/
 backend/__pycache__/

@@ -19,9 +19,19 @@ firmware/
 │   │   ├── sensors.cpp
 │   │   ├── sd_logger.cpp
 │   │   └── pulse.cpp
-│   └── config.h          ← gitignored (contains Wi-Fi credentials)
+│   ├── config.h          ← gitignored (copy from config.h.example)
+│   └── config.h.example  ← template — commit this, not config.h
 ├── platformio.ini
 └── README.md
+```
+
+## Configuration
+
+`config.h` is gitignored to prevent committing credentials. Before building:
+
+```bash
+cp src/config.h.example src/config.h
+# then edit config.h with your Wi-Fi SSID, password, and backend address
 ```
 
 ## Hardware target
