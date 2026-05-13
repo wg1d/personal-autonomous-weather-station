@@ -18,29 +18,30 @@ These two parts are **never directly connected**. The phone acts as a physical d
 ## Data flow overview
 
 ```{mermaid}
-flowchart LR
+%%| column: page
+flowchart TB
     subgraph Station["🌦️ Weather Station (ESP32)"]
         S1[Sensors] --> MCU[ESP32]
         MCU --> SD[SD Card]
-        MCU --> AP[Wi-Fi AP\nSERVER mode]
+        MCU --> AP[Wi-Fi AP<br/>SERVER mode]
     end
 
     subgraph Phone["📱 Phone Gateway"]
-        DL[Download logs\nvia browser / script]
-        UL[Upload to server\nover home Wi-Fi]
+        DL[Download logs<br/>via browser / script]
+        UL[Upload to server<br/>over home Wi-Fi]
         DL --> UL
     end
 
     subgraph Backend["🖥️ SBC Server"]
-        API[REST API\nFastAPI]
-        DB[Database\nTinyDB / InfluxDB]
-        DASH[Dashboard\nTBD]
-        ML[ML Models\nRF + LSTM]
+        API[REST API<br/>FastAPI]
+        DB[Database<br/>TinyDB / InfluxDB]
+        DASH[Dashboard<br/>TBD]
+        ML[ML Models<br/>RF + LSTM]
         API --> DB --> DASH
         DB --> ML
     end
 
-    AP -->|"User walks up\nwith phone"| DL
+    AP -->|"User walks up with phone"| DL
     UL -->|"Home Wi-Fi"| API
 ```
 

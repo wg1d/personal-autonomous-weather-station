@@ -53,6 +53,28 @@ The project explicitly accepts the following constraints from day one:
 
 ---
 
+## Day-to-day operation
+
+The station has two modes, selected by a physical toggle switch on the board:
+
+| Mode | What happens |
+|------|-------------|
+| **MEASURE** | Normal operation — ESP32 wakes on RTC alarm, reads sensors, appends a CSV row, goes back to deep sleep. No Wi-Fi, no user interaction needed. |
+| **SERVER** | Data retrieval — ESP32 starts a Wi-Fi access point. The user connects their phone and downloads log files via a browser, then flips the switch back to MEASURE. |
+
+A typical data collection cycle looks like this:
+
+1. The station runs unattended in the field for days or weeks (MEASURE mode)
+2. The user walks up, flips the switch to SERVER — the LED turns solid ON
+3. Phone connects to the station's Wi-Fi AP; log files are downloaded via a browser
+4. Switch flipped back to MEASURE — station returns to deep sleep
+5. Back home on home Wi-Fi, the user opens the server web UI and uploads the CSV file
+6. The backend ingests and stores the data; the dashboard updates
+
+No script, no app, no permanent internet connection at the station — only a browser and a physical switch.
+
+---
+
 ## What this project is NOT
 
 - A commercial product

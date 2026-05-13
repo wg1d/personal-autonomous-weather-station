@@ -27,6 +27,7 @@ book:
 format:
   html:
     theme: cosmo
+    fig-align: center
     toc: true
     toc-depth: 3
     number-sections: true
