@@ -7,6 +7,7 @@ book:
   subtitle: "Personal Autonomous Weather Station — From Sensors to Local Intelligence"
   date: last-modified
   reader-mode: true
+  logo: assets/images/logo.svg
 
   chapters:
     - index.qmd

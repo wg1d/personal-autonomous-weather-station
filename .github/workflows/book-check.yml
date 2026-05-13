@@ -1,0 +1,32 @@
+name: Book Render Check
+
+on:
+  pull_request:
+    paths:
+      - 'docs/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: book-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  render:
+    name: Render Quarto book
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+
+      - name: Render book
+        working-directory: docs
+        run: quarto render --to html --no-execute
+
+      - name: Clean up
+        if: always()
+        run: rm -rf docs/_output docs/.quarto docs/_freeze
