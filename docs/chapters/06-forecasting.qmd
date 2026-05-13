@@ -1,0 +1,238 @@
+# Forecasting & Decisions {.unnumbered}
+
+> Status: 🔴 Planned (Phase 5–6)
+
+---
+
+## Two separate problems
+
+This chapter covers two distinct machine learning problems:
+
+| Problem | Type | Model | Input | Output |
+|---------|------|-------|-------|--------|
+| **Should I water the plants?** | Binary classification | Random Forest | Local sensor data (current + history) | Yes / No + confidence |
+| **Short-term weather forecast** | Time-series regression | LSTM | Historical measurements + external data | T, H, P, rain probability at t+1h to t+6h |
+
+These are independent models, trained and deployed separately.
+
+::: {.callout-important}
+**Both models require data before they can be trained.** Do not start ML work before you have at least 1–3 months of local sensor data (Phase 3 output). The forecasting model additionally benefits from external historical data collected from nearby weather stations.
+:::
+
+---
+
+## Problem 1 — Plant watering decision
+
+### Why Random Forest?
+
+Random Forest is the right tool here for several reasons:
+
+- **Interpretable**: feature importance tells you exactly which variables drive the decision — useful for debugging and learning
+- **Works with small datasets**: you don't need thousands of samples; 200–500 labeled observations are enough to get started
+- **No feature scaling required**: handles temperature, rain, and percentage values naturally
+- **Robust**: handles missing values (with imputation) and doesn't overfit easily
+- **Fast inference**: predictions take milliseconds on the Odroid C4
+
+Deep learning would be overkill and harder to interpret for this binary decision.
+
+### Feature engineering
+
+The watering model receives a **feature vector computed from recent history**, not raw instantaneous readings.
+
+| Feature | Computation | Rationale |
+|---------|-------------|-----------|
+| `rain_24h` | Sum of rain over last 24h (mm) | Did it just rain? |
+| `rain_48h` | Sum of rain over last 48h (mm) | Soil drainage lag |
+| `rain_72h` | Sum of rain over last 72h (mm) | Deeper saturation |
+| `soil_moisture_now` | Latest soil moisture reading (%) | Direct ground truth |
+| `soil_moisture_24h_avg` | 24h rolling average (%) | Trend vs instantaneous |
+| `temp_max_24h` | Max temperature last 24h (°C) | Evapotranspiration proxy |
+| `temp_avg_24h` | Mean temperature last 24h (°C) | Baseline heat load |
+| `humidity_avg_24h` | Mean relative humidity (%) | Evaporation rate |
+| `light_avg_24h` | Mean lux last 24h | Solar evaporation driver |
+| `wind_avg_24h` | Mean wind speed m/s (Phase 3+) | Evapotranspiration factor |
+| `day_of_year` | 1–365 | Seasonal baseline correction |
+| `days_since_last_watering` | Counter | Avoids over/under-watering cycles |
+
+### Labeling strategy
+
+**Phase 5a — manual labels:** You water the plants and record it as a "should have watered" event. Over a few weeks, you build a labeled dataset.
+
+**Phase 5b — semi-automated:** Once soil moisture baseline is established, use threshold rules to auto-generate labels:
+- `soil_pct < 35% AND rain_48h < 5 mm` → label as **water**
+- `soil_pct > 60% OR rain_24h > 10 mm` → label as **don't water**
+- Otherwise: ambiguous, skip for training
+
+This hybrid approach lets the Random Forest learn subtle seasonal and contextual patterns that the threshold rules miss.
+
+### Implementation
+
+```python
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import cross_val_score
+import pandas as pd, joblib
+
+# Load labeled dataset
+df = pd.read_csv("labeled_watering.csv")
+features = ["rain_24h", "rain_48h", "soil_moisture_now", "temp_max_24h",
+            "humidity_avg_24h", "light_avg_24h", "day_of_year",
+            "days_since_last_watering"]
+X = df[features]
+y = df["should_water"]  # 0 or 1
+
+# Train
+clf = RandomForestClassifier(n_estimators=100, random_state=42)
+scores = cross_val_score(clf, X, y, cv=5, scoring="f1")
+print(f"F1 cross-val: {scores.mean():.2f} ± {scores.std():.2f}")
+
+clf.fit(X, y)
+joblib.dump(clf, "watering_model.pkl")
+
+# Feature importance (key for learning)
+import matplotlib.pyplot as plt
+pd.Series(clf.feature_importances_, index=features).sort_values().plot.barh()
+plt.title("Watering model — feature importance")
+plt.tight_layout()
+plt.savefig("feature_importance.png")
+```
+
+The trained model is loaded by the FastAPI server and called on demand (`GET /api/predict/watering`).
+
+---
+
+## Problem 2 — Short-term weather forecasting
+
+### Scope and horizon
+
+**Target:** predict temperature, humidity, pressure, and rain probability at **t+1h, t+3h, and t+6h** using recent local measurements.
+
+This is a realistic horizon for local sensor data. Beyond 6–12 hours, local data alone provides minimal advantage over public forecasts — use OpenMeteo or similar beyond that horizon.
+
+### Why not start from scratch?
+
+Training a time-series forecasting model requires **months of data with seasonal coverage**. You don't have that in Phase 1 or 2. The solution: use data from **nearby public weather stations** to train an initial model, then fine-tune it on your local data using transfer learning.
+
+### Phase A — external data collection
+
+Sources for historical weather data near your location:
+
+| Source | Coverage | Format | Notes |
+|--------|----------|--------|-------|
+| OpenMeteo API | Global, free | JSON | No API key, hourly historical, excellent |
+| Météo-France open data | France | CSV/NetCDF | High quality, synoptic network |
+| Copernicus ERA5 | Global, reanalysis | NetCDF | 0.25° resolution, any date |
+
+Recommended starting point: **OpenMeteo** (free, no registration, easy Python client).
+
+```python
+import openmeteo_requests
+import pandas as pd
+
+om = openmeteo_requests.Client()
+params = {
+    "latitude": 48.85,   # Your location
+    "longitude": 2.35,
+    "start_date": "2023-01-01",
+    "end_date": "2025-12-31",
+    "hourly": ["temperature_2m", "relative_humidity_2m",
+               "pressure_msl", "precipitation",
+               "wind_speed_10m", "shortwave_radiation"]
+}
+responses = om.weather_api("https://archive-api.open-meteo.com/v1/archive", params=params)
+df = pd.DataFrame(responses[0].Hourly().Variables(0).ValuesAsNumpy(),
+                  columns=["temp"])  # extend for all variables
+```
+
+Collect **2–3 years** of hourly data. This gives ~17 000–26 000 samples — enough to train a solid LSTM baseline.
+
+### Phase B — model architecture (LSTM)
+
+A **Long Short-Term Memory (LSTM)** network is well-suited for multivariate time-series forecasting with this data volume.
+
+**Input:** sliding window of the last **24 hours** of observations (24 timesteps × N features)
+**Output:** values at t+1h, t+3h, t+6h
+
+```{mermaid}
+flowchart LR
+    A["24h history\n(24 × 6 features)"] --> B["LSTM\n2 layers, 64 units"]
+    B --> C["Dense output\n(3 horizons × 4 targets)"]
+    C --> D["T, H, P, Rain_prob\nat t+1h, t+3h, t+6h"]
+```
+
+**Feature set for forecasting:**
+
+| Feature | Horizon relevance |
+|---------|-------------------|
+| Temperature (°C) | Direct |
+| Relative humidity (%) | Direct |
+| Pressure (hPa) | Best single predictor of change |
+| Pressure trend (Δ over 3h, 6h) | Derived — very informative |
+| Precipitation (mm/h) | Direct |
+| Wind speed (m/s) | Evaporation, storm approach |
+| Solar radiation / lux | Diurnal cycle |
+| Hour of day (sin/cos encoded) | Removes daily periodicity |
+| Day of year (sin/cos encoded) | Seasonal baseline |
+
+Pressure trend (derivative) is **the most informative single predictor** for 1–6h weather changes. A falling pressure reliably precedes rain.
+
+### Phase C — transfer learning on local data
+
+Once you have 3–6 months of local station data:
+
+1. Take the pre-trained LSTM (weights from external data)
+2. Freeze the first LSTM layer (learned general weather dynamics)
+3. Fine-tune the second LSTM layer + output head on your local data
+4. Evaluate local vs external predictions — quantify the improvement
+
+This approach works because general atmospheric dynamics (pressure changes, temperature cycles) are the same everywhere. Only the local bias differs.
+
+```python
+import torch
+import torch.nn as nn
+
+# Freeze first LSTM layer
+for param in model.lstm1.parameters():
+    param.requires_grad = False
+
+# Fine-tune on local data (smaller learning rate)
+optimizer = torch.optim.Adam(
+    filter(lambda p: p.requires_grad, model.parameters()),
+    lr=1e-4  # smaller LR for fine-tuning
+)
+```
+
+### Deployment on Odroid C4
+
+| Task | Feasibility |
+|------|-------------|
+| LSTM inference (small model <100k params) | ✅ <100 ms per prediction |
+| LSTM training from scratch | 🟡 Hours — prefer laptop |
+| Transfer learning fine-tuning | ✅ Minutes on Odroid C4 with CPU |
+| TFLite / ONNX export + inference | ✅ Recommended for production |
+
+**Workflow:** train on laptop → export to ONNX or TFLite → deploy to Odroid C4 for serving.
+
+### Baseline comparison
+
+Before trusting the LSTM, always compare it against simple baselines:
+
+| Baseline | Description |
+|----------|-------------|
+| Persistence | "Tomorrow = today" — surprisingly hard to beat for T at t+1h |
+| Pressure trend rule | P falling > 3 hPa/3h → rain likely (classical barometry) |
+| Linear regression on Δ | Linear model on last 6h gradient |
+| OpenMeteo public API | Best available for your location |
+
+The LSTM should outperform these baselines on 3h+ horizons to be worth deploying.
+
+---
+
+## What NOT to do
+
+| Temptation | Why to avoid |
+|------------|--------------|
+| Start ML before collecting data | No data = no model. Collect first. |
+| Use deep learning for watering decision | Random Forest is better: interpretable, needs less data |
+| Train the forecast model only on local data | Too little data early on. Use external data first. |
+| Train on Odroid C4 from scratch | Slow. Train on laptop, deploy to Odroid. |
+| Skip baselines | You won't know if your model is actually useful. |

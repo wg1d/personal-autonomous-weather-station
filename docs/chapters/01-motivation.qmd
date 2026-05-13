@@ -1,0 +1,63 @@
+# Motivation & Goals {.unnumbered}
+
+> Status: 🟢 Stable
+
+---
+
+## What this project is really about
+
+This is a **personal learning project** with a clear, hands-on goal: understand how a weather station works end-to-end, from raw sensor reading to a usable dashboard and simple predictive models.
+
+The motivating use case is intentionally concrete and humble:
+
+> *Knowing when it actually makes sense to water outdoor plants, based on observed local conditions — not guesswork.*
+
+The project is **not** intended to compete with commercial stations, replace a professional meteorological network, or solve large-scale climate problems. It is intended to be educational, achievable, and progressively useful.
+
+---
+
+## Goals
+
+The project has three layers of goals, ordered by priority:
+
+### Layer 1 — Hardware & firmware (core)
+
+- Build a reliable, low-power data logger from scratch
+- Understand sensor acquisition, embedded timekeeping, and deep-sleep power management
+- Produce consistent, timestamped, locally-stored data
+
+### Layer 2 — Data pipeline
+
+- Understand how to move data from a field device with no permanent internet connection to a server
+- Build a simple backend with data ingestion, storage, and a visual dashboard
+
+### Layer 3 — Local intelligence
+
+- Use collected data for practical decisions (plant watering)
+- Explore short-term weather forecasting using machine learning on local sensor data
+- Use data from nearby public weather stations to bootstrap models before enough local data is available
+
+---
+
+## Scope and constraints
+
+The project explicitly accepts the following constraints from day one:
+
+| Constraint | Rationale |
+|------------|-----------|
+| Single station | Manageable scope for a personal project |
+| Single user | No multi-user, permissions, or security requirements |
+| No permanent internet connection at the station | Enables solar/battery operation; forces clean data pipeline design |
+| Learning value over absolute precision | Cheap, accessible sensors are acceptable |
+| Incremental approach | Each phase must be independently useful |
+
+---
+
+## What this project is NOT
+
+- A commercial product
+- A real-time alerting system
+- A replacement for a professional weather API
+- A multi-node sensor network
+
+These are all compatible with the architecture but are explicitly out of scope.

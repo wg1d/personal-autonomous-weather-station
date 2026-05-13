@@ -1,0 +1,37 @@
+# Preface {.unnumbered}
+
+**PAWS** (*Personal Autonomous Weather Station*) is a low-power ESP32 weather station with SD logging and a phone-based data gateway — feeding a Grafana dashboard and ML models for plant watering decisions and local weather forecasting.
+
+This document is the **single authoritative reference** for the project. It covers the complete system end-to-end: embedded firmware on an ESP32, a phone-based data gateway, a backend server on an Odroid C4, a Grafana dashboard, and machine learning models for plant watering decisions and local weather forecasting.
+
+This is primarily a **learning and experimentation project**. The design philosophy reflects that: iterate quickly, validate early, add complexity only when the foundation is solid.
+
+::: {.callout-note}
+**Related project — 3D-PAWS** (*3D-Printed Automatic Weather Station*, UCAR/COMET): an open-source initiative for low-cost weather stations using 3D-printed sensor housings. Their sensor designs (tipping bucket rain gauge, anemometer) are a useful reference for the DIY hardware phases of this project. See [3dpaws.comet.ucar.edu](https://3dpaws.comet.ucar.edu/).
+:::
+
+---
+
+## How to read this document
+
+| Goal | Chapter |
+|------|---------|
+| Understand *why* this project exists | [Motivation & Goals](chapters/01-motivation.qmd) |
+| See the big picture and data flow | [System Architecture](chapters/02-architecture.qmd) |
+| Know what hardware to use | [Hardware](chapters/03-hardware.qmd) |
+| Understand the embedded firmware | [Firmware](chapters/04-firmware.qmd) |
+| Set up the server and dashboard | [Backend](chapters/05-backend.qmd) |
+| Understand the ML approach | [Forecasting & Decisions](chapters/06-forecasting.qmd) |
+| Know what to build in what order | [Roadmap](chapters/07-roadmap.qmd) |
+
+---
+
+## Document status
+
+Each chapter carries a status badge:
+
+- 🟢 **Stable** — design frozen and validated
+- 🟡 **Draft** — design in progress, may evolve
+- 🔴 **Planned** — not yet started
+
+The architecture (FSM, deep-sleep model, data format, connector interfaces) is considered **frozen** from Phase 1 onward. Hardware and software can evolve; the architecture does not.

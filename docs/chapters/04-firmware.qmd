@@ -1,0 +1,235 @@
+# Firmware {.unnumbered}
+
+> Status: 🟢 Stable (architecture) | 🟡 Draft (implementation)
+
+---
+
+## Design principle
+
+The firmware follows one rule: **execute exactly one role per wake-up, then sleep**.
+
+No persistent loops. No background tasks. No RTOS. The ESP32 wakes, evaluates state, does its job, and goes back to sleep. This is not a simplification — it is the correct model for a battery-constrained device.
+
+---
+
+## Finite State Machine (FSM)
+
+### States
+
+| State | Trigger | What happens |
+|-------|---------|--------------|
+| `DATA_LOGGER` | RTC alarm, normal wake | Read sensors → write SD → set next alarm → sleep |
+| `SERVER` | Mode switch in SERVER position | Start Wi-Fi AP → serve web UI → no measurements |
+| `INIT_RTC` | RTC not valid, or long button press in SERVER | Connect to NTP → set DS3231 → return to SERVER |
+
+### Priority at boot
+
+```
+1. Mode switch = SERVER?  → SERVER state
+2. RTC not valid?         → INIT_RTC state
+3. Otherwise             → DATA_LOGGER state
+```
+
+### State diagram
+
+```{mermaid}
+stateDiagram-v2
+    [*] --> BOOT
+
+    BOOT --> SERVER : Mode switch = SERVER
+    BOOT --> INIT_RTC : RTC invalid
+    BOOT --> DATA_LOGGER : Normal wake
+
+    SERVER --> INIT_RTC : Long button press (>3 s)
+    INIT_RTC --> SERVER : NTP sync OK
+
+    DATA_LOGGER --> DEEP_SLEEP
+    SERVER --> DEEP_SLEEP : Switch flipped to MEASURE
+    INIT_RTC --> DEEP_SLEEP : (blocked — waits for valid RTC)
+
+    DEEP_SLEEP --> [*]
+```
+
+::: {.callout-note}
+`INIT_RTC` never exits to deep sleep on its own. It stays active until the RTC is successfully set, then returns to `SERVER`. This ensures the system is always time-valid before starting data collection.
+:::
+
+---
+
+## Wake-up cycle (DATA_LOGGER)
+
+```{mermaid}
+sequenceDiagram
+    participant RTC as DS3231
+    participant FW as Firmware
+    participant Sensors
+    participant SD
+
+    RTC->>FW: INT pin LOW (alarm)
+    FW->>FW: Boot, evaluate FSM → DATA_LOGGER
+    FW->>RTC: Clear alarm flag (I²C)
+    FW->>RTC: Read current timestamp
+    FW->>Sensors: Read all active sensors
+    FW->>SD: Mount → open log → append row → close → unmount
+    FW->>RTC: Set next alarm (now + interval)
+    FW->>FW: Enter deep sleep (EXT0 on RTC INT pin)
+```
+
+Typical active window: **10–30 seconds** (dominated by SD mount/write time). The rest of the cycle is deep sleep.
+
+---
+
+## Time management — DS3231 RTC
+
+### Why an external RTC is mandatory
+
+| Issue | ESP32 internal timer | DS3231 |
+|-------|----------------------|--------|
+| Survives power loss | ❌ | ✅ (CR2032 backup) |
+| Drift over deep sleep | High | < 2 ppm |
+| Hardware wake alarm | ❌ | ✅ |
+| Absolute timestamp | ❌ | ✅ |
+
+The DS3231 is the **sole time authority** in the system. Timestamps on the SD card always come from the RTC — never from the ESP32's internal counter.
+
+### Alarm scheduling strategy
+
+After every measurement cycle:
+
+```
+next_alarm = RTC.now() + measurement_interval
+RTC.setAlarm(next_alarm)
+```
+
+This "rolling alarm" strategy is robust: if the ESP32 crashes mid-cycle or is reset, the next boot will simply evaluate the FSM state and continue. No state machine corruption possible.
+
+### RTC initialization (INIT_RTC)
+
+Triggered when `RTC.isValid() == false` or user requests resync:
+
+1. Enable Wi-Fi in station mode
+2. Connect to home network (credentials stored in flash)
+3. Query NTP server (pool.ntp.org)
+4. Set DS3231 via I²C
+5. Mark RTC as valid
+6. Disable Wi-Fi
+7. Return to SERVER state
+
+::: {.callout-warning}
+Wi-Fi is used **only during INIT_RTC**. It is never enabled during normal DATA_LOGGER cycles. This is a deliberate power and reliability choice.
+:::
+
+---
+
+## Data logging — SD card
+
+### File format
+
+Single append-only file. One row per measurement cycle.
+
+```
+YYYY-MM-DD HH:MM:SS,TEMP,HUM,PRES,LIGHT,UV_IDX,SOIL,RAIN,WIND_SPD,WIND_DIR
+```
+
+Example row (Phase 2, all sensors active):
+```
+2026-05-13 10:25:00,18.4,62.1,1013.2,12400,2.1,54.3,0.0,0.0,0
+```
+
+Unused sensor columns are written as empty or `-1` until the corresponding hardware is installed. This keeps the schema stable across all phases.
+
+### Write procedure
+
+```
+Mount SD
+Open file (append mode)
+Write row(s)
+Flush
+Close file
+Unmount SD
+```
+
+SD card is mounted and unmounted every cycle. This minimizes corruption risk — a power loss between cycles loses at most one measurement.
+
+### Data retention
+
+Data is never deleted automatically. In SERVER mode, the web UI allows the user to:
+- List log files
+- Download a file
+- Delete a file (user-initiated only)
+
+---
+
+## SERVER mode
+
+### What it does
+
+- ESP32 creates a Wi-Fi access point (SSID: `WeatherStation`, password: configurable)
+- A minimal HTTP server runs on port 80
+- **No measurements occur** during SERVER mode
+
+### Web interface (minimal)
+
+| Endpoint | Action |
+|----------|--------|
+| `GET /` | Status page: firmware version, RTC time, SD free space |
+| `GET /files` | List log files on SD |
+| `GET /download?file=X` | Download a specific log file |
+| `DELETE /delete?file=X` | Delete a log file (optional) |
+| `POST /sync-rtc` | Trigger INIT_RTC sequence |
+
+The web UI is intentionally minimal. A phone browser is sufficient — no app required.
+
+---
+
+## Status LED
+
+| System state | LED behavior |
+|--------------|--------------|
+| DATA_LOGGER | Off (deep sleep) |
+| SERVER | Steady on |
+| INIT_RTC | Slow blink (500 ms) |
+| Critical error | Fast blink (100 ms) |
+
+The LED reflects **actual system state**, never user intent.
+
+---
+
+## Electrical notes
+
+### Pull-up strategy
+
+| Signal | Pull-up |
+|--------|---------|
+| I²C SDA/SCL | External 4.7 kΩ to 3.3 V |
+| DS3231 INT | External 10 kΩ to 3.3 V |
+| Mode switch | Internal (ESP32) |
+| Push button | Internal (ESP32) |
+| LED | Series 330 Ω resistor |
+
+### Debounce
+
+All digital inputs are debounced in firmware:
+- Buttons: 20–50 ms software delay
+- Rain gauge / anemometer pulses: minimum inter-pulse filter (~100 ms)
+
+---
+
+## Firmware structure (suggested)
+
+```
+src/
+├── main.cpp          # Boot: FSM evaluation and dispatch
+├── fsm/
+│   ├── data_logger.cpp   # Sensor read + SD write + alarm set
+│   ├── server.cpp        # Wi-Fi AP + web server
+│   └── init_rtc.cpp      # NTP sync + DS3231 set
+├── drivers/
+│   ├── rtc.cpp           # DS3231 abstraction
+│   ├── sensors.cpp       # All sensor reads (BME280, BH1750, etc.)
+│   ├── sd_logger.cpp     # SD mount/write/unmount
+│   └── pulse.cpp         # Rain + wind pulse counting
+└── config.h              # Pins, intervals, credentials (gitignored)
+```
+
+This structure maps directly to FSM states. Adding a new sensor means touching only `drivers/sensors.cpp` and the CSV format in `sd_logger.cpp`.

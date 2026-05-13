@@ -1,0 +1,139 @@
+# System Architecture {.unnumbered}
+
+> Status: 🟢 Stable
+
+---
+
+## Two clearly separated subsystems
+
+The system is split into two independent parts that communicate asynchronously:
+
+1. **The weather station** — a low-power field device. Measures, stores, sleeps.
+2. **The backend** — a home server that ingests, stores, and visualizes data, and runs predictive models.
+
+These two parts are **never directly connected**. The phone acts as a physical data mule — an asynchronous gateway.
+
+---
+
+## Data flow overview
+
+```{mermaid}
+flowchart LR
+    subgraph Station["🌦️ Weather Station (ESP32)"]
+        S1[Sensors] --> MCU[ESP32]
+        MCU --> SD[SD Card]
+        MCU --> AP[Wi-Fi AP\nSERVER mode]
+    end
+
+    subgraph Phone["📱 Phone Gateway"]
+        DL[Download logs\nvia browser / script]
+        UL[Upload to server\nover home Wi-Fi]
+        DL --> UL
+    end
+
+    subgraph Backend["🖥️ Odroid C4 Server"]
+        API[REST API\nFastAPI]
+        DB[Database\nTinyDB / InfluxDB]
+        DASH[Dashboard\nGrafana]
+        ML[ML Models\nRF + LSTM]
+        API --> DB --> DASH
+        DB --> ML
+    end
+
+    AP -->|"User walks up\nwith phone"| DL
+    UL -->|"Home Wi-Fi"| API
+```
+
+There is **no always-on internet connection** at the station. The station operates fully autonomously. Data is collected on the SD card and pulled manually (or on a schedule) by the phone.
+
+---
+
+## Station — operating principle
+
+The station follows a **wake-do-sleep** cycle. The ESP32 spends the vast majority of its life in deep sleep, consuming microamps.
+
+```{mermaid}
+sequenceDiagram
+    participant RTC as DS3231 RTC
+    participant ESP as ESP32
+    participant SD as SD Card
+
+    RTC->>ESP: Alarm interrupt (every N minutes)
+    ESP->>ESP: Boot & evaluate FSM state
+    ESP->>RTC: Read timestamp
+    ESP->>ESP: Read all sensors
+    ESP->>SD: Append CSV row
+    ESP->>RTC: Set next alarm (now + interval)
+    ESP->>ESP: Enter deep sleep
+```
+
+Key principle: **no code runs during deep sleep**. Every wake-up is a fresh boot.
+
+---
+
+## Station — finite state machine (FSM)
+
+At every boot, the firmware evaluates the system state and executes exactly one role:
+
+```{mermaid}
+stateDiagram-v2
+    [*] --> BOOT
+
+    BOOT --> SERVER : Mode switch = SERVER
+    BOOT --> INIT_RTC : RTC not valid
+    BOOT --> DATA_LOGGER : Normal wake (RTC alarm)
+
+    SERVER --> INIT_RTC : Long button press
+    INIT_RTC --> SERVER : NTP sync successful
+
+    DATA_LOGGER --> DEEP_SLEEP : Measurements written
+    SERVER --> DEEP_SLEEP : Switch toggled back to MEASURE
+    INIT_RTC --> DEEP_SLEEP : (blocked until RTC valid)
+
+    DEEP_SLEEP --> [*]
+```
+
+States are **mutually exclusive**. The FSM is deterministic and fully observable via the status LED.
+
+---
+
+## Phone gateway — operating principle
+
+The phone acts as a **store-and-forward relay**:
+
+1. User walks to the station with their phone
+2. Phone connects to the station's Wi-Fi AP (SERVER mode)
+3. User (or script) downloads the latest CSV log file(s)
+4. When back on home Wi-Fi, a script pushes the data to the Odroid C4 server
+
+This approach requires **zero infrastructure at the station location**. The station can be in a garden, a field, or a rooftop — anywhere.
+
+A simple Python script on the phone (via Termux on Android, or a laptop) is sufficient for the gateway role.
+
+---
+
+## Backend — server role
+
+The Odroid C4 is the home server. It is always on (or scheduled) and provides:
+
+- **Data ingestion** — REST endpoint that accepts uploaded CSV batches
+- **Storage** — time-series database (TinyDB prototype → InfluxDB production)
+- **Visualization** — Grafana dashboard with historical data and derived metrics
+- **Inference** — runs trained ML models to produce watering recommendations and short-term weather forecasts
+
+The backend is fully independent of the station. It can operate, process, and display data even if the station has been offline for days.
+
+---
+
+## Key design invariants
+
+These do not change across phases:
+
+| Invariant | Value |
+|-----------|-------|
+| Time authority | DS3231 RTC |
+| Primary storage | SD card (append-only CSV) |
+| Station-server link | Asynchronous (phone relay) |
+| Data format | `YYYY-MM-DD HH:MM:SS,fields...` |
+| Firmware model | Wake-do-sleep FSM |
+| Internet at station | Never required |

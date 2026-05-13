@@ -1,0 +1,176 @@
+# Hardware {.unnumbered}
+
+> Status: 🟢 Stable (Phase 1–2) | 🟡 Draft (Phase 3+)
+
+---
+
+## Design philosophy
+
+The hardware design follows one rule: **define interfaces, not sensors**.
+
+Every sensor is treated as a replaceable peripheral behind a well-defined logical interface (I²C bus, ADC pin, GPIO interrupt). Swapping a BME280 for a higher-quality sensor, or a reed switch rain gauge for a Hall-effect one, requires a driver change — not a hardware redesign.
+
+---
+
+## Microcontroller — ESP32 WROVER
+
+**Current board:** Upesy ESP32 WROVER DevKit v2.1
+
+| Feature | Value |
+|---------|-------|
+| CPU | Xtensa LX6 dual-core, 240 MHz |
+| Wi-Fi | 802.11 b/g/n |
+| Bluetooth | BLE 4.2 |
+| PSRAM | 4 MB (WROVER specific) |
+| Flash | 4 MB |
+| Deep sleep current | ~10 µA |
+| I/O voltage | 3.3 V only |
+
+The WROVER variant is preferred over WROOM because the PSRAM becomes useful when building the web server (SERVER mode) and running inference workloads locally.
+
+### GPIO assignment (logical)
+
+| Signal | GPIO | Notes |
+|--------|------|-------|
+| I²C SDA | 21 | Shared bus: RTC, BME280, BH1750, VEML6075 |
+| I²C SCL | 22 | Shared bus |
+| SPI MOSI | 23 | SD card |
+| SPI MISO | 19 | SD card |
+| SPI CLK | 18 | SD card |
+| SPI CS (SD) | 5 | SD card chip select |
+| RTC INT (wake) | 33 | EXT0 wake, external pull-up 10 kΩ |
+| Rain gauge pulse | 26 | GPIO interrupt, debounced in firmware |
+| Anemometer pulse | 25 | GPIO interrupt |
+| Wind vane (ADC) | 34 | Input-only, 12-bit ADC |
+| Soil moisture (ADC) | 35 | Input-only, 12-bit ADC |
+| Mode switch | 4 | Pull-up, read at boot |
+| Push button | 14 | Pull-up, debounced |
+| Status LED | 2 | Built-in, or external with 330 Ω resistor |
+
+::: {.callout-note}
+Pin numbers above are for the Upesy WROVER DevKit. Adjust for other ESP32 boards. Pins 34, 35, 36, 39 are input-only (no internal pull-up) — ideal for ADC sensors.
+:::
+
+---
+
+## Sensors — full list by phase
+
+### Phase 1 (prototype — what you have now)
+
+| Sensor | Measurement | Interface | Address |
+|--------|-------------|-----------|---------|
+| BME280 | Temperature, Humidity, Pressure | I²C | 0x76 or 0x77 |
+| DS3231 | Real-time clock + wake alarm | I²C | 0x68 |
+| SD card module | Data storage | SPI | — |
+
+The DHT22 is available but **not used** as primary sensor. BME280 is preferred: I²C (frees GPIO), gives pressure, more accurate, lower power.
+
+---
+
+### Phase 2 (clean board — add during enclosure design)
+
+::: {.callout-important}
+**Add these sensors when designing the Phase 2 enclosure.** Physical space and cable routing must be planned for all sensors before the enclosure is finalized. Retrofitting is expensive.
+:::
+
+| Sensor | Measurement | Interface | Notes |
+|--------|-------------|-----------|-------|
+| BH1750 | Ambient light (lux) | I²C (0x23/0x5C) | Cloud cover proxy, solar estimation |
+| VEML6075 | UV index (UVA + UVB) | I²C (0x10) | Useful for plant UV exposure |
+| Capacitive soil moisture | Soil moisture (0–100%) | ADC | Use capacitive type only — resistive corrodes |
+
+**Why add them in Phase 2?**
+The soil moisture sensor requires a cable routed to the garden bed — plan cable glands and routing before sealing the enclosure. Light and UV sensors must be in the Stevenson screen with the right orientation — plan the mounting bracket early.
+
+---
+
+### Phase 3 (outdoor sensors)
+
+| Sensor | Measurement | Interface | Notes |
+|--------|-------------|-----------|-------|
+| Tipping bucket rain gauge | Precipitation (mm) | GPIO interrupt | Reed or Hall switch; ~0.2 mm per tip |
+| Cup anemometer | Wind speed (m/s) | GPIO interrupt | Pulse per rotation; calibration factor required |
+| Wind vane | Wind direction (°) | ADC | Resistive divider; map to 8 or 16 cardinal directions |
+
+**Placement rules:**
+- Rain gauge: open sky, level ground, away from obstacles
+- Wind sensors: dedicated mast, minimum 2 m above roofline; ideally 10 m (WMO standard) but even 3–4 m gives useful data
+- Temperature/humidity sensors: Stevenson screen only — never in direct sun
+
+---
+
+### Future (Phase 7+)
+
+| Sensor | Measurement | Interface | Notes |
+|--------|-------------|-----------|-------|
+| PM2.5 / PM10 | Air quality (particulate matter) | UART / I²C | e.g. SDS011, PMS5003 |
+
+---
+
+## Connector strategy — Phase 2 (plug-and-play)
+
+For Phase 2, all external sensor connections use **standardized JST connectors**. This allows sensors to be swapped without soldering.
+
+| Connector type | Used for | Pitch |
+|----------------|----------|-------|
+| STEMMA QT / Qwiic (JST-SH 4-pin) | All I²C sensors (BME280, BH1750, VEML6075, DS3231) | 1.0 mm |
+| JST-PH 2-pin | ADC sensors (soil moisture, wind vane) | 2.0 mm |
+| JST-PH 2-pin | Pulse inputs (rain gauge, anemometer) | 2.0 mm |
+| Barrel jack or XT30 | Power input | — |
+
+The **Qwiic / STEMMA QT ecosystem** is especially useful: sensors from Adafruit and SparkFun already ship with these connectors, so the I²C bus becomes a simple daisy-chain. No soldering required for sensor changes.
+
+---
+
+## Enclosure
+
+| Component | Location | Protection |
+|-----------|----------|------------|
+| ESP32 + RTC + SD + power | Sealed IP65 enclosure | Keep dry, ventilated if possible |
+| BME280, BH1750, VEML6075 | Stevenson screen | Ventilated, shielded from sun/rain |
+| Capacitive soil moisture | In-ground, garden bed | IP67-rated probe; waterproof cable |
+| Rain gauge | Open sky, 30 cm above ground | Self-draining, leveled |
+| Anemometer + wind vane | Mast, minimum 2–3 m AGL | Stainless hardware, UV-resistant cable |
+
+**Stevenson screen** is a double-louvered radiation shield. It allows natural airflow while protecting sensors from direct solar radiation and precipitation. Standard installation height: 1.25–2 m above ground.
+
+---
+
+## Power
+
+### Phase 1–3: wired power
+- USB 5V from wall adapter
+- ESP32 built-in regulator → 3.3 V
+- All sensors powered from 3.3 V rail
+
+### Phase 4+: solar + battery
+- **Solar panel:** 5–10 W, mounted at optimal tilt angle
+- **Battery:** LiFePO₄ preferred (safer, longer cycle life, flat discharge curve) — 18650 or 26650 cells
+- **Charge controller:** MPPT type (e.g. CN3791-based module)
+- **Battery monitoring:** voltage divider → ADC on ESP32 (add to CSV log)
+
+**Rough power budget** (10-min measurement interval, 20 s active window):
+
+| Component | Active (mA) | Sleep (µA) |
+|-----------|-------------|------------|
+| ESP32 | 80–150 | 10 |
+| BME280 | 0.7 | 0.1 |
+| DS3231 | 0.2 | 0.2 |
+| SD card | 80–100 | 100 |
+| **Cycle average** | ~0.6 mA | — |
+
+A 2000 mAh LiFePO₄ cell gives ~140 days with no solar charging. A 5 W panel in central Europe provides enough energy for year-round autonomous operation with margin.
+
+---
+
+## Reed switch vs Hall effect — pulse sensors
+
+| Aspect | Reed switch | Hall effect |
+|--------|-------------|-------------|
+| Cost | Very low | Low |
+| Bounce | Yes — must debounce in firmware | No contact bounce |
+| Mechanical wear | Yes | No |
+| Sensitivity to vibration | Some | Same |
+| DIY-compatible | Yes | Yes |
+
+**Decision:** Phases 1–2 accept reed switches (commercial sensors). Phase 3+ prefer Hall sensors on DIY/3D-printed sensors for reliability. The firmware interface is identical — both are generic "pulse inputs".

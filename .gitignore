@@ -1,0 +1,25 @@
+# Quarto build artifacts
+docs/.quarto/
+docs/_output/
+**/*_files/
+
+# Firmware build (PlatformIO / Arduino)
+firmware/.pio/
+firmware/build/
+firmware/.vscode/
+
+# Backend Python
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.pyc
+backend/data/          # CSV / database files — never commit raw data
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.swp
+*~

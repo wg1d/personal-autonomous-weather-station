@@ -1,0 +1,206 @@
+# Backend & Data Pipeline {.unnumbered}
+
+> Status: 🟡 Draft (Phase 4)
+
+---
+
+## Server hardware — Odroid C4
+
+The backend runs on an **Odroid C4** — a single-board computer suitable as a low-power always-on home server.
+
+| Feature | Value |
+|---------|-------|
+| SoC | Amlogic S905X3 (quad-core Cortex-A55, 1.8 GHz) |
+| RAM | 4 GB LPDDR4 |
+| Storage | eMMC + microSD |
+| Network | Gigabit Ethernet |
+| Power draw | ~5–8 W typical |
+| OS | Ubuntu 22.04 or Armbian |
+
+The Odroid C4 comfortably runs: InfluxDB + Grafana + FastAPI + ML inference simultaneously.
+
+---
+
+## Phone gateway
+
+The phone is a **store-and-forward relay** between the station and the server. It requires no dedicated app — a Python script and a browser are sufficient.
+
+### Workflow
+
+```{mermaid}
+sequenceDiagram
+    participant Phone
+    participant Station as Station (Wi-Fi AP)
+    participant Server as Odroid C4
+
+    Phone->>Station: Connect to WeatherStation AP
+    Phone->>Station: GET /files → list CSV files
+    Phone->>Station: GET /download?file=log_2026.csv
+    Station-->>Phone: CSV file downloaded
+
+    Note over Phone: Back on home Wi-Fi
+
+    Phone->>Server: POST /api/upload (CSV payload)
+    Server-->>Phone: 200 OK
+```
+
+### Gateway script (Python, runs on laptop or Termux/Android)
+
+```python
+import requests, os
+
+STATION_URL = "http://192.168.4.1"  # Station AP IP
+SERVER_URL  = "http://odroid.local:8000"
+
+# Step 1: download from station
+files = requests.get(f"{STATION_URL}/files").json()
+for filename in files:
+    data = requests.get(f"{STATION_URL}/download", params={"file": filename})
+    with open(filename, "wb") as f:
+        f.write(data.content)
+
+# Step 2: upload to server
+for filename in files:
+    with open(filename, "rb") as f:
+        requests.post(f"{SERVER_URL}/api/upload", files={"file": f})
+```
+
+This is intentionally simple. Deduplication (don't re-upload existing rows) is handled server-side.
+
+---
+
+## REST API — FastAPI
+
+The server exposes a minimal REST API built with **FastAPI** (Python). FastAPI is chosen for simplicity, automatic docs (`/docs`), and easy integration with the ML pipeline.
+
+### Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/api/upload` | Upload a CSV batch file |
+| `GET` | `/api/data` | Query data with `?from=&to=&fields=` |
+| `GET` | `/api/latest` | Most recent measurement |
+| `GET` | `/api/status` | Server health, last ingestion timestamp |
+| `GET` | `/api/predict/watering` | Watering recommendation (ML) |
+| `GET` | `/api/predict/forecast` | Short-term weather forecast (ML) |
+
+### Data deduplication
+
+On `POST /api/upload`, the server parses the CSV and skips rows where the timestamp already exists in the database. This makes the upload idempotent — uploading the same file twice is safe.
+
+---
+
+## Database
+
+### Option 1 — TinyDB (prototype, Phase 4 start)
+
+[TinyDB](https://tinydb.readthedocs.io/) is a pure Python document database backed by a JSON file. Zero infrastructure, no server process.
+
+```python
+from tinydb import TinyDB, Query
+from datetime import datetime
+
+db = TinyDB("weather.json")
+readings = db.table("readings")
+
+# Insert
+readings.insert({
+    "ts": "2026-05-13T10:25:00",
+    "temp": 18.4, "hum": 62.1, "pres": 1013.2,
+    "light": 12400, "uv": 2.1, "soil": 54.3
+})
+
+# Query last 24h
+R = Query()
+since = datetime.now().replace(hour=0).isoformat()
+recent = readings.search(R.ts >= since)
+```
+
+**Limitations:** TinyDB loads the entire JSON into memory on every query. With 10-minute intervals, you accumulate ~52 000 rows/year. This becomes slow (seconds per query) after ~100 000 rows. Acceptable for prototyping.
+
+### Option 2 — InfluxDB v1 (production, Phase 5+)
+
+[InfluxDB v1](https://docs.influxdata.com/influxdb/v1/) is a purpose-built time-series database. It is the natural backend for Grafana and handles millions of rows with sub-second queries.
+
+```python
+from influxdb import InfluxDBClient
+
+client = InfluxDBClient(host="localhost", port=8086, database="weather")
+
+point = {
+    "measurement": "environment",
+    "time": "2026-05-13T10:25:00Z",
+    "fields": {"temp": 18.4, "hum": 62.1, "pres": 1013.2}
+}
+client.write_points([point])
+
+result = client.query("SELECT mean(temp) FROM environment WHERE time > now() - 24h GROUP BY time(1h)")
+```
+
+InfluxDB v1 runs well on the Odroid C4 and integrates with Grafana natively via a built-in data source.
+
+### Migration path
+
+Start with TinyDB. When queries become slow (typically after 6–12 months of data), migrate to InfluxDB. The API layer abstracts the database — the REST endpoints don't change. A one-time migration script converts the JSON export to InfluxDB line protocol.
+
+### SQLite — middle ground
+
+If TinyDB becomes slow before you're ready for InfluxDB, SQLite with a proper time index is an easy intermediate step:
+
+```sql
+CREATE TABLE readings (
+    ts TEXT PRIMARY KEY,
+    temp REAL, hum REAL, pres REAL,
+    light REAL, uv REAL, soil REAL,
+    rain REAL, wind_spd REAL, wind_dir INTEGER
+);
+CREATE INDEX idx_ts ON readings(ts);
+```
+
+SQLite handles 1–2 million rows comfortably with the index.
+
+---
+
+## Data schema — CSV format (canonical)
+
+This schema is fixed from Phase 1. Empty/unavailable columns are written as empty string or `-1`.
+
+```
+ts,temp_c,hum_pct,pres_hpa,light_lux,uv_idx,soil_pct,rain_mm,wind_spd_ms,wind_dir_deg
+2026-05-13 10:25:00,18.4,62.1,1013.2,12400,2.1,54.3,0.0,-1,-1
+```
+
+| Column | Unit | Available from |
+|--------|------|---------------|
+| `ts` | ISO 8601 | Phase 1 |
+| `temp_c` | °C | Phase 1 |
+| `hum_pct` | % | Phase 1 |
+| `pres_hpa` | hPa | Phase 1 |
+| `light_lux` | lux | Phase 2 |
+| `uv_idx` | UV index | Phase 2 |
+| `soil_pct` | % saturation | Phase 2 |
+| `rain_mm` | mm per interval | Phase 3 |
+| `wind_spd_ms` | m/s | Phase 3 |
+| `wind_dir_deg` | degrees (0=N) | Phase 3 |
+
+---
+
+## Dashboard — Grafana
+
+Grafana connects directly to InfluxDB (Phase 5+) or to a custom data source plugin for TinyDB/SQLite (Phase 4 prototype via JSON API).
+
+### Suggested panels
+
+| Panel | Visualization | Time range |
+|-------|---------------|------------|
+| Current conditions | Stat tiles (T, H, P, UV, Soil) | Latest value |
+| Temperature history | Time series | 7 days |
+| Pressure trend | Time series | 48 hours |
+| Rain accumulation | Bar chart | 30 days |
+| Wind rose | Polar chart | 7 days |
+| Soil moisture | Time series + threshold | 14 days |
+| Watering recommendation | Stat + alert | Latest |
+
+::: {.callout-note}
+Grafana runs fine on the Odroid C4 alongside InfluxDB. Combined memory usage: ~300–500 MB.
+:::

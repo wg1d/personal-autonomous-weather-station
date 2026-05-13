@@ -1,0 +1,37 @@
+project:
+  type: book
+  output-dir: _output
+
+book:
+  title: "PAWS"
+  subtitle: "Personal Autonomous Weather Station — From Sensors to Local Intelligence"
+  date: last-modified
+  reader-mode: true
+
+  chapters:
+    - index.qmd
+    - part: "The Station"
+      chapters:
+        - chapters/01-motivation.qmd
+        - chapters/02-architecture.qmd
+        - chapters/03-hardware.qmd
+        - chapters/04-firmware.qmd
+    - part: "Backend & Intelligence"
+      chapters:
+        - chapters/05-backend.qmd
+        - chapters/06-forecasting.qmd
+    - chapters/07-roadmap.qmd
+
+format:
+  html:
+    theme: cosmo
+    toc: true
+    toc-depth: 3
+    number-sections: true
+    highlight-style: github
+    code-fold: false
+  pdf:
+    documentclass: scrbook
+    toc: true
+    number-sections: true
+    geometry: margin=2.5cm
