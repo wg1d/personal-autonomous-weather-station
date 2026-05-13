@@ -81,21 +81,37 @@ stateDiagram-v2
 
     BOOT --> CHECK_WAKEUP : esp_sleep_get_wakeup_cause()
 
-    CHECK_WAKEUP --> SERVER : GPIO mode switch = SERVER
-    CHECK_WAKEUP --> INIT_RTC : Power-on / reset (or RTC invalid)
-    CHECK_WAKEUP --> DATA_LOGGER : RTC alarm interrupt
+    CHECK_WAKEUP --> INIT_RTC : Power-on (UNDEFINED) AND RTC invalid
+    CHECK_WAKEUP --> READ_SWITCH : Power-on (UNDEFINED) AND RTC valid
+    CHECK_WAKEUP --> DATA_LOGGER : EXT0 — RTC alarm interrupt
+    CHECK_WAKEUP --> SERVER : EXT1 — switch set to SERVER
+
+    READ_SWITCH --> SERVER : Mode switch = SERVER
+    READ_SWITCH --> DATA_LOGGER : Mode switch = MEASURE
 
     SERVER --> INIT_RTC : Long button press (NTP sync)
     INIT_RTC --> SERVER : NTP sync successful
 
     DATA_LOGGER --> DEEP_SLEEP : Measurements written
     SERVER --> DEEP_SLEEP : Mode switch → MEASURE
-    INIT_RTC --> DEEP_SLEEP : (blocked until RTC valid)
 
     DEEP_SLEEP --> [*]
 ```
 
-At every boot, `esp_sleep_get_wakeup_cause()` is called first to read the hardware wakeup reason (power-on reset, RTC alarm interrupt, or GPIO change), then the mode switch GPIO is sampled to determine the target state. States are **mutually exclusive**. The FSM is deterministic and fully observable via the status LED.
+At every boot, `esp_sleep_get_wakeup_cause()` is called first. Three wakeup causes are handled:
+
+- **`UNDEFINED`** (power-on): RTC validity is checked — if never set, go to `INIT_RTC`; if already valid, sample the mode switch (`READ_SWITCH`).
+- **`EXT0`** (RTC alarm interrupt): go directly to `DATA_LOGGER`.
+- **`EXT1`** (mode switch GPIO): fires only when the switch is moved to the SERVER position — device was already initialised, go directly to `SERVER`. The return to MEASURE is handled in software while `SERVER` is active (no wakeup needed).
+
+This requires the mode switch to be wired to an EXT1-capable GPIO and registered as a wakeup source, which is what disambiguates a switch-flip from a fresh power-on. States are **mutually exclusive**. The FSM is deterministic and fully observable via the status LED.
+
+| State | LED |
+|-------|-----|
+| `BOOT` / `CHECK_WAKEUP` / `READ_SWITCH` / `DATA_LOGGER` | Off |
+| `INIT_RTC` — NTP sync in progress | Blinking |
+| `SERVER` | Solid ON |
+| `DEEP_SLEEP` | Off |
 
 ---
 
