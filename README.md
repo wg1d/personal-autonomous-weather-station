@@ -1,6 +1,4 @@
-<img src="docs/assets/images/logo.svg" alt="PAWS logo" width="80" align="right"/>
-
-# PAWS — Personal Autonomous Weather Station
+# PAWS — Personal Autonomous Weather Station <img src="docs/assets/images/logo.svg" alt="PAWS logo" width="40" align="center"/>
 
 > Low-powered ESP32 weather station — SD card logging, RTC timekeeping, phone-based data gateway, time-series database, online dashboard and weather forecasting.
 

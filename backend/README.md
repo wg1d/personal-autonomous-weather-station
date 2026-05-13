@@ -1,6 +1,6 @@
 # Backend
 
-Server-side code for the Odroid C4.
+Server-side code for the SBC (Single-Board Computer, e.g. Raspberry Pi, Odroid) server.
 
 **Status:** planned — Phase 4 (data pipeline + dashboard) and Phase 6 (ML models).
 
