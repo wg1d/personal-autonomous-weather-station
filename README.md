@@ -4,6 +4,8 @@
 
 A learning-oriented project covering the full stack: embedded firmware, solar power, asynchronous data pipeline, and machine learning on local sensor data.
 
+> 🌻 *Yes, that's a sunflower. It watches the sun. This station watches the weather. Close enough.*
+
 ## Documentation
 
 Full design documentation (architecture, hardware, firmware, backend, ML): [personal-autonomous-weather-station](https://wg1d.github.io/personal-autonomous-weather-station/)
