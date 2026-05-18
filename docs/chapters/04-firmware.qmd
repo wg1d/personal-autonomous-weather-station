@@ -14,45 +14,27 @@ No persistent loops. No background tasks. No RTOS. The ESP32 wakes, evaluates st
 
 ## Finite State Machine (FSM)
 
+::: {.callout-note}
+The canonical FSM — including the full state diagram, wakeup-cause dispatch (`CHECK_WAKEUP`, `READ_SWITCH`), and LED table — is defined in [System Architecture](02-architecture.qmd#station-finite-state-machine-fsm). This section covers the **implementation perspective** only: what each state does in code and how boot priority is resolved.
+:::
+
 ### States
 
 | State | Trigger | What happens |
 |-------|---------|--------------|
-| `DATA_LOGGER` | RTC alarm, normal wake | Read sensors → write SD → set next alarm → sleep |
-| `SERVER` | Mode switch in SERVER position | Start Wi-Fi AP → serve web UI → no measurements |
+| `DATA_LOGGER` | RTC alarm (`EXT0` wakeup) | Read sensors → write SD → set next alarm → sleep |
+| `SERVER` | Mode switch in SERVER position (`EXT1` wakeup or power-on) | Start Wi-Fi AP → serve web UI → no measurements |
 | `INIT_RTC` | RTC not valid, or long button press in SERVER | Connect to NTP → set DS3231 → return to SERVER |
 
-### Priority at boot
+### Boot priority (power-on only)
+
+When wakeup cause is `UNDEFINED` (fresh power-on) and the mode switch state must be sampled:
 
 ```
 1. Mode switch = SERVER?  → SERVER state
 2. RTC not valid?         → INIT_RTC state
 3. Otherwise             → DATA_LOGGER state
 ```
-
-### State diagram
-
-```{mermaid}
-stateDiagram-v2
-    [*] --> BOOT
-
-    BOOT --> SERVER : Mode switch = SERVER
-    BOOT --> INIT_RTC : RTC invalid
-    BOOT --> DATA_LOGGER : Normal wake
-
-    SERVER --> INIT_RTC : Long button press (>3 s)
-    INIT_RTC --> SERVER : NTP sync OK
-
-    DATA_LOGGER --> DEEP_SLEEP
-    SERVER --> DEEP_SLEEP : Switch flipped to MEASURE
-    INIT_RTC --> DEEP_SLEEP : (blocked — waits for valid RTC)
-
-    DEEP_SLEEP --> [*]
-```
-
-::: {.callout-note}
-`INIT_RTC` never exits to deep sleep on its own. It stays active until the RTC is successfully set, then returns to `SERVER`. This ensures the system is always time-valid before starting data collection.
-:::
 
 ---
 

@@ -22,7 +22,6 @@ book:
       chapters:
         - chapters/05-backend.qmd
         - chapters/06-forecasting.qmd
-    - chapters/07-roadmap.qmd
 
 format:
   html:

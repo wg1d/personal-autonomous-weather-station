@@ -1,14 +1,8 @@
-# Project Roadmap {.unnumbered}
+# ROADMAP
 
-> Status: 🟢 Stable (phases 1–3) | 🟡 Draft (phases 4–7)
-
----
-
-## Philosophy
-
-Each phase must be **independently useful**. You should be able to stop at any phase and have a working, valuable system.
-
-Hardware and software investments made in one phase are never thrown away. The architecture (FSM, data format, connector interfaces) is frozen from Phase 1. Only capabilities are added.
+> Each phase must be **independently useful**. You should be able to stop at any phase and have a working, valuable system.
+>
+> Hardware and software investments made in one phase are never thrown away. The architecture (FSM, data format, connector interfaces) is frozen from Phase 1. Only capabilities are added.
 
 ---
 
@@ -23,6 +17,22 @@ Hardware and software investments made in one phase are never thrown away. The a
 | 5 | Extended sensors | Rain gauge + wind | Wind + rain validated |
 | 6 | Forecasting | RF watering + LSTM weather | Models live in dashboard |
 | 7 | Solar + air quality | Autonomy + PM2.5 | 7 days autonomous on solar |
+
+## Dependency graph
+
+```mermaid
+flowchart TD
+    P1[Phase 1\nPrototype] --> P2[Phase 2\nClean board]
+    P2 --> P3[Phase 3\nOutdoor]
+    P3 --> P4[Phase 4\nBackend]
+    P3 --> P5[Phase 5\nWind + Rain]
+    P4 --> P6[Phase 6\nForecasting]
+    P5 --> P6
+    P3 --> P7[Phase 7\nSolar + Air quality]
+    P4 --> P7
+```
+
+Phases 5 and 7 are independent of each other and can be done in any order after Phase 3/4.
 
 ---
 
@@ -60,9 +70,7 @@ Hardware and software investments made in one phase are never thrown away. The a
 
 **Goal:** Replace dupont-wire prototype with a clean, connector-based setup. Size and design the enclosure to fit **all planned sensors** — including those not yet connected.
 
-::: {.callout-important}
-Plan the enclosure for the **final sensor set**, not just what's connected today. Cable glands, internal volume, and connector panel must accommodate rain gauge cable, anemometer cable, soil moisture probe cable, and the power harness.
-:::
+> Plan the enclosure for the **final sensor set**, not just what's connected today. Cable glands, internal volume, and connector panel must accommodate rain gauge cable, anemometer cable, soil moisture probe cable, and the power harness.
 
 ### Hardware additions
 - New ESP32 board with clean layout (e.g. Adafruit HUZZAH32 Feather, or custom shield)
@@ -73,6 +81,8 @@ Plan the enclosure for the **final sensor set**, not just what's connected today
 - JST-PH 2-pin connectors reserved (but not yet populated) for: rain gauge, anemometer, wind vane
 - IP65 enclosure (sized for final hardware)
 - Cable glands (minimum 4: power, soil, rain, wind)
+
+See [Hardware — Phase 2 Bill of Materials](docs/chapters/03-hardware.qmd) for the full buy list.
 
 ### Software deliverables
 - [ ] Update driver layer for BH1750 and VEML6075
@@ -220,21 +230,3 @@ Watering model F1 score > 0.75 on validation set. LSTM forecast outperforms pres
 
 ### Exit criterion
 7 continuous days of solar-powered autonomous operation with no data gaps. Battery voltage stays above minimum threshold throughout.
-
----
-
-## Dependency graph
-
-```{mermaid}
-flowchart TD
-    P1[Phase 1\nPrototype] --> P2[Phase 2\nClean board]
-    P2 --> P3[Phase 3\nOutdoor]
-    P3 --> P4[Phase 4\nBackend]
-    P3 --> P5[Phase 5\nWind + Rain]
-    P4 --> P6[Phase 6\nForecasting]
-    P5 --> P6
-    P3 --> P7[Phase 7\nSolar + Air quality]
-    P4 --> P7
-```
-
-Phases 5 and 7 are independent of each other and can be done in any order after Phase 3/4.

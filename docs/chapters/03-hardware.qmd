@@ -63,7 +63,6 @@ Pin numbers above are for the Upesy WROVER DevKit. Adjust for other ESP32 boards
 | DS3231 | Real-time clock + wake alarm | I²C | 0x68 |
 | SD card module | Data storage | SPI | — |
 
-The DHT22 is available but **not used** as primary sensor. BME280 is preferred: I²C (frees GPIO), gives pressure, more accurate, lower power.
 
 ---
 
@@ -81,6 +80,29 @@ The DHT22 is available but **not used** as primary sensor. BME280 is preferred: 
 
 **Why add them in Phase 2?**
 The soil moisture sensor requires a cable routed to the garden bed — plan cable glands and routing before sealing the enclosure. Light and UV sensors must be in the Stevenson screen with the right orientation — plan the mounting bracket early.
+
+### Phase 2 — Bill of Materials
+
+These are the items to purchase to reach a clean, replicable, enclosure-ready setup. Items already owned (Phase 1) are excluded.
+
+| Item | Example / Notes | Qty |
+|------|-----------------|-----|
+| **Microcontroller** | Adafruit HUZZAH32 Feather (ESP32, built-in LiPo connector) — or keep Upesy WROVER if you prefer the DevKit form factor | 1 |
+| **BH1750 light sensor** | Adafruit BH1750 breakout (STEMMA QT) | 1 |
+| **VEML6075 UV sensor** | Adafruit VEML6075 breakout (STEMMA QT) | 1 |
+| **Capacitive soil moisture probe** | STEMMA Soil Sensor (Adafruit) or generic capacitive probe | 1–2 |
+| **IP65 enclosure** | Hammond 1554 series or equivalent — min 120 × 80 × 55 mm to fit board + wiring | 1 |
+| **Stevenson screen** | Commercial radiation shield (e.g. Davis 7714) or DIY PVC/wood double-louvered | 1 |
+| **STEMMA QT / Qwiic cables** | 100 mm + 200 mm lengths — daisy-chain I²C sensors | 4–6 |
+| **JST-PH 2-pin cable sets** | For ADC sensors (soil, future wind vane) and pulse inputs (future rain, anemometer) | 4–6 |
+| **Cable glands (M12)** | IP68 rated — 1× power, 1× soil, 2× reserved (rain + wind) | 4 |
+| **DIN rail or standoff kit** | Mount board inside enclosure (M3 brass standoffs, 10 mm) | 1 |
+| **Terminal block (3.5 mm pitch)** | Internal screw terminals for sensor wiring | 1 strip |
+| **Wire (24 AWG silicone)** | Flexible, temperature-rated; multiple colours for signal tracing | 1 m ea. |
+
+::: {.callout-note}
+The STEMMA QT / Qwiic ecosystem means the I²C chain (BME280 → DS3231 → BH1750 → VEML6075) is fully solderless inside the enclosure. Only the soil moisture probe cable exits via a cable gland.
+:::
 
 ---
 

@@ -105,14 +105,7 @@ At every boot, `esp_sleep_get_wakeup_cause()` is called first. Three wakeup caus
 - **`EXT0`** (RTC alarm interrupt): go directly to `DATA_LOGGER`.
 - **`EXT1`** (mode switch GPIO): fires only when the switch is moved to the SERVER position — device was already initialised, go directly to `SERVER`. The return to MEASURE is handled in software while `SERVER` is active (no wakeup needed).
 
-This requires the mode switch to be wired to an EXT1-capable GPIO and registered as a wakeup source, which is what disambiguates a switch-flip from a fresh power-on. States are **mutually exclusive**. The FSM is deterministic and fully observable via the status LED.
-
-| State | LED |
-|-------|-----|
-| `BOOT` / `CHECK_WAKEUP` / `READ_SWITCH` / `DATA_LOGGER` | Off |
-| `INIT_RTC` — NTP sync in progress | Blinking |
-| `SERVER` | Solid ON |
-| `DEEP_SLEEP` | Off |
+This requires the mode switch to be wired to an EXT1-capable GPIO and registered as a wakeup source, which is what disambiguates a switch-flip from a fresh power-on. States are **mutually exclusive**. The FSM is deterministic and fully observable via the status LED — see the [Firmware — Status LED](04-firmware.qmd#status-led) section for the full LED behaviour table.
 
 ---
 

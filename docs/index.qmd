@@ -20,7 +20,13 @@ A learning-oriented project covering the full stack: embedded firmware, solar po
 | Understand the embedded firmware | [Firmware](chapters/04-firmware.qmd) |
 | Set up the server and dashboard | [Backend](chapters/05-backend.qmd) |
 | Understand the ML approach | [Forecasting & Decisions](chapters/06-forecasting.qmd) |
-| Know what to build in what order | [Roadmap](chapters/07-roadmap.qmd) |
+| Know what to build in what order | [ROADMAP.md](https://github.com/wg1d/personal-autonomous-weather-station/blob/main/ROADMAP.md) |
+
+---
+
+## Build philosophy
+
+Each phase of this project must be **independently useful** — you can stop at any phase and have a working, valuable system. Hardware and software investments made in one phase are never thrown away. The architecture (FSM, data format, connector interfaces) is frozen from Phase 1 onward. Only capabilities are added.
 
 ---
 
