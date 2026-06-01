@@ -15,9 +15,9 @@ Full design documentation (architecture, hardware, firmware, backend, ML): [pers
 | Phase | Name | Key addition | Status |
 |-------|------|-------------|--------|
 | 1 | Prototype | Core FSM + SD logging | 🟡 In progress |
-| 2 | Clean board | Plug-and-play connectors + new sensors | ⬜ Planned |
-| 3 | Outdoor | Stevenson screen deployment | ⬜ Planned |
-| 4 | Backend | Odroid C4 + gateway + dashboard | ⬜ Planned |
+| 2 | Backend MVP | Odroid C4 + gateway + dashboard (no forecasting) | ⬜ Planned |
+| 3 | Clean board | Plug-and-play connectors + new sensors | ⬜ Planned |
+| 4 | Outdoor | Stevenson screen deployment | ⬜ Planned |
 | 5 | Extended sensors | Rain gauge + wind | ⬜ Planned |
 | 6 | Forecasting | RF watering + LSTM weather | ⬜ Planned |
 | 7 | Solar + air quality | Autonomy + PM2.5 | ⬜ Planned |
@@ -26,14 +26,15 @@ See [ROADMAP.md](ROADMAP.md) for detailed per-phase deliverables, hardware lists
 
 ```mermaid
 flowchart TD
-    P1[Phase 1\nPrototype] --> P2[Phase 2\nClean board]
-    P2 --> P3[Phase 3\nOutdoor]
-    P3 --> P4[Phase 4\nBackend]
-    P3 --> P5[Phase 5\nWind + Rain]
-    P4 --> P6[Phase 6\nForecasting]
+    P1[Phase 1\nPrototype] --> P2[Phase 2\nBackend MVP]
+    P1 --> P3[Phase 3\nClean board]
+    P2 --> P3
+    P3 --> P4[Phase 4\nOutdoor]
+    P4 --> P5[Phase 5\nWind + Rain]
+    P2 --> P6[Phase 6\nForecasting]
     P5 --> P6
-    P3 --> P7[Phase 7\nSolar + Air quality]
-    P4 --> P7
+    P4 --> P7[Phase 7\nSolar + Air quality]
+    P2 --> P7
 ```
 
 ## Related projects

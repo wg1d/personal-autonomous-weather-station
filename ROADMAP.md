@@ -11,9 +11,9 @@
 | Phase | Name | Key addition | Exit criterion |
 |-------|------|-------------|----------------|
 | 1 | Prototype | Core FSM + logging | 48h stable data on SD |
-| 2 | Clean board | Plug-and-play + new sensors | Indoor, all sensors reading |
-| 3 | Outdoor | Stevenson screen deployment | 2 weeks outdoor stable data |
-| 4 | Backend | Odroid C4 + gateway + dashboard | Data flows station → dashboard |
+| 2 | Backend MVP | Odroid C4 + gateway + dashboard (no forecasting) | Data flows prototype → dashboard |
+| 3 | Clean board | Plug-and-play + new sensors | Indoor, all sensors reading |
+| 4 | Outdoor | Stevenson screen deployment | 2 weeks outdoor stable data |
 | 5 | Extended sensors | Rain gauge + wind | Wind + rain validated |
 | 6 | Forecasting | RF watering + LSTM weather | Models live in dashboard |
 | 7 | Solar + air quality | Autonomy + PM2.5 | 7 days autonomous on solar |
@@ -22,17 +22,18 @@
 
 ```mermaid
 flowchart TD
-    P1[Phase 1\nPrototype] --> P2[Phase 2\nClean board]
-    P2 --> P3[Phase 3\nOutdoor]
-    P3 --> P4[Phase 4\nBackend]
-    P3 --> P5[Phase 5\nWind + Rain]
-    P4 --> P6[Phase 6\nForecasting]
+    P1[Phase 1\nPrototype] --> P2[Phase 2\nBackend MVP]
+    P1 --> P3[Phase 3\nClean board]
+    P2 --> P3
+    P3 --> P4[Phase 4\nOutdoor]
+    P4 --> P5[Phase 5\nWind + Rain]
+    P2 --> P6[Phase 6\nForecasting]
     P5 --> P6
-    P3 --> P7[Phase 7\nSolar + Air quality]
-    P4 --> P7
+    P4 --> P7[Phase 7\nSolar + Air quality]
+    P2 --> P7
 ```
 
-Phases 5 and 7 are independent of each other and can be done in any order after Phase 3/4.
+Phase 2 (Backend MVP) is done early with prototype data to validate the full pipeline before committing to clean hardware. Phases 5 and 7 are independent of each other and can be done in any order after Phase 4/2.
 
 ---
 
@@ -66,7 +67,38 @@ Phases 5 and 7 are independent of each other and can be done in any order after 
 
 ---
 
-## Phase 2 — Clean board
+## Phase 2 — Backend MVP
+
+**Goal:** Validate the full data pipeline early, using prototype hardware. Stand up the Odroid C4 server, ingest CSV data from Phase 1, and display a live dashboard. No forecasting yet.
+
+> Do this before touching hardware again. Validating the pipeline on the prototype proves the schema, API contract, and dashboard setup before locking them in with clean hardware.
+
+### Hardware
+- Odroid C4 (existing)
+- Connected to home network via Ethernet
+
+### Software deliverables
+
+**Gateway (phone or laptop script):**
+- [ ] Python script: connect to station AP → download latest CSV → upload to server
+- [ ] Deduplication on upload (skip already-ingested timestamps)
+
+**Server (Odroid C4):**
+- [ ] FastAPI REST API: `POST /api/upload`, `GET /api/data`, `GET /api/latest`
+- [ ] InfluxDB v1 — write measurements via line protocol, query via InfluxQL
+- [ ] Grafana installation + InfluxDB data source (native, no plugin needed)
+- [ ] Dashboard: current conditions, temperature/pressure/humidity history
+
+**Operational:**
+- [ ] Server starts on Odroid boot (systemd service)
+- [ ] API accessible on local network (`http://odroid.local:8000`)
+
+### Exit criterion
+Data flows from Phase 1 prototype SD card to Grafana dashboard in <1 hour after a phone sync run. Dashboard shows at least 7 days of history from prototype data.
+
+---
+
+## Phase 3 — Clean board
 
 **Goal:** Replace dupont-wire prototype with a clean, connector-based setup. Size and design the enclosure to fit **all planned sensors** — including those not yet connected.
 
@@ -82,20 +114,21 @@ Phases 5 and 7 are independent of each other and can be done in any order after 
 - IP65 enclosure (sized for final hardware)
 - Cable glands (minimum 4: power, soil, rain, wind)
 
-See [Hardware — Phase 2 Bill of Materials](docs/chapters/03-hardware.qmd) for the full buy list.
+See [Hardware — Phase 3 Bill of Materials](docs/chapters/03-hardware.qmd) for the full buy list.
 
 ### Software deliverables
 - [ ] Update driver layer for BH1750 and VEML6075
 - [ ] Soil moisture ADC reading + percentage conversion (calibrate dry/wet)
 - [ ] CSV rows now populate `light_lux`, `uv_idx`, `soil_pct`
 - [ ] Pin remapping for new board (update `config.h` only)
+- [ ] Verify data flows correctly into existing Phase 2 backend
 
 ### Exit criterion
-All sensors reading correctly indoors. Enclosure closed and fits all planned hardware. Connector panel complete (including unpopulated reserved connectors).
+All sensors reading correctly indoors. Enclosure closed and fits all planned hardware. Connector panel complete (including unpopulated reserved connectors). Data appears correctly in Grafana dashboard.
 
 ---
 
-## Phase 3 — Outdoor deployment
+## Phase 4 — Outdoor deployment
 
 **Goal:** Move the station outside. Validate mechanical protection, cable routing, and environmental stability.
 
@@ -113,38 +146,10 @@ All sensors reading correctly indoors. Enclosure closed and fits all planned har
 - [ ] Tune measurement interval if needed (10 min default is fine)
 - [ ] Add battery voltage ADC reading to CSV (even on wall power — useful later)
 - [ ] Validate SD card longevity over 2+ weeks
+- [ ] Grafana dashboard updated with soil moisture and light panels
 
 ### Exit criterion
 2 continuous weeks of outdoor data with no SD errors, no moisture ingress in enclosure, soil moisture readings tracking rain events.
-
----
-
-## Phase 4 — Backend & gateway
-
-**Goal:** Build the full data pipeline from station SD card to a live dashboard on the Odroid C4.
-
-### Hardware
-- Odroid C4 (existing)
-- Connected to home network via Ethernet
-
-### Software deliverables
-
-**Gateway (phone or laptop script):**
-- [ ] Python script: connect to station AP → download latest CSV → upload to server
-- [ ] Deduplication on upload (skip already-ingested timestamps)
-
-**Server (Odroid C4):**
-- [ ] FastAPI REST API: `POST /api/upload`, `GET /api/data`, `GET /api/latest`
-- [ ] TinyDB backend (prototype phase)
-- [ ] Grafana installation + data source (JSON API or SQLite plugin)
-- [ ] Dashboard: current conditions, temperature/pressure history, soil moisture, rain
-
-**Operational:**
-- [ ] Server starts on Odroid boot (systemd service)
-- [ ] API accessible on local network (`http://odroid.local:8000`)
-
-### Exit criterion
-Data flows from station SD card to Grafana dashboard in <1 hour after a phone sync run. Dashboard shows at least 7 days of history.
 
 ---
 
@@ -184,8 +189,8 @@ Rain and wind readings validated against a reference instrument or nearby public
 **Goal:** Deploy working ML models for plant watering recommendations and short-term weather forecasting.
 
 ### Prerequisites
-- Phase 3 complete: at least 3 months of local sensor data
-- Phase 4 complete: backend running, data accessible
+- Phase 2 complete: backend running, data accessible
+- Phase 4 complete: at least 3 months of local outdoor sensor data
 
 ### Software deliverables
 
