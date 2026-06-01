@@ -34,7 +34,7 @@ flowchart TB
 
     subgraph Backend["🖥️ SBC Server"]
         API[REST API<br/>FastAPI]
-        DB[Database<br/>TinyDB / InfluxDB]
+        DB[Database<br/>InfluxDB v1]
         DASH[Dashboard<br/>TBD]
         ML[ML Models<br/>RF + LSTM]
         API --> DB --> DASH
@@ -127,7 +127,7 @@ This approach requires **zero infrastructure at the station location** and no ap
 The SBC is the home server. It is always on (or scheduled) and provides:
 
 - **Data ingestion** — REST endpoint that accepts uploaded CSV batches
-- **Storage** — time-series database (TinyDB prototype → InfluxDB production)
+- **Storage** — time-series database (InfluxDB v1)
 - **Visualization** — web dashboard with historical data and derived metrics (Grafana, Plotly Dash, or similar — TBD)
 - **Inference** — runs trained ML models to produce watering recommendations and short-term weather forecasts
 
@@ -149,5 +149,5 @@ These do not change across phases:
 | Internet at station | Never required |
 
 ::: {.callout-note}
-**Future consideration:** direct upload from the station (Wi-Fi or cellular modem) could bypass the phone relay entirely, eliminating the manual data-mule step. Worth keeping in mind once the project reaches sufficient maturity.
+**Planned — Phase 8a/8b:** direct upload from the station (Wi-Fi first, then cellular modem) will bypass the phone relay entirely, eliminating the manual data-mule step. See [ROADMAP.md](https://github.com/wg1d/personal-autonomous-weather-station/blob/main/ROADMAP.md) for details.
 :::

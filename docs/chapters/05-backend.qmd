@@ -1,6 +1,6 @@
 # Backend & Data Pipeline {.unnumbered}
 
-> Status: 🟡 Draft (Phase 4)
+> Status: 🟡 Draft (Phase 2)
 
 ---
 
@@ -92,35 +92,9 @@ On `POST /api/upload`, the server parses the CSV and skips rows where the timest
 
 ## Database
 
-### Option 1 — TinyDB (prototype, Phase 4 start)
+InfluxDB v1 is used from Phase 2 onward. It is purpose-built for time-series data, integrates natively with Grafana, and runs comfortably on the Odroid C4.
 
-[TinyDB](https://tinydb.readthedocs.io/) is a pure Python document database backed by a JSON file. Zero infrastructure, no server process.
-
-```python
-from tinydb import TinyDB, Query
-from datetime import datetime
-
-db = TinyDB("weather.json")
-readings = db.table("readings")
-
-# Insert
-readings.insert({
-    "ts": "2026-05-13T10:25:00",
-    "temp": 18.4, "hum": 62.1, "pres": 1013.2,
-    "light": 12400, "uv": 2.1, "soil": 54.3
-})
-
-# Query last 24h
-R = Query()
-since = datetime.now().replace(hour=0).isoformat()
-recent = readings.search(R.ts >= since)
-```
-
-**Limitations:** TinyDB loads the entire JSON into memory on every query. With 10-minute intervals, you accumulate ~52 000 rows/year. This becomes slow (seconds per query) after ~100 000 rows. Acceptable for prototyping.
-
-### Option 2 — InfluxDB v1 (production, Phase 5+)
-
-[InfluxDB v1](https://docs.influxdata.com/influxdb/v1/) is a purpose-built time-series database. It is the natural backend for Grafana and handles millions of rows with sub-second queries.
+### InfluxDB v1
 
 ```python
 from influxdb import InfluxDBClient
@@ -139,26 +113,6 @@ result = client.query("SELECT mean(temp) FROM environment WHERE time > now() - 2
 
 InfluxDB v1 runs well on the Odroid C4 and integrates with Grafana natively via a built-in data source.
 
-### Migration path
-
-Start with TinyDB. When queries become slow (typically after 6–12 months of data), migrate to InfluxDB. The API layer abstracts the database — the REST endpoints don't change. A one-time migration script converts the JSON export to InfluxDB line protocol.
-
-### SQLite — middle ground
-
-If TinyDB becomes slow before you're ready for InfluxDB, SQLite with a proper time index is an easy intermediate step:
-
-```sql
-CREATE TABLE readings (
-    ts TEXT PRIMARY KEY,
-    temp REAL, hum REAL, pres REAL,
-    light REAL, uv REAL, soil REAL,
-    rain REAL, wind_spd REAL, wind_dir INTEGER
-);
-CREATE INDEX idx_ts ON readings(ts);
-```
-
-SQLite handles 1–2 million rows comfortably with the index.
-
 ---
 
 ## Data schema — CSV format (canonical)
@@ -176,18 +130,18 @@ ts,temp_c,hum_pct,pres_hpa,light_lux,uv_idx,soil_pct,rain_mm,wind_spd_ms,wind_di
 | `temp_c` | °C | Phase 1 |
 | `hum_pct` | % | Phase 1 |
 | `pres_hpa` | hPa | Phase 1 |
-| `light_lux` | lux | Phase 2 |
-| `uv_idx` | UV index | Phase 2 |
-| `soil_pct` | % saturation | Phase 2 |
-| `rain_mm` | mm per interval | Phase 3 |
-| `wind_spd_ms` | m/s | Phase 3 |
-| `wind_dir_deg` | degrees (0=N) | Phase 3 |
+| `light_lux` | lux | Phase 3 |
+| `uv_idx` | UV index | Phase 3 |
+| `soil_pct` | % saturation | Phase 3 |
+| `rain_mm` | mm per interval | Phase 5 |
+| `wind_spd_ms` | m/s | Phase 5 |
+| `wind_dir_deg` | degrees (0=N) | Phase 5 |
 
 ---
 
 ## Dashboard — Grafana
 
-Grafana connects directly to InfluxDB (Phase 5+) or to a custom data source plugin for TinyDB/SQLite (Phase 4 prototype via JSON API).
+Grafana connects directly to InfluxDB via its native built-in data source — no plugin required.
 
 ### Suggested panels
 
