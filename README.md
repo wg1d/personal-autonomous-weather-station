@@ -28,17 +28,15 @@ See [ROADMAP.md](ROADMAP.md) for detailed per-phase deliverables, hardware lists
 
 ```mermaid
 flowchart TD
-    P1[Phase 1\nPrototype] --> P2[Phase 2\nBackend MVP]
-    P1 --> P3[Phase 3\nClean board]
-    P2 --> P3
-    P3 --> P4[Phase 4\nOutdoor]
-    P4 --> P5[Phase 5\nWind + Rain]
-    P2 --> P6[Phase 6\nForecasting]
+    P1[Phase 1: Prototype] --> P2[Phase 2: Backend MVP]
+    P2 --> P3[Phase 3: Clean board]
+    P3 --> P4[Phase 4: Outdoor]
+    P4 --> P5[Phase 5: Wind + Rain]
+    P4 --> P6[Phase 6: Forecasting]
     P5 --> P6
-    P4 --> P7[Phase 7\nSolar + Air quality]
-    P2 --> P7
-    P2 --> P8a[Phase 8a\nWi-Fi push]
-    P8a --> P8b[Phase 8b\nCellular push]
+    P4 --> P7[Phase 7: Solar + Air quality]
+    P2 --> P8a[Phase 8a: Wi-Fi push]
+    P8a --> P8b[Phase 8b: Cellular push]
 ```
 
 ## Related projects

@@ -24,20 +24,18 @@
 
 ```mermaid
 flowchart TD
-    P1[Phase 1\nPrototype] --> P2[Phase 2\nBackend MVP]
-    P1 --> P3[Phase 3\nClean board]
-    P2 --> P3
-    P3 --> P4[Phase 4\nOutdoor]
-    P4 --> P5[Phase 5\nWind + Rain]
-    P2 --> P6[Phase 6\nForecasting]
+    P1[Phase 1: Prototype] --> P2[Phase 2: Backend MVP]
+    P2 --> P3[Phase 3: Clean board]
+    P3 --> P4[Phase 4: Outdoor]
+    P4 --> P5[Phase 5: Wind + Rain]
+    P4 --> P6[Phase 6: Forecasting]
     P5 --> P6
-    P4 --> P7[Phase 7\nSolar + Air quality]
-    P2 --> P7
-    P2 --> P8a[Phase 8a\nWi-Fi push]
-    P8a --> P8b[Phase 8b\nCellular push]
+    P4 --> P7[Phase 7: Solar + Air quality]
+    P2 --> P8a[Phase 8a: Wi-Fi push]
+    P8a --> P8b[Phase 8b: Cellular push]
 ```
 
-Phase 2 (Backend MVP) is done early with prototype data to validate the full pipeline before committing to clean hardware. Phases 5 and 7 are independent of each other and can be done in any order after Phase 4/2. Phases 8a/8b are optional connectivity upgrades — the gateway script remains a valid fallback at all times.
+Mostly linear with three natural branches off Phase 4: extended sensors (P5), forecasting (P6, also needs P5), and solar (P7). Connectivity phases (8a/8b) branch off Phase 2 independently — they only need the backend API to exist.
 
 ---
 
@@ -195,8 +193,8 @@ Rain and wind readings validated against a reference instrument or nearby public
 **Goal:** Deploy working ML models for plant watering recommendations and short-term weather forecasting.
 
 ### Prerequisites
-- Phase 2 complete: backend running, data accessible
-- Phase 4 complete: at least 3 months of local outdoor sensor data
+- Phase 4 complete: at least 3 months of local outdoor sensor data (provides backend + history)
+- Phase 5 complete: rain and wind data available (needed for watering model)
 
 ### Software deliverables
 
