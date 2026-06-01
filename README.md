@@ -21,6 +21,8 @@ Full design documentation (architecture, hardware, firmware, backend, ML): [pers
 | 5 | Extended sensors | Rain gauge + wind | ⬜ Planned |
 | 6 | Forecasting | RF watering + LSTM weather | ⬜ Planned |
 | 7 | Solar + air quality | Autonomy + PM2.5 | ⬜ Planned |
+| 8a | Wi-Fi push | Station uploads directly, no gateway | ⬜ Planned |
+| 8b | Cellular push | GSM/LTE for remote deployments | ⬜ Planned |
 
 See [ROADMAP.md](ROADMAP.md) for detailed per-phase deliverables, hardware lists, and exit criteria.
 
@@ -35,6 +37,8 @@ flowchart TD
     P5 --> P6
     P4 --> P7[Phase 7\nSolar + Air quality]
     P2 --> P7
+    P2 --> P8a[Phase 8a\nWi-Fi push]
+    P8a --> P8b[Phase 8b\nCellular push]
 ```
 
 ## Related projects

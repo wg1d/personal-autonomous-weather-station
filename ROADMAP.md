@@ -17,6 +17,8 @@
 | 5 | Extended sensors | Rain gauge + wind | Wind + rain validated |
 | 6 | Forecasting | RF watering + LSTM weather | Models live in dashboard |
 | 7 | Solar + air quality | Autonomy + PM2.5 | 7 days autonomous on solar |
+| 8a | Wi-Fi push | Station uploads directly over Wi-Fi | No gateway needed on home network |
+| 8b | Cellular push | GSM/LTE module for remote deployments | Data uploaded without Wi-Fi |
 
 ## Dependency graph
 
@@ -31,9 +33,11 @@ flowchart TD
     P5 --> P6
     P4 --> P7[Phase 7\nSolar + Air quality]
     P2 --> P7
+    P2 --> P8a[Phase 8a\nWi-Fi push]
+    P8a --> P8b[Phase 8b\nCellular push]
 ```
 
-Phase 2 (Backend MVP) is done early with prototype data to validate the full pipeline before committing to clean hardware. Phases 5 and 7 are independent of each other and can be done in any order after Phase 4/2.
+Phase 2 (Backend MVP) is done early with prototype data to validate the full pipeline before committing to clean hardware. Phases 5 and 7 are independent of each other and can be done in any order after Phase 4/2. Phases 8a/8b are optional connectivity upgrades — the gateway script remains a valid fallback at all times.
 
 ---
 
@@ -82,6 +86,8 @@ Phase 2 (Backend MVP) is done early with prototype data to validate the full pip
 **Gateway (phone or laptop script):**
 - [ ] Python script: connect to station AP → download latest CSV → upload to server
 - [ ] Deduplication on upload (skip already-ingested timestamps)
+
+> The gateway is the baseline data path. It will become optional once Phase 8a (Wi-Fi push) is implemented — keep it as a fallback for field deployments.
 
 **Server (Odroid C4):**
 - [ ] FastAPI REST API: `POST /api/upload`, `GET /api/data`, `GET /api/latest`
@@ -235,3 +241,46 @@ Watering model F1 score > 0.75 on validation set. LSTM forecast outperforms pres
 
 ### Exit criterion
 7 continuous days of solar-powered autonomous operation with no data gaps. Battery voltage stays above minimum threshold throughout.
+
+---
+
+## Phase 8a — Wi-Fi direct push
+
+**Goal:** Eliminate the phone-based gateway for stations deployed within Wi-Fi range. The ESP32 connects directly to the home network and pushes measurements to the server after each wake cycle.
+
+> The Phase 2 gateway script is not thrown away — it remains a valid fallback for field deployments or when Wi-Fi is unavailable.
+
+### How it works
+The ESP32 already has Wi-Fi hardware. In the current design it runs in AP mode (SERVER state) for manual data retrieval. This phase adds a **PUSH state** to the FSM: after logging to SD, the station connects to the configured home Wi-Fi and POSTs the latest measurement directly to the FastAPI endpoint.
+
+SD logging is kept — it acts as a local buffer and ensures no data loss if the server is unreachable.
+
+### Firmware deliverables
+- [ ] New FSM state: `PUSH` — connect to home Wi-Fi, POST latest row to `POST /api/upload`, disconnect
+- [ ] Config: `WIFI_SSID`, `WIFI_PASSWORD`, `SERVER_URL` in `config.h` (or NVS)
+- [ ] Retry logic: if push fails, mark row as pending and retry on next wake
+- [ ] AP/SERVER mode kept for manual download fallback
+- [ ] Power budget validation: Wi-Fi connect + POST + disconnect must stay within acceptable deep sleep duty cycle
+
+### Exit criterion
+Station pushes every measurement automatically. Dashboard updates within 1 minute of each wake cycle. No manual gateway run needed for in-range deployments.
+
+---
+
+## Phase 8b — Cellular push
+
+**Goal:** Enable deployments with no Wi-Fi — remote garden, allotment, field site.
+
+### Hardware additions
+- GSM/LTE module (e.g. SIM7600 via UART, or SIM800L for 2G-only sites)
+- SIM card (data-only, low-volume plan)
+- Antenna + cable gland
+
+### Firmware deliverables
+- [ ] UART driver for GSM module
+- [ ] Reuse PUSH state logic — swap Wi-Fi transport for GSM HTTP POST
+- [ ] Power management: GSM modem powered down between wakes via MOSFET
+- [ ] Signal strength logging to CSV (`rssi` column)
+
+### Exit criterion
+Station pushes data from a location with no Wi-Fi. Dashboard updates within 5 minutes of each wake cycle.
