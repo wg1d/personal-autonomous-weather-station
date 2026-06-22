@@ -48,14 +48,6 @@ flowchart TD
 
 - [3D-PAWS](https://3dpaws.comet.ucar.edu/) (UCAR/COMET) — *3D-Printed Automatic Weather Station*: open-source low-cost weather station with 3D-printed sensor housings.
 
-## Project structure
-
-| Folder | Contents |
-|--------|----------|
-| `docs/` | Quarto book — design & architecture documentation |
-| `firmware/` | ESP32 firmware (PlatformIO / Arduino IDE) — SD logging, RTC, data gateway |
-| `backend/` | SBC (Single-Board Computer, e.g. Raspberry Pi, Odroid) server — FastAPI, data pipeline, time-series DB, ML models |
-
 ## License
 
 MIT — see [LICENSE](LICENSE)
