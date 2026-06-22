@@ -17,8 +17,8 @@
 | 5 | Extended sensors | Rain gauge + wind | Wind + rain validated |
 | 6 | Forecasting | RF watering + LSTM weather | Models live in dashboard |
 | 7 | Solar + air quality | Autonomy + PM2.5 | 7 days autonomous on solar |
-| 8a | Wi-Fi push | Station uploads directly over Wi-Fi | No gateway needed on home network |
-| 8b | Cellular push | GSM/LTE module for remote deployments | Data uploaded without Wi-Fi |
+| 8 | Wi-Fi push | Station uploads directly over Wi-Fi | No gateway needed on home network |
+| 9 | Cellular push | GSM/LTE module for remote deployments | Data uploaded without Wi-Fi |
 
 ## Dependency graph
 
@@ -28,14 +28,13 @@ flowchart TD
     P2 --> P3[Phase 3: Clean board]
     P3 --> P4[Phase 4: Outdoor]
     P4 --> P5[Phase 5: Wind + Rain]
-    P4 --> P6[Phase 6: Forecasting]
-    P5 --> P6
+    P5 --> P6[Phase 6: Forecasting]
     P4 --> P7[Phase 7: Solar + Air quality]
-    P2 --> P8a[Phase 8a: Wi-Fi push]
-    P8a --> P8b[Phase 8b: Cellular push]
+    P4 --> P8[Phase 8: Wi-Fi push]
+    P8 --> P9[Phase 9: Cellular push]
 ```
 
-Mostly linear with three natural branches off Phase 4: extended sensors (P5), forecasting (P6, also needs P5), and solar (P7). Connectivity phases (8a/8b) branch off Phase 2 independently — they only need the backend API to exist.
+Mostly linear with two branches off Phase 4: extended sensors (P5) leading into forecasting (P6), and solar (P7). Connectivity phases (8, 9) also branch off Phase 4 — direct push only makes sense once the station is deployed outdoors.
 
 ---
 
@@ -85,7 +84,7 @@ Mostly linear with three natural branches off Phase 4: extended sensors (P5), fo
 - [ ] Python script: connect to station AP → download latest CSV → upload to server
 - [ ] Deduplication on upload (skip already-ingested timestamps)
 
-> The gateway is the baseline data path. It will become optional once Phase 8a (Wi-Fi push) is implemented — keep it as a fallback for field deployments.
+> The gateway is the baseline data path. It will become optional once Phase 8 (Wi-Fi push) is implemented — keep it as a fallback for field deployments.
 
 **Server (Odroid C4):**
 - [ ] FastAPI REST API: `POST /api/upload`, `GET /api/data`, `GET /api/latest`
@@ -242,7 +241,7 @@ Watering model F1 score > 0.75 on validation set. LSTM forecast outperforms pres
 
 ---
 
-## Phase 8a — Wi-Fi direct push
+## Phase 8 — Wi-Fi direct push
 
 **Goal:** Eliminate the phone-based gateway for stations deployed within Wi-Fi range. The ESP32 connects directly to the home network and pushes measurements to the server after each wake cycle.
 
@@ -265,7 +264,7 @@ Station pushes every measurement automatically. Dashboard updates within 1 minut
 
 ---
 
-## Phase 8b — Cellular push
+## Phase 9 — Cellular push
 
 **Goal:** Enable deployments with no Wi-Fi — remote garden, allotment, field site.
 
