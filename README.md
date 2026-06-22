@@ -31,17 +31,17 @@ See [ROADMAP.md](ROADMAP.md) for detailed per-phase deliverables, hardware lists
 
 ```mermaid
 flowchart TD
-    P1[Phase 1: Prototype] --> P2[Phase 2: Backend MVP]
-    P2 --> P3[Phase 3: Forecasting — basic]
-    P3 --> P4[Phase 4: Sensors BH1750 + VEML6075]
-    P4 --> P5[Phase 5: Sensor — Soil moisture]
-    P5 --> P6[Phase 6: Sensor — Rain gauge]
-    P6 --> P7[Phase 7: Sensor — Wind]
-    P7 --> P8[Phase 8: Model retrain + watering]
-    P8 --> P9[Phase 9: Power — Solar + battery]
-    P9 --> P10[Phase 10: Stevenson screen + outdoor]
+    P1[1 - Prototype] --> P2[2 - Backend MVP]
+    P2 --> P3[3 - Forecasting basic]
+    P3 --> P4[4 - BH1750 + VEML6075]
+    P4 --> P5[5 - Soil moisture]
+    P5 --> P6[6 - Rain gauge]
+    P6 --> P7[7 - Wind sensors]
+    P7 --> P8[8 - Model retrain + watering]
+    P8 --> P9[9 - Solar + battery]
+    P9 --> P10[10 - Outdoor deployment]
     P2 -. optional .-> OWifi[Wi-Fi push]
-    P9 -. optional, before P10 .-> OCellular[Cellular]
+    P9 -. optional .-> OCellular[Cellular]
 ```
 
 ## Related projects
