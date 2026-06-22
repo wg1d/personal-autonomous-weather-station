@@ -2,7 +2,7 @@
 
 Server-side code for the SBC (Single-Board Computer, e.g. Raspberry Pi, Odroid) server.
 
-**Status:** planned — Phase 4 (data pipeline + dashboard) and Phase 6 (ML models).
+**Status:** planned — Phase 2 (data pipeline + dashboard) and Phase 8 (ML models).
 
 ## Structure (planned)
 
@@ -23,7 +23,7 @@ backend/
 ## Stack
 
 - **API:** FastAPI (Python)
-- **Database:** TinyDB (prototype) → InfluxDB v1 (production)
+- **Database:** InfluxDB v1
 - **Dashboard:** Grafana
 - **ML:** scikit-learn (Random Forest), PyTorch (LSTM)
 

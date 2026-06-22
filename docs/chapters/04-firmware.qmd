@@ -113,7 +113,7 @@ Single append-only file. One row per measurement cycle.
 YYYY-MM-DD HH:MM:SS,TEMP,HUM,PRES,LIGHT,UV_IDX,SOIL,RAIN,WIND_SPD,WIND_DIR
 ```
 
-Example row (Phase 2, all sensors active):
+Example row (Phase 7+, all sensors active):
 ```
 2026-05-13 10:25:00,18.4,62.1,1013.2,12400,2.1,54.3,0.0,0.0,0
 ```

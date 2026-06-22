@@ -2,7 +2,7 @@
 
 ESP32 firmware for the weather station.
 
-**Status:** planned — Phase 1 (prototype) and Phase 2 (clean board).
+**Status:** in progress — Phase 1 (prototype). Clean assembly in Phase 10 (Stevenson screen + outdoor deployment).
 
 ## Structure (planned)
 

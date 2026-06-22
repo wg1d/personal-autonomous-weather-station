@@ -149,5 +149,5 @@ These do not change across phases:
 | Internet at station | Never required |
 
 ::: {.callout-note}
-**Planned — Phase 8a/8b:** direct upload from the station (Wi-Fi first, then cellular modem) will bypass the phone relay entirely, eliminating the manual data-mule step. See [ROADMAP.md](https://github.com/wg1d/personal-autonomous-weather-station/blob/main/ROADMAP.md) for details.
+**Optional — Wi-Fi push / Cellular:** direct upload from the station (Wi-Fi first, then cellular modem) will bypass the phone relay entirely, eliminating the manual data-mule step. Both are optional phases — the phone gateway remains a valid fallback. See [ROADMAP.md](https://github.com/wg1d/personal-autonomous-weather-station/blob/main/ROADMAP.md) for details.
 :::

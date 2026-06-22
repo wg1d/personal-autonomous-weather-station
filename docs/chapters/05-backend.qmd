@@ -130,12 +130,12 @@ ts,temp_c,hum_pct,pres_hpa,light_lux,uv_idx,soil_pct,rain_mm,wind_spd_ms,wind_di
 | `temp_c` | °C | Phase 1 |
 | `hum_pct` | % | Phase 1 |
 | `pres_hpa` | hPa | Phase 1 |
-| `light_lux` | lux | Phase 3 |
-| `uv_idx` | UV index | Phase 3 |
-| `soil_pct` | % saturation | Phase 3 |
-| `rain_mm` | mm per interval | Phase 5 |
-| `wind_spd_ms` | m/s | Phase 5 |
-| `wind_dir_deg` | degrees (0=N) | Phase 5 |
+| `light_lux` | lux | Phase 4 |
+| `uv_idx` | UV index | Phase 4 |
+| `soil_pct` | % saturation | Phase 5 |
+| `rain_mm` | mm per interval | Phase 6 |
+| `wind_spd_ms` | m/s | Phase 7 |
+| `wind_dir_deg` | degrees (0=N) | Phase 7 |
 
 ---
 

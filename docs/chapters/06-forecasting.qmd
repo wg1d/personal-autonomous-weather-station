@@ -1,6 +1,6 @@
 # Forecasting & Decisions {.unnumbered}
 
-> Status: 🔴 Planned (Phase 5–6)
+> Status: 🔴 Planned (Phase 3 — basic LSTM, Phase 8 — full retrain + watering model)
 
 ---
 
@@ -16,7 +16,7 @@ This chapter covers two distinct machine learning problems:
 These are independent models, trained and deployed separately.
 
 ::: {.callout-important}
-**Both models require data before they can be trained.** Do not start ML work before you have at least 1–3 months of local sensor data (Phase 3 output). The forecasting model additionally benefits from external historical data collected from nearby weather stations.
+**Data requirements differ between models.** The basic LSTM (Phase 3) trains on OpenMeteo historical data — no local sensor data required to start. The full retrain and watering model (Phase 8) require local sensor data collected after outdoor deployment. The watering model specifically needs soil moisture, rain, and wind data (Phases 5–7).
 :::
 
 ---
@@ -50,7 +50,7 @@ The watering model receives a **feature vector computed from recent history**, n
 | `temp_avg_24h` | Mean temperature last 24h (°C) | Baseline heat load |
 | `humidity_avg_24h` | Mean relative humidity (%) | Evaporation rate |
 | `light_avg_24h` | Mean lux last 24h | Solar evaporation driver |
-| `wind_avg_24h` | Mean wind speed m/s (Phase 3+) | Evapotranspiration factor |
+| `wind_avg_24h` | Mean wind speed m/s (Phase 7+) | Evapotranspiration factor |
 | `day_of_year` | 1–365 | Seasonal baseline correction |
 | `days_since_last_watering` | Counter | Avoids over/under-watering cycles |
 
