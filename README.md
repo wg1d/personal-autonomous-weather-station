@@ -15,27 +15,33 @@ Full design documentation (architecture, hardware, firmware, backend, ML): [pers
 | Phase | Name | Key addition | Status |
 |-------|------|-------------|--------|
 | 1 | Prototype | Core FSM + SD logging | 🟡 In progress |
-| 2 | Backend MVP | Odroid C4 + gateway + dashboard (no forecasting) | ⬜ Planned |
-| 3 | Clean board | Plug-and-play connectors + new sensors | ⬜ Planned |
-| 4 | Outdoor | Stevenson screen deployment | ⬜ Planned |
-| 5 | Extended sensors | Rain gauge + wind | ⬜ Planned |
-| 6 | Forecasting | RF watering + LSTM weather | ⬜ Planned |
-| 7 | Solar + air quality | Autonomy + PM2.5 | ⬜ Planned |
-| 8 | Wi-Fi push | Station uploads directly, no gateway | ⬜ Planned |
-| 9 | Cellular push | GSM/LTE for remote deployments | ⬜ Planned |
+| 2 | Backend MVP | Odroid C4 + gateway + dashboard | ⬜ Planned |
+| 3 | Forecasting — basic | LSTM on temp/pressure/humidity | ⬜ Planned |
+| 4 | Sensors: BH1750 + VEML6075 | Light + UV, I²C/STEMMA QT | ⬜ Planned |
+| 5 | Sensor: Soil moisture | Capacitive probe, ADC, calibration | ⬜ Planned |
+| 6 | Sensor: Rain gauge | Tipping bucket, interrupt, pulse counting | ⬜ Planned |
+| 7 | Sensor: Wind | Anemometer + wind vane | ⬜ Planned |
+| 8 | Model retrain + watering | Expanded LSTM + Random Forest watering model | ⬜ Planned |
+| 9 | Power: Solar + battery | MPPT + LiFePO₄, battery monitoring | ⬜ Planned |
+| 10 | Stevenson screen + outdoor deployment | Final assembly into enclosure / Stevenson screen | ⬜ Planned |
+| ◇ Optional | Wi-Fi push | Direct upload after each wake, no gateway | ⬜ Planned |
+| ◇ Optional | Cellular | GSM/LTE for remote deployments | ⬜ Planned |
 
 See [ROADMAP.md](ROADMAP.md) for detailed per-phase deliverables, hardware lists, and exit criteria.
 
 ```mermaid
 flowchart TD
     P1[Phase 1: Prototype] --> P2[Phase 2: Backend MVP]
-    P2 --> P3[Phase 3: Clean board]
-    P3 --> P4[Phase 4: Outdoor]
-    P4 --> P5[Phase 5: Wind + Rain]
-    P5 --> P6[Phase 6: Forecasting]
-    P4 --> P7[Phase 7: Solar + Air quality]
-    P4 --> P8[Phase 8: Wi-Fi push]
-    P8 --> P9[Phase 9: Cellular push]
+    P2 --> P3[Phase 3: Forecasting — basic]
+    P3 --> P4[Phase 4: Sensors BH1750 + VEML6075]
+    P4 --> P5[Phase 5: Sensor — Soil moisture]
+    P5 --> P6[Phase 6: Sensor — Rain gauge]
+    P6 --> P7[Phase 7: Sensor — Wind]
+    P7 --> P8[Phase 8: Model retrain + watering]
+    P8 --> P9[Phase 9: Power — Solar + battery]
+    P9 --> P10[Phase 10: Stevenson screen + outdoor]
+    P2 -. optional .-> OWifi[Wi-Fi push]
+    P9 -. optional, before P10 .-> OCellular[Cellular]
 ```
 
 ## Related projects
