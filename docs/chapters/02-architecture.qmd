@@ -149,5 +149,130 @@ These do not change across phases:
 | Internet at station | Never required |
 
 ::: {.callout-note}
-**Optional — Wi-Fi push / Cellular:** direct upload from the station (Wi-Fi first, then cellular modem) will bypass the phone relay entirely, eliminating the manual data-mule step. Both are optional phases — the phone gateway remains a valid fallback. See [ROADMAP.md](https://github.com/wg1d/personal-autonomous-weather-station/blob/main/ROADMAP.md) for details.
+**Optional connectivity — Wi-Fi push / LoRa / Cellular:** direct upload from the station will bypass the phone relay entirely, eliminating the manual data-mule step. All three are optional phases — the phone gateway always remains a valid fallback. LoRa and Cellular must be validated before the final outdoor enclosure is assembled (Phase 10). See the [Connectivity options](#connectivity-options) section below and [ROADMAP.md](https://github.com/wg1d/personal-autonomous-weather-station/blob/main/ROADMAP.md) for details.
 :::
+
+---
+
+## Connectivity options {#connectivity-options}
+
+The station supports four data-path strategies. They are not mutually exclusive — you can use different ones at different times (phone gateway as fallback while Wi-Fi push is the default, for example). The SD card and local CSV log are always present regardless of which connectivity option is active.
+
+### A — SD card + phone gateway (baseline)
+
+The station has no radio link at all during normal operation. Data accumulates on the SD card. When the user walks up, flips the switch to SERVER mode, and connects their phone to the station's Wi-Fi AP, the CSV files are downloaded via a browser and later uploaded to the home server over home Wi-Fi.
+
+**How it works:**
+
+```{mermaid}
+sequenceDiagram
+    participant S as Station (SD + AP)
+    participant P as Phone
+    participant H as Home server
+
+    Note over S: Days of autonomous logging
+    P->>S: Connect to WeatherStation AP
+    P->>S: Download log_2026.csv
+    Note over P: User walks home
+    P->>H: Upload CSV over home Wi-Fi
+    H-->>P: 200 OK
+```
+
+**Trade-offs:** Zero infrastructure at the station. Works anywhere — field, rooftop, remote garden. The cost is manual effort: someone must physically visit the station to collect data. Data latency is hours to days depending on visit frequency.
+
+---
+
+### B — Direct Wi-Fi push
+
+The ESP32 already has Wi-Fi hardware. A new `PUSH` FSM state is added: after writing the SD row, the station wakes, connects to the home Wi-Fi network, POSTs the latest measurement to the server, and immediately disconnects and sleeps. No phone trip required.
+
+**How it works:**
+
+```{mermaid}
+sequenceDiagram
+    participant RTC as DS3231 RTC
+    participant ESP as ESP32
+    participant SD as SD Card
+    participant AP as Home Wi-Fi
+    participant H as Home server
+
+    RTC->>ESP: Alarm interrupt
+    ESP->>ESP: Read sensors
+    ESP->>SD: Append CSV row
+    ESP->>AP: Connect (WPA2)
+    ESP->>H: POST /api/upload (latest row)
+    H-->>ESP: 200 OK
+    ESP->>AP: Disconnect
+    ESP->>ESP: Deep sleep
+```
+
+**Trade-offs:** No extra hardware cost (Wi-Fi is built-in). Dashboard updates within minutes of each measurement. Range is limited to home Wi-Fi coverage (~50–100 m). Not suitable for remote field deployments. Power budget increases slightly — a Wi-Fi connect + POST + disconnect adds roughly 5–10 seconds at ~200 mA; on a 1000 mAh cell with 10-minute intervals this is still well within budget.
+
+---
+
+### C — LoRa {#lora}
+
+::: {.callout-note}
+**What is LoRa?**
+
+LoRa (**Lo**ng **Ra**nge) is a radio modulation technique developed by Semtech. It operates on unlicensed sub-GHz ISM bands (868 MHz in Europe, 915 MHz in the US) and uses **chirp spread spectrum**: rather than transmitting at a single frequency, the signal sweeps across a band, which makes it robust to noise and interference and gives it exceptional range at very low transmit power.
+
+Key properties:
+- **Range:** 1–5 km in urban environments, 10–15 km line-of-sight
+- **Power:** ~100 mA peak during a ~1–2 second transmission, then back to sleep
+- **Data rate:** very low — 250 bps to ~50 kbps depending on settings. Ideal for small sensor payloads; not for streaming
+- **Cost:** a LoRa module (e.g., SX1276/SX1278) costs ~$5–10
+
+**LoRaWAN** is the network protocol built on top of LoRa radio. It adds device addressing, AES-128 encryption, and a cloud network server. **The Things Network (TTN)** is a free, community-operated LoRaWAN network with gateways in many urban and suburban areas worldwide. If TTN coverage exists at your deployment location, your node uploads for free with no SIM card.
+
+A **LoRa gateway** bridges the radio link to the internet. A DIY gateway costs $50–100 (Raspberry Pi + LoRa HAT). One gateway covers a radius of several kilometres and can serve many nodes simultaneously.
+
+Boards like the **Heltec WiFi LoRa32** or **TTGO LoRa32** combine an ESP32 and a SX1276 LoRa transceiver on a single board, making the hardware swap straightforward.
+:::
+
+A new `PUSH` FSM state sends a compact binary-encoded measurement packet over LoRa after each SD write. The packet is received by a LoRaWAN gateway (TTN or local), forwarded to a TTN application, and relayed to the home server via a webhook or MQTT bridge.
+
+**How it works:**
+
+```{mermaid}
+sequenceDiagram
+    participant ESP as ESP32 + LoRa module
+    participant GW as LoRaWAN Gateway
+    participant TTN as TTN Network Server
+    participant H as Home server
+
+    ESP->>GW: LoRa uplink (~50 bytes, 868 MHz)
+    GW->>TTN: Forward via internet
+    TTN->>H: Webhook → POST /api/upload
+    H-->>TTN: 200 OK
+```
+
+**Trade-offs:** Excellent range. The best power profile of any wireless option — the transmit window is short and the module sleeps between sends. No monthly cost if TTN coverage exists. The constraint is data rate: a single measurement row must be encoded compactly (≤50 bytes is easy for this sensor set). Requires either TTN gateway coverage at the deployment site, or a dedicated local gateway.
+
+---
+
+### D — Cellular (GSM / LTE)
+
+A GSM or LTE modem module (e.g., SIM7600 for LTE, SIM800L for 2G) is connected to the ESP32 via UART. The `PUSH` state logic from Wi-Fi push is reused — only the transport changes. The modem is powered down between wakes via a MOSFET to eliminate its standby current.
+
+**Trade-offs:** Works anywhere with cell coverage — true remote deployments with no Wi-Fi and no LoRa gateway. The cost is a monthly SIM data plan (~€5–10/month for IoT SIMs), higher peak current during connection (~500 mA), and a more complex hardware footprint (module + antenna + power switching). Use this only when LoRa coverage is unavailable.
+
+---
+
+### Comparison
+
+| | Phone gateway | Wi-Fi push | LoRa | Cellular |
+|---|---|---|---|---|
+| **Range** | Walk-up only | ~50–100 m | 1–15 km | Anywhere with cell signal |
+| **Data latency** | Hours to days | ~1 min | ~2 min | ~2 min |
+| **TX current** | None at station | ~200 mA / ~5–10 s | ~100 mA / ~1–2 s | ~500 mA / ~5–15 s |
+| **Monthly cost** | 0 | 0 | 0 (TTN) | €5–10 (SIM) |
+| **Extra hardware** | None | None (ESP32 built-in) | LoRa module ~$10 | GSM module ~$15–25 |
+| **Infrastructure** | None at station | Home Wi-Fi in range | LoRa gateway or TTN coverage | Cell tower in range |
+| **Must validate before Phase 10** | n/a | No (firmware only) | **Yes** | **Yes** |
+
+**Guidance:**
+
+- **Home/garden deployment** in Wi-Fi range → Wi-Fi push + phone gateway as fallback
+- **Field or allotment** beyond Wi-Fi range → LoRa (if TTN coverage or local gateway) → Cellular as last resort
+- **Phone gateway always stays** as a fallback and recovery path regardless of which active push option is chosen

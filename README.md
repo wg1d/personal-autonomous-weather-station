@@ -1,8 +1,8 @@
 # PAWS — Personal Autonomous Weather Station <img src="docs/assets/images/logo.svg" alt="PAWS logo" width="40" align="center"/>
 
-> Low-powered ESP32 weather station — SD card logging, RTC timekeeping, phone-based data gateway, time-series database, online dashboard and weather forecasting.
+> Low-powered ESP32 IoT weather station — SD card logging, RTC timekeeping, phone-based data gateway, time-series database, online dashboard and weather forecasting.
 
-A learning-oriented project covering the full stack: embedded firmware, solar power, asynchronous data pipeline, and machine learning on local sensor data.
+A learning-oriented IoT project covering the full stack: embedded firmware, solar power, asynchronous data pipeline, and machine learning on local sensor data. Sensor set covers standard meteorology plus soil moisture and rainfall — targeting small-scale precision agriculture use cases.
 
 > 🌻 *Yes, that's a sunflower. It watches the sun. This station watches the weather. Close enough.*
 
@@ -25,7 +25,8 @@ Full design documentation (architecture, hardware, firmware, backend, ML): [pers
 | 9 | Power: Solar + battery | MPPT + LiFePO₄, battery monitoring | ⬜ Planned |
 | 10 | Stevenson screen + outdoor deployment | Final assembly into enclosure / Stevenson screen | ⬜ Planned |
 | ◇ Optional | Wi-Fi push | Direct upload after each wake, no gateway | ⬜ Planned |
-| ◇ Optional | Cellular | GSM/LTE for remote deployments | ⬜ Planned |
+| ◇ Optional | LoRa | Low-power long-range for field/allotment deployments | ⬜ Planned |
+| ◇ Optional | Cellular | GSM/LTE for remote deployments with no LoRa coverage | ⬜ Planned |
 
 See [ROADMAP.md](ROADMAP.md) for detailed per-phase deliverables, hardware lists, and exit criteria.
 
@@ -41,7 +42,10 @@ flowchart TD
     P8 --> P9[9 - Solar + battery]
     P9 --> P10[10 - Outdoor deployment]
     P2 -. optional .-> OWifi[Wi-Fi push]
+    P9 -. optional .-> OLora[LoRa]
     P9 -. optional .-> OCellular[Cellular]
+    OLora .-> P10
+    OCellular .-> P10
 ```
 
 ## Related projects

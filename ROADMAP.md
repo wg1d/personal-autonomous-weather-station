@@ -21,7 +21,8 @@
 | 9 | Power: Solar + battery | MPPT + LiFePO₄ + battery monitoring | 24h autonomous bench run |
 | 10 | Stevenson screen + outdoor deployment | Final assembly + outdoor installation | 2 weeks outdoor stable data |
 | ◇ Optional | Wi-Fi push | Direct upload after each wake, no gateway | Direct push works on home Wi-Fi |
-| ◇ Optional | Cellular | GSM/LTE for remote deployments | Remote upload works without Wi-Fi |
+| ◇ Optional | LoRa | Low-power long-range link for field deployments | Sensor data reaches server from >1 km |
+| ◇ Optional | Cellular | GSM/LTE for remote deployments with no LoRa coverage | Remote upload works without Wi-Fi or LoRa |
 
 ## Dependency graph
 
@@ -37,14 +38,21 @@ flowchart TD
     P8 --> P9[9 - Solar + battery]
     P9 --> P10[10 - Outdoor deployment]
     P2 -. optional .-> OWifi[Wi-Fi push]
+    P9 -. optional .-> OLora[LoRa]
     P9 -. optional .-> OCellular[Cellular]
+    OLora -. if chosen: before P10 .-> P10
+    OCellular .-> P10
 ```
 
 The main track is fully linear: Phase 1 → Phase 2 → ... → Phase 10. This is deliberate. Hardware is validated on breadboard first, software grows around the validated hardware, and the clean assembly only happens once the full system is known.
 
 Breadboard-first stays the governing rule throughout: sensors, solar, and optional cellular are all proven before the enclosure is designed around them. There is no custom PCB phase. The final clean build happens once, inside the Stevenson screen deployment phase, using plug-and-play modules, STEMMA QT / Qwiic for I²C, and JST connectors for field sensors.
 
-Optional connectivity also follows this structure. Wi-Fi push can be added any time after Phase 2 because the ESP32 already has Wi-Fi hardware. Cellular is optional too, but it must be validated before Phase 10 so its module, antenna, and power behavior are accounted for in the final enclosure.
+Optional connectivity also follows this structure. Wi-Fi push can be added any time after Phase 2 because the ESP32 already has Wi-Fi hardware — no new hardware, no enclosure impact.
+
+LoRa and Cellular are both optional, but with a hard constraint: **if you choose either, it must be validated before Phase 10**. The module, antenna, power draw, and enclosure fit must all be known before the Stevenson screen assembly is designed and built. Discovering after the fact that the GSM antenna needs an external mount, or that the LoRa module needs a different power rail, means reopening the enclosure. Breadboard-first applies here too.
+
+LoRa is the preferred choice for low-power field deployments where free TTN (The Things Network) coverage exists or where you install your own gateway. Cellular is the fallback for truly remote sites with no LoRa gateway in range — it works anywhere with cell coverage, but carries a monthly SIM cost and higher power draw.
 
 ---
 
@@ -313,6 +321,36 @@ The gateway script from Phase 2 is not removed — it remains a valid fallback f
 
 ### Exit criterion
 Dashboard updates within 1 minute of each wake. No manual gateway run needed for in-range deployments.
+
+---
+
+## Optional — LoRa (validate before Phase 10)
+
+**Goal:** Enable low-power long-range data upload for field, garden, or allotment deployments — no Wi-Fi required, no SIM card cost.
+
+LoRa (Long Range) radio transmits tiny packets over 1–15 km at ~100 mA peak, making it ideal for sensor nodes on solar/battery. Sensor payloads are well within LoRa's data rate limits (a single measurement row encodes in under 50 bytes). The Things Network (TTN) provides free LoRaWAN infrastructure in many areas; alternatively, a single $50–100 DIY gateway (Raspberry Pi + LoRa HAT) covers a full property.
+
+Hardware boards such as the **Heltec WiFi LoRa32** or **TTGO LoRa32** combine ESP32 + SX1276 LoRa transceiver in one module, requiring no additional wiring beyond swapping the bare WROVER DevKit.
+
+Like cellular, this must be validated on the bench before Phase 10 so antenna placement, module power management, and enclosure fit are all known before the final assembly.
+
+### Hardware
+- Heltec WiFi LoRa32 v3 (or TTGO LoRa32) — ESP32 + SX1276 in one module
+- LoRa antenna (868 MHz EU / 915 MHz US)
+- TTN account (free) **or** a local DIY LoRaWAN gateway
+
+### Firmware deliverables
+- [ ] LoRaWAN driver (LMIC or RadioLib library)
+- [ ] Compact binary payload encoder (encode one measurement row into ≤50 bytes)
+- [ ] Reuse `PUSH` state logic — swap Wi-Fi transport for LoRa uplink
+- [ ] Power management: LoRa module powered down between wakes via MOSFET
+- [ ] CSV column `lora_snr` for signal quality logging
+
+### Backend deliverables
+- [ ] TTN webhook → FastAPI `POST /api/upload` decoder (or MQTT bridge to InfluxDB)
+
+### Exit criterion
+Measurement data reaches Grafana from a location with no Wi-Fi. Dashboard updates within 2 minutes of each wake. Battery voltage impact measured and within budget.
 
 ---
 
