@@ -106,8 +106,8 @@ LoRa is the preferred choice for low-power field deployments where free TTN (The
 
 **Server (Odroid C4 / Raspberry Pi):**
 - [ ] FastAPI REST API: `POST /api/upload`, `GET /api/data`, `GET /api/latest`
-- [ ] InfluxDB v1 — write measurements via line protocol, query via InfluxQL
-- [ ] Grafana installation + InfluxDB data source
+- [ ] Database: InfluxDB v1 (standard stack) or Tinyflux / SQLite (lightweight Pi Zero stack)
+- [ ] Dashboard setup: Grafana (standard) or Plotly Dash / client-side Plotly.js (lightweight)
 - [ ] Dashboard: current conditions, temperature / pressure / humidity history
 
 **Operational:**
@@ -115,7 +115,7 @@ LoRa is the preferred choice for low-power field deployments where free TTN (The
 - [ ] API accessible on local network (`http://odroid.local:8000` or `http://raspberrypi.local:8000`)
 
 ### Exit criterion
-Data flows from SD card to Grafana in <1 hour after gateway run. Dashboard shows at least 7 days of history.
+Data flows from SD card to Grafana/Plotly dashboard in <1 hour after gateway run. Dashboard shows at least 7 days of history.
 
 ---
 
