@@ -1,0 +1,6 @@
+[submodule "archive/sandbox_esp32"]
+	path = archive/sandbox_esp32
+	url = git@github.com:wg1d/sandbox_esp32.git
+[submodule "archive/weather-dashboard"]
+	path = archive/weather-dashboard
+	url = git@github.com:wg1d/weather-dashboard.git
