@@ -109,29 +109,52 @@ This requires the mode switch to be wired to an EXT1-capable GPIO and registered
 
 ---
 
-## Phone gateway — operating principle
+## Data Synchronization Strategy
 
-The phone acts as a **store-and-forward relay**:
+Moving data from the field weather station (ESP32) to the backend server (Raspberry Pi/ODROID) involves selecting a **Trigger Mechanism** (how the station wakes up to sync) and a **Communication Medium** (how the data is transmitted). 
 
-1. User walks to the station with their phone
-2. Phone connects to the station's Wi-Fi AP (SERVER mode)
-3. User downloads the latest CSV log file(s) via the browser
-4. When back on home Wi-Fi, the user opens the server web UI and uploads the file directly from a browser form
+### 1. Our Selected Hybrid Approach
+To ensure the station is both easy to use in its final outdoor location and simple to configure during the initial testing phase, the project uses a **hybrid Wi-Fi synchronization strategy**:
 
-This approach requires **zero infrastructure at the station location** and no app or script on the phone — only a browser. The station can be in a garden, a field, or a rooftop — anywhere.
+*   **Primary Sync — Automated Wi-Fi Client:** When deployed within range of the home Wi-Fi network, the station operates fully automatically. Once or twice a day, the ESP32 wakes up, connects as a Wi-Fi client to the home router, transmits new CSV log rows to the backend REST API (`POST /api/upload`), and goes back to sleep.
+*   **Secondary Sync — Manual Wi-Fi AP (Testing & Out-of-Range Backup):** During the initial prototyping phase (when no home router is configured or available) or if the station is deployed out of Wi-Fi range, the user can manually sync the device. Waking the device via a **momentary button** (or waving a magnet near a **reed switch**) triggers the ESP32 to spin up its own Wi-Fi Access Point (`SERVER` mode) for a temporary **3-minute window**. The user connects their phone and downloads logs via a web browser. A software timer automatically returns the device to deep sleep once the window expires, protecting the battery from accidental drain.
+
+---
+
+### 2. Physical Trigger: Toggle Switch vs. Momentary Button
+The method used to manually trigger the sync mode impacts both battery safety and enclosure waterproofing:
+
+*   **Latching Toggle Switch:** Requires a physical toggle to be flipped to `SERVER` mode, and **must be manually flipped back** to `MEASURE` mode. 
+    *   *Cons:* High risk of battery drain if forgotten; mechanical toggle switches are difficult to waterproof.
+*   **Momentary Push Button (or Magnetic Reed Switch):** Closes a circuit briefly to wake the ESP32 via a wake-up pin (`EXT0`/`EXT1`). 
+    *   *Pros:* The firmware controls the sync window duration and automatically goes back to deep sleep. The user cannot accidentally drain the battery. A magnetic reed switch can be placed entirely inside the enclosure, allowing a **100% hermetically sealed** weatherproof box (zero external holes).
+
+---
+
+### 3. Wireless Technology: BLE vs. Wi-Fi
+While consumer smart-home sensors (like SwitchBot) use Bluetooth Low Energy (BLE), this project opts for Wi-Fi for direct data transfer due to the following trade-offs:
+
+| Feature | BLE (Bluetooth Low Energy) | Wi-Fi (Direct Connection) |
+| :--- | :--- | :--- |
+| **Battery Life** | 🟢 **Excellent:** Fast transmit time (~1s), low peak current (~80mA), no router connection handshake. | 🟡 **Moderate:** Takes 3–5s to connect to the router, get an IP via DHCP, and complete TCP handshakes. Draws ~120–150mA. |
+| **Bulk Data Transfer (SD Sync)** | 🔴 **Low Throughput:** BLE packet limits (typically 20–244 bytes MTU) require writing custom chunking, reassembly, and error-checking logic to transfer weeks of historical CSV logs. | 🟢 **High Throughput:** Standard TCP/IP allows the ESP32 to upload a multi-megabyte CSV file in a single, robust HTTP POST request in seconds. |
+| **Protocol Simplicity** | 🔴 **Complex:** Requires designing custom GATT services/characteristics and managing async BLE scanners on the backend server. | 🟢 **Simple:** Uses standard web HTTP REST APIs and JSON payloads. Very easy to develop, test, and debug. |
+| **Signal Range** | 🔴 **Shorter:** Low transmit power (1–10 mW) makes it difficult to penetrate thick exterior walls. | 🟢 **Longer:** Higher transmit power (100–200 mW) yields better range and wall-penetration. |
+
+#### Note on SwitchBot-style BLE
+SwitchBot sensors are designed to broadcast their current conditions (temperature/humidity) continuously using connectionless **BLE advertisements** (beacons), which fit in a tiny 31-byte payload. While their internal memory is synced when a user opens the app, implementing a robust BLE GATT server for historical data logging on the ESP32 adds massive firmware complexity. Wi-Fi client mode allows the weather station to use standard, highly reliable HTTP protocols with minimal code footprint.
 
 ---
 
 ## Backend — server role
 
-The SBC is the home server. It is always on (or scheduled) and provides:
+The SBC is the home server. While the **ODROID C4** is used for prototyping (since it is already owned), a **Raspberry Pi** (such as a Raspberry Pi Zero 2 W in a rugged case like the FLIRC aluminum case, or a Pi 4/5) is the preferred production choice due to lower cost, standard hardware interfaces, and wider ecosystem support.
 
-- **Data ingestion** — REST endpoint that accepts uploaded CSV batches
-- **Storage** — time-series database (InfluxDB v1)
-- **Visualization** — web dashboard with historical data and derived metrics (Grafana, Plotly Dash, or similar — TBD)
+The backend is always on and provides:
+- **Data ingestion** — REST endpoint that accepts uploaded CSV batches or serial data packets
+- **Storage** — time-series database (TinyDB prototype → InfluxDB v1 or SQLite production)
+- **Visualization** — web dashboard with historical data and derived metrics (Grafana or Plotly Dash)
 - **Inference** — runs trained ML models to produce watering recommendations and short-term weather forecasts
-
-The backend is fully independent of the station. It can operate, process, and display data even if the station has been offline for days.
 
 ---
 
@@ -143,11 +166,10 @@ These do not change across phases:
 |-----------|-------|
 | Time authority | DS3231 RTC |
 | Primary storage | SD card (append-only CSV) |
-| Station-server link | Asynchronous (phone relay) |
+| Station-server link | Asynchronous (Wi-Fi direct or manual browser download) |
 | Data format | `YYYY-MM-DD HH:MM:SS,fields...` |
 | Firmware model | Wake-do-sleep FSM |
 | Internet at station | Never required |
-
 ::: {.callout-note}
 **Optional connectivity — Wi-Fi push / LoRa / Cellular:** direct upload from the station will bypass the phone relay entirely, eliminating the manual data-mule step. All three are optional phases — the phone gateway always remains a valid fallback. LoRa and Cellular must be validated before the final outdoor enclosure is assembled (Phase 10). See the [Connectivity options](#connectivity-options) section below and [ROADMAP.md](https://github.com/wg1d/personal-autonomous-weather-station/blob/main/ROADMAP.md) for details.
 :::
@@ -215,7 +237,7 @@ sequenceDiagram
 ::: {.callout-note}
 **What is LoRa?**
 
-LoRa (**Lo**ng **Ra**nge) is a radio modulation technique developed by Semtech. It operates on unlicensed sub-GHz ISM bands (868 MHz in Europe, 915 MHz in the US) and uses **chirp spread spectrum**: rather than transmitting at a single frequency, the signal sweeps across a band, which makes it robust to noise and interference and gives it exceptional range at very low transmit power.
+LoRa (**Lo**ng **Range**) is a radio modulation technique developed by Semtech. It operates on unlicensed sub-GHz ISM bands (868 MHz in Europe, 915 MHz in the US) and uses **chirp spread spectrum**: rather than transmitting at a single frequency, the signal sweeps across a band, which makes it robust to noise and interference and gives it exceptional range at very low transmit power.
 
 Key properties:
 - **Range:** 1–5 km in urban environments, 10–15 km line-of-sight

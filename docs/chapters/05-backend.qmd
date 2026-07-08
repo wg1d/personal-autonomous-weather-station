@@ -4,20 +4,20 @@
 
 ---
 
-## Server hardware — Odroid C4
+## Server hardware
 
-The backend runs on an **Odroid C4** — a single-board computer suitable as a low-power always-on home server.
+The backend runs on a single-board computer (SBC) suitable as a low-power, always-on home server, such as an **Odroid C4** or a **Raspberry Pi** (e.g. Raspberry Pi Zero 2 W, Pi 4, or Pi 5).
 
-| Feature | Value |
-|---------|-------|
-| SoC | Amlogic S905X3 (quad-core Cortex-A55, 1.8 GHz) |
-| RAM | 4 GB LPDDR4 |
-| Storage | eMMC + microSD |
-| Network | Gigabit Ethernet |
-| Power draw | ~5–8 W typical |
-| OS | Ubuntu 22.04 or Armbian |
+| Feature | Odroid C4 | Raspberry Pi Zero 2 W | Notes |
+|---------|-----------|-----------------------|-------|
+| SoC | Amlogic S905X3 (4x A55, 1.8 GHz) | Broadcom BCM2710A1 (4x A53, 1.0 GHz) | 64-bit ARM architectures |
+| RAM | 4 GB LPDDR4 | 512 MB LPDDR2 | Pi Zero is RAM-constrained |
+| Storage | eMMC + microSD | microSD | eMMC is faster and more reliable |
+| Network | Gigabit Ethernet | 2.4GHz Wi-Fi + BLE 4.2 | Pi Zero has built-in wireless |
+| Power draw | ~5–8 W typical | ~1–3 W typical | Pi Zero is extremely low power |
+| OS | Ubuntu 22.04 or Armbian | Raspberry Pi OS (Debian) | Standard Linux OS |
 
-The Odroid C4 comfortably runs: InfluxDB + Grafana + FastAPI + ML inference simultaneously.
+The Odroid C4 and larger Raspberry Pis (Pi 4/5) comfortably run InfluxDB + Grafana + FastAPI + ML inference simultaneously. On a Pi Zero 2 W, using a lightweight database like SQLite is recommended to keep memory usage low.
 
 ---
 
@@ -31,7 +31,7 @@ The phone is a **store-and-forward relay** between the station and the server. I
 sequenceDiagram
     participant Phone
     participant Station as Station (Wi-Fi AP)
-    participant Server as Odroid C4
+    participant Server as SBC Server
 
     Phone->>Station: Connect to WeatherStation AP
     Phone->>Station: GET /files → list CSV files
@@ -50,7 +50,7 @@ sequenceDiagram
 import requests, os
 
 STATION_URL = "http://192.168.4.1"  # Station AP IP
-SERVER_URL  = "http://odroid.local:8000"
+SERVER_URL  = "http://odroid.local:8000"  # Or http://raspberrypi.local:8000
 
 # Step 1: download from station
 files = requests.get(f"{STATION_URL}/files").json()
@@ -111,7 +111,7 @@ client.write_points([point])
 result = client.query("SELECT mean(temp) FROM environment WHERE time > now() - 24h GROUP BY time(1h)")
 ```
 
-InfluxDB v1 runs well on the Odroid C4 and integrates with Grafana natively via a built-in data source.
+InfluxDB v1 runs well on the Odroid C4 or Raspberry Pi (Pi 4/5) and integrates with Grafana natively.
 
 ---
 
@@ -156,5 +156,5 @@ Grafana connects directly to InfluxDB via its native built-in data source — no
 | Watering recommendation | Stat + alert | Latest |
 
 ::: {.callout-note}
-Grafana runs fine on the Odroid C4 alongside InfluxDB. Combined memory usage: ~300–500 MB.
+Grafana runs fine on an Odroid C4 or Raspberry Pi (Pi 4/5) alongside InfluxDB. On a Pi Zero 2 W, resource usage should be monitored closely; hosting Grafana and Python ML models on it can saturate its 512MB RAM, making SQLite + a custom lightweight dashboard web app a better fit than Grafana + InfluxDB.
 :::

@@ -196,3 +196,40 @@ A 2000 mAh LiFePO₄ cell gives ~140 days with no solar charging. A 5 W panel in
 | DIY-compatible | Yes | Yes |
 
 **Decision:** Phases 1–8 accept reed switches (breadboard validation). Phase 10+ prefer Hall sensors on DIY/3D-printed sensors for reliability. The firmware interface is identical — both are generic "pulse inputs".
+
+---
+
+## Schematics & Wiring Diagrams
+
+To make this project easily replicable and educational, the book will feature two types of hardware illustrations:
+
+1. **Classical Electronic Schematic (Formal Wiring Diagram):** Shows standard circuit symbols, electrical connections, and pin numbers.
+   *   *Recommended Tool:* **KiCad** (professional, open-source, local install) or **EasyEDA** (beginner-friendly, web-based, no install needed).
+2. **Educational Breadboard Layout:** A visual component layout showing exactly how components are wired on a breadboard.
+   *   *Recommended Tool:* **Fritzing** (the standard tool for beginner-friendly wiring illustrations).
+
+### Tool Installation & Workflow
+
+Because these diagrams are visual and binary formats, you will need to design them using graphical tools on your computer. Antigravity cannot generate Fritzing/KiCad GUI layouts directly, but once you export them as images, I can help integrate and document them.
+
+#### 1. Fritzing (Educational Layouts)
+To install Fritzing on Linux:
+```bash
+sudo apt update
+sudo apt install fritzing
+```
+*Workflow:* Search for the ESP32 WROVER dev board and your sensor breakouts (BME280, etc.) in the Fritzing search box. Wire them together on the breadboard view, export the board view as a **PNG/SVG** image, and save it to `docs/assets/images/`.
+
+#### 2. KiCad or EasyEDA (Classical Schematics)
+To install KiCad on Linux:
+```bash
+sudo apt install kicad
+```
+*Workflow:* Use KiCad Schematic Editor to draw the circuit using standard schematic libraries. Export the sheet as a **PNG/SVG** to `docs/assets/images/`. 
+*(Alternatively, design it online in your browser at [EasyEDA.com](https://easyeda.com/) and export the graphic.)*
+
+### Image Integration
+Save your exported graphics to `docs/assets/images/` and embed them into the relevant chapters using markdown:
+```markdown
+![Phase 1 Breadboard Connections](../assets/images/breadboard_phase1.png)
+```

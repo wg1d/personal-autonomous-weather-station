@@ -11,7 +11,7 @@
 | Phase | Name | Key addition | Exit criterion |
 |-------|------|-------------|----------------|
 | 1 | Prototype | Core FSM + SD logging | 48h stable data on SD |
-| 2 | Backend MVP | Odroid C4 + gateway + dashboard | Data flows prototype → dashboard |
+| 2 | Backend MVP | SBC (Odroid C4 / Raspberry Pi) + gateway + dashboard | Data flows prototype → dashboard |
 | 3 | Forecasting — basic | LSTM on temp/pressure/humidity | Forecast beats baseline |
 | 4 | Sensors: BH1750 + VEML6075 | Light + UV over I²C/STEMMA QT | Light + UV validated |
 | 5 | Sensor: Soil moisture | Capacitive probe + ADC + calibration | Soil readings calibrated |
@@ -93,8 +93,8 @@ LoRa is the preferred choice for low-power field deployments where free TTN (The
 > Do this before adding more hardware. Validating ingestion, storage, API shape, and dashboarding on the Phase 1 prototype de-risks every later phase.
 
 ### Hardware
-- Odroid C4
-- Ethernet connection
+- Odroid C4 (existing) or Raspberry Pi (e.g. Pi Zero 2 W as a cheap, robust alternative)
+- Connected to home network via Ethernet
 
 ### Software deliverables
 
@@ -104,15 +104,15 @@ LoRa is the preferred choice for low-power field deployments where free TTN (The
 
 > The gateway is the baseline data path. It stays as a fallback even if direct push is added later, which makes it still useful for field deployments or for recovery when Wi-Fi is unavailable.
 
-**Server (Odroid C4):**
+**Server (Odroid C4 / Raspberry Pi):**
 - [ ] FastAPI REST API: `POST /api/upload`, `GET /api/data`, `GET /api/latest`
 - [ ] InfluxDB v1 — write measurements via line protocol, query via InfluxQL
 - [ ] Grafana installation + InfluxDB data source
 - [ ] Dashboard: current conditions, temperature / pressure / humidity history
 
 **Operational:**
-- [ ] Server starts on Odroid boot (`systemd` service)
-- [ ] API accessible on local network at `http://odroid.local:8000`
+- [ ] Server starts on SBC boot (systemd service)
+- [ ] API accessible on local network (`http://odroid.local:8000` or `http://raspberrypi.local:8000`)
 
 ### Exit criterion
 Data flows from SD card to Grafana in <1 hour after gateway run. Dashboard shows at least 7 days of history.
@@ -131,7 +131,7 @@ This is deliberately a constrained model. Pressure trend alone is highly predict
 - [ ] Download 2–3 years of OpenMeteo hourly data (temperature, pressure, humidity)
 - [ ] Train LSTM with 24h input → `t+1h`, `t+3h`, `t+6h` output
 - [ ] Compare against pressure-trend baseline
-- [ ] Export model to ONNX or TFLite and deploy on Odroid C4
+- [ ] Export model to ONNX or TFLite and deploy on SBC (Odroid C4 / Raspberry Pi)
 - [ ] FastAPI endpoint `GET /api/predict/forecast`
 - [ ] Grafana panel: 6h forecast overlay on current conditions
 
