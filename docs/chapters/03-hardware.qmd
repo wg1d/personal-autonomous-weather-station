@@ -43,8 +43,7 @@ The WROVER variant is preferred over WROOM because the PSRAM becomes useful when
 | Anemometer pulse | 25 | GPIO interrupt |
 | Wind vane (ADC) | 34 | Input-only, 12-bit ADC |
 | Soil moisture (ADC) | 35 | Input-only, 12-bit ADC |
-| Mode switch | 4 | Pull-up, read at boot |
-| Push button | 14 | Pull-up, debounced |
+| Push button / Reed switch | 14 | EXT1 wake, internal pull-up, triggers sync/config mode |
 | Status LED | 2 | Built-in, or external with 330 Ω resistor |
 
 ::: {.callout-note}

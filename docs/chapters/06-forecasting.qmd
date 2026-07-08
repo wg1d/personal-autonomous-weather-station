@@ -31,7 +31,7 @@ Random Forest is the right tool here for several reasons:
 - **Works with small datasets**: you don't need thousands of samples; 200–500 labeled observations are enough to get started
 - **No feature scaling required**: handles temperature, rain, and percentage values naturally
 - **Robust**: handles missing values (with imputation) and doesn't overfit easily
-- **Fast inference**: predictions take milliseconds on the Odroid C4
+- **Fast inference**: predictions take milliseconds on a low-power SBC (Odroid C4 / Raspberry Pi)
 
 Deep learning would be overkill and harder to interpret for this binary decision.
 
@@ -201,16 +201,16 @@ optimizer = torch.optim.Adam(
 )
 ```
 
-### Deployment on Odroid C4
+### Deployment on SBC (Odroid C4 / Raspberry Pi)
 
 | Task | Feasibility |
 |------|-------------|
 | LSTM inference (small model <100k params) | ✅ <100 ms per prediction |
 | LSTM training from scratch | 🟡 Hours — prefer laptop |
-| Transfer learning fine-tuning | ✅ Minutes on Odroid C4 with CPU |
+| Transfer learning fine-tuning | ✅ Minutes on SBC CPU |
 | TFLite / ONNX export + inference | ✅ Recommended for production |
 
-**Workflow:** train on laptop → export to ONNX or TFLite → deploy to Odroid C4 for serving.
+**Workflow:** train on laptop → export to ONNX or TFLite → deploy to SBC for serving.
 
 ### Baseline comparison
 
@@ -234,5 +234,5 @@ The LSTM should outperform these baselines on 3h+ horizons to be worth deploying
 | Start ML before collecting data | No data = no model. Collect first. |
 | Use deep learning for watering decision | Random Forest is better: interpretable, needs less data |
 | Train the forecast model only on local data | Too little data early on. Use external data first. |
-| Train on Odroid C4 from scratch | Slow. Train on laptop, deploy to Odroid. |
+| Train on SBC from scratch | Slow. Train on laptop, deploy to SBC. |
 | Skip baselines | You won't know if your model is actually useful. |

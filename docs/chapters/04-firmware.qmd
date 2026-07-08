@@ -15,7 +15,7 @@ No persistent loops. No background tasks. No RTOS. The ESP32 wakes, evaluates st
 ## Finite State Machine (FSM)
 
 ::: {.callout-note}
-The canonical FSM — including the full state diagram, wakeup-cause dispatch (`CHECK_WAKEUP`, `READ_SWITCH`), and LED table — is defined in [System Architecture](02-architecture.qmd#station-finite-state-machine-fsm). This section covers the **implementation perspective** only: what each state does in code and how boot priority is resolved.
+The canonical FSM — including the full state diagram, wakeup-cause dispatch (`CHECK_WAKEUP`, `CHECK_BUTTON`), and LED table — is defined in [System Architecture](02-architecture.qmd#station-finite-state-machine-fsm). This section covers the **implementation perspective** only: what each state does in code and how boot priority is resolved.
 :::
 
 ### States
@@ -23,17 +23,17 @@ The canonical FSM — including the full state diagram, wakeup-cause dispatch (`
 | State | Trigger | What happens |
 |-------|---------|--------------|
 | `DATA_LOGGER` | RTC alarm (`EXT0` wakeup) | Read sensors → write SD → set next alarm → sleep |
-| `SERVER` | Mode switch in SERVER position (`EXT1` wakeup or power-on) | Start Wi-Fi AP → serve web UI → no measurements |
+| `SERVER` | Button press / magnet wave (`EXT1` wakeup, or button held at power-on) | Start Wi-Fi AP → serve web UI for 3 min → sleep |
 | `INIT_RTC` | RTC not valid, or long button press in SERVER | Connect to NTP → set DS3231 → return to SERVER |
 
 ### Boot priority (power-on only)
 
-When wakeup cause is `UNDEFINED` (fresh power-on) and the mode switch state must be sampled:
+When wakeup cause is `UNDEFINED` (fresh power-on):
 
 ```
-1. Mode switch = SERVER?  → SERVER state
-2. RTC not valid?         → INIT_RTC state
-3. Otherwise             → DATA_LOGGER state
+1. Button held down?      → SERVER state (force manual sync/config)
+2. RTC not valid?         → INIT_RTC state (configure time authority)
+3. Otherwise             → DATA_LOGGER state (run initial log, then sleep)
 ```
 
 ---
@@ -185,8 +185,7 @@ The LED reflects **actual system state**, never user intent.
 |--------|---------|
 | I²C SDA/SCL | External 4.7 kΩ to 3.3 V |
 | DS3231 INT | External 10 kΩ to 3.3 V |
-| Mode switch | Internal (ESP32) |
-| Push button | Internal (ESP32) |
+| Push button / Reed switch | Internal (ESP32) |
 | LED | Series 330 Ω resistor |
 
 ### Debounce

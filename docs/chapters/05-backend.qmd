@@ -17,7 +17,7 @@ The backend runs on a single-board computer (SBC) suitable as a low-power, alway
 | Power draw | ~5–8 W typical | ~1–3 W typical | Pi Zero is extremely low power |
 | OS | Ubuntu 22.04 or Armbian | Raspberry Pi OS (Debian) | Standard Linux OS |
 
-The Odroid C4 and larger Raspberry Pis (Pi 4/5) comfortably run InfluxDB + Grafana + FastAPI + ML inference simultaneously. On a Pi Zero 2 W, using a lightweight database like SQLite is recommended to keep memory usage low.
+The Odroid C4 and larger Raspberry Pis (Pi 4/5) comfortably run InfluxDB + Grafana + FastAPI + ML inference simultaneously. On a Pi Zero 2 W, using serverless tools like **Tinyflux** or **SQLite** is recommended to avoid saturating the 512 MB RAM.
 
 ---
 
@@ -92,9 +92,11 @@ On `POST /api/upload`, the server parses the CSV and skips rows where the timest
 
 ## Database
 
-InfluxDB v1 is used from Phase 2 onward. It is purpose-built for time-series data, integrates natively with Grafana, and runs comfortably on the Odroid C4.
+Depending on your hardware target (high-end SBC vs. low-power Pi Zero), you have two time-series database options:
 
-### InfluxDB v1
+### Option 1: InfluxDB v1 (Standard Stack)
+
+InfluxDB v1 is used from Phase 2 onward. It is purpose-built for time-series data, runs as a system service, integrates natively with Grafana, and runs comfortably on an Odroid C4 or Raspberry Pi 4/5.
 
 ```python
 from influxdb import InfluxDBClient
@@ -111,7 +113,39 @@ client.write_points([point])
 result = client.query("SELECT mean(temp) FROM environment WHERE time > now() - 24h GROUP BY time(1h)")
 ```
 
-InfluxDB v1 runs well on the Odroid C4 or Raspberry Pi (Pi 4/5) and integrates with Grafana natively.
+### Option 2: Tinyflux (Lightweight / Pi Zero Stack)
+
+For the Raspberry Pi Zero 2 W, running a full InfluxDB server daemon is not recommended due to its 512 MB memory constraint. Instead, you can use **Tinyflux**, a lightweight, serverless time-series database written in Python (inspired by TinyDB). 
+
+Tinyflux stores data in a flat JSON file on the SD card and runs directly inside your Python application process (no background services needed), using only a few megabytes of RAM.
+
+Install it via pip:
+```bash
+pip install tinyflux
+```
+
+Usage in your backend code:
+```python
+from datetime import datetime, timezone
+from tinyflux import TinyFlux, Point
+
+# Initialize database (reads/writes to local file)
+db = TinyFlux("data/weather_db.json")
+
+# Write a point
+p = Point(
+    time=datetime(2026, 5, 13, 10, 25, 0, tzinfo=timezone.utc),
+    measurement="environment",
+    tags={"station_id": "paws_01"},
+    fields={"temp": 18.4, "hum": 62.1, "pres": 1013.2}
+)
+db.insert(p)
+
+# Query data from the last 24 hours
+from tinyflux import TimeQuery
+q = TimeQuery()
+results = db.search(q.time >= datetime(2026, 5, 12, 10, 25, 0, tzinfo=timezone.utc))
+```
 
 ---
 
@@ -139,11 +173,13 @@ ts,temp_c,hum_pct,pres_hpa,light_lux,uv_idx,soil_pct,rain_mm,wind_spd_ms,wind_di
 
 ---
 
-## Dashboard — Grafana
+## Dashboards & Visualization
 
-Grafana connects directly to InfluxDB via its native built-in data source — no plugin required.
+Depending on your server hardware, you can build the user interface using a heavy, drag-and-drop platform, a pure-Python framework, or a custom HTML/JS interface:
 
-### Suggested panels
+### Option 1: Grafana (Standard Stack)
+
+Grafana connects directly to InfluxDB via its native built-in data source. It is ideal for Raspberry Pi 4/5 or Odroid C4 servers, offering drag-and-drop dashboard design with no coding required.
 
 | Panel | Visualization | Time range |
 |-------|---------------|------------|
@@ -155,6 +191,120 @@ Grafana connects directly to InfluxDB via its native built-in data source — no
 | Soil moisture | Time series + threshold | 14 days |
 | Watering recommendation | Stat + alert | Latest |
 
+---
+
+### Option 2: Plotly / Dash (Lightweight Pi Zero Stack)
+
+To run a dashboard on a 512 MB Raspberry Pi Zero 2 W, Grafana is too heavy. Instead, we can serve an interactive UI directly from Python.
+
+#### A. Plotly Dash (Pure Python Dashboard)
+Plotly Dash allows you to create reactive dashboards entirely in Python. It runs as a Flask web server, using about **60–100 MB of RAM**.
+
+```python
+import dash
+from dash import dcc, html
+import plotly.express as px
+import pandas as pd
+
+app = dash.Dash(__name__)
+
+# Sample dataframe (usually loaded from Tinyflux/SQLite)
+df = pd.DataFrame({
+    "Time": ["10:00", "11:00", "12:00"],
+    "Temperature": [18.5, 19.2, 18.9]
+})
+
+fig = px.line(df, x="Time", y="Temperature", title="Temperature History")
+
+app.layout = html.Div([
+    html.H1("PAWS Dashboard"),
+    dcc.Graph(figure=fig)
+])
+
+if __name__ == "__main__":
+    app.run_server(host="0.0.0.0", port=8050)
+```
+
+#### B. FastAPI + Plotly.js (Client-Side Rendering — Ultimate Lightweight)
+For the absolute smallest RAM footprint (**30–40 MB total**), FastAPI serves a simple static HTML page referencing the **Plotly.js** CDN. The client browser downloads the raw data as JSON and handles the actual graph rendering.
+
+This setup is ideal for displaying:
+1.  **Current Weather & Icons:** Use CSS and free icon fonts (like Lucide or Bootstrap Icons) to show a prominent weather card matching the latest readings (e.g. a Sun icon for high lux, or a Rain Cloud if tipping counts have increased recently).
+2.  **Forecast Overlays:** Overlay predicted LSTM curves on top of the historical data. Plotly.js makes it easy to plot two traces—a solid line for historical readings and a dashed line starting at the present time to show the forecast, optionally surrounded by a shaded confidence interval band.
+
+Here is a minimal client-side dashboard template (`dashboard.html`):
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PAWS Dashboard</title>
+    <!-- Include Plotly.js CDN -->
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <!-- Include Lucide Icons CDN for Weather Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+    <div style="font-family: sans-serif; max-width: 800px; margin: 0 auto;">
+        <h1>Personal Autonomous Weather Station</h1>
+        
+        <!-- Current Conditions Card -->
+        <div id="current-card" style="padding: 20px; border: 1px solid #ddd; border-radius: 8px; display: flex; align-items: center; gap: 20px;">
+            <i data-lucide="cloud-rain" style="width: 48px; height: 48px; color: #3b82f6;"></i>
+            <div>
+                <h2>Current Conditions</h2>
+                <p>Temp: <span id="curr-temp">--</span> °C | Pressure: <span id="curr-pres">--</span> hPa</p>
+            </div>
+        </div>
+
+        <!-- Historical & Forecast Chart -->
+        <div id="chart" style="width:100%; height:400px; margin-top: 20px;"></div>
+    </div>
+
+    <script>
+        // Fetch recent readings from your FastAPI server
+        fetch('/api/data')
+            .then(res => res.json())
+            .then(data => {
+                // Update current weather UI text
+                const latest = data.history[data.history.length - 1];
+                document.getElementById('curr-temp').innerText = latest.temp;
+                document.getElementById('curr-pres').innerText = latest.pres;
+                lucide.createIcons(); // Initialize Lucide Icons
+
+                // Historical trace
+                const traceHistory = {
+                    x: data.history.map(r => r.time),
+                    y: data.history.map(r => r.temp),
+                    name: 'Measured Temperature',
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: { color: '#3b82f6' }
+                };
+
+                // Forecast trace (e.g. from LSTM endpoint)
+                const traceForecast = {
+                    x: data.forecast.map(r => r.time),
+                    y: data.forecast.map(r => r.temp),
+                    name: 'LSTM Forecast',
+                    type: 'scatter',
+                    mode: 'lines',
+                    line: { color: '#ef4444', dash: 'dash' }
+                };
+
+                const layout = {
+                    title: 'Temperature & 6-Hour Forecast',
+                    xaxis: { title: 'Time' },
+                    yaxis: { title: 'Temperature (°C)' }
+                };
+
+                Plotly.newPlot('chart', [traceHistory, traceForecast], layout);
+            });
+    </script>
+</body>
+</html>
+```
+
 ::: {.callout-note}
-Grafana runs fine on an Odroid C4 or Raspberry Pi (Pi 4/5) alongside InfluxDB. On a Pi Zero 2 W, resource usage should be monitored closely; hosting Grafana and Python ML models on it can saturate its 512MB RAM, making SQLite + a custom lightweight dashboard web app a better fit than Grafana + InfluxDB.
+Grafana and InfluxDB are ideal for a robust desktop home-server feel, but Tinyflux + FastAPI + Plotly.js allows the weather station dashboard to run comfortably on a €15 Raspberry Pi Zero 2 W without running out of memory.
 :::

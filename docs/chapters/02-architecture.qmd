@@ -83,29 +83,29 @@ stateDiagram-v2
     BOOT --> CHECK_WAKEUP : esp_sleep_get_wakeup_cause()
 
     CHECK_WAKEUP --> INIT_RTC : Power-on (UNDEFINED) AND RTC invalid
-    CHECK_WAKEUP --> READ_SWITCH : Power-on (UNDEFINED) AND RTC valid
+    CHECK_WAKEUP --> CHECK_BUTTON : Power-on (UNDEFINED) AND RTC valid
     CHECK_WAKEUP --> DATA_LOGGER : EXT0 — RTC alarm interrupt
-    CHECK_WAKEUP --> SERVER : EXT1 — switch set to SERVER
+    CHECK_WAKEUP --> SERVER : EXT1 — button press / magnet wave
 
-    READ_SWITCH --> SERVER : Mode switch = SERVER
-    READ_SWITCH --> DATA_LOGGER : Mode switch = MEASURE
+    CHECK_BUTTON --> SERVER : Button is held down
+    CHECK_BUTTON --> DATA_LOGGER : Button is not held down
 
     SERVER --> INIT_RTC : Long button press (NTP sync)
     INIT_RTC --> SERVER : NTP sync successful
 
     DATA_LOGGER --> DEEP_SLEEP : Measurements written
-    SERVER --> DEEP_SLEEP : Mode switch → MEASURE
+    SERVER --> DEEP_SLEEP : 3-minute timeout OR completed sync
 
     DEEP_SLEEP --> [*]
 ```
 
 At every boot, `esp_sleep_get_wakeup_cause()` is called first. Three wakeup causes are handled:
 
-- **`UNDEFINED`** (power-on): RTC validity is checked — if never set, go to `INIT_RTC`; if already valid, sample the mode switch (`READ_SWITCH`).
+- **`UNDEFINED`** (power-on): Check if the button is held down (`CHECK_BUTTON`) — if held, go to `SERVER` (forces manual sync / config mode); otherwise, checks RTC validity — if invalid, go to `INIT_RTC`; if valid, go to `DATA_LOGGER` to take an initial measurement before sleeping.
 - **`EXT0`** (RTC alarm interrupt): go directly to `DATA_LOGGER`.
-- **`EXT1`** (mode switch GPIO): fires only when the switch is moved to the SERVER position — device was already initialised, go directly to `SERVER`. The return to MEASURE is handled in software while `SERVER` is active (no wakeup needed).
+- **`EXT1`** (button press / magnet wave): fires when the momentary button is pressed or magnet waved near the reed switch, waking the device to go directly to `SERVER` mode. The return to deep sleep is handled automatically in software via a 3-minute timer or upon successful sync completion.
 
-This requires the mode switch to be wired to an EXT1-capable GPIO and registered as a wakeup source, which is what disambiguates a switch-flip from a fresh power-on. States are **mutually exclusive**. The FSM is deterministic and fully observable via the status LED — see the [Firmware — Status LED](04-firmware.qmd#status-led) section for the full LED behaviour table.
+This requires the button/reed switch to be wired to an EXT1-capable GPIO and registered as a wakeup source, which is what disambiguates a manual trigger from a scheduled alarm or fresh power-on. States are **mutually exclusive**. The FSM is deterministic and fully observable via the status LED — see the [Firmware — Status LED](04-firmware.qmd#status-led) section for the full LED behaviour table.
 
 ---
 
@@ -125,7 +125,6 @@ To ensure the station is both easy to use in its final outdoor location and simp
 The method used to manually trigger the sync mode impacts both battery safety and enclosure waterproofing:
 
 *   **Latching Toggle Switch:** Requires a physical toggle to be flipped to `SERVER` mode, and **must be manually flipped back** to `MEASURE` mode. 
-    *   *Cons:* High risk of battery drain if forgotten; mechanical toggle switches are difficult to waterproof.
 *   **Momentary Push Button (or Magnetic Reed Switch):** Closes a circuit briefly to wake the ESP32 via a wake-up pin (`EXT0`/`EXT1`). 
     *   *Pros:* The firmware controls the sync window duration and automatically goes back to deep sleep. The user cannot accidentally drain the battery. A magnetic reed switch can be placed entirely inside the enclosure, allowing a **100% hermetically sealed** weatherproof box (zero external holes).
 
@@ -152,7 +151,7 @@ The SBC is the home server. While the **ODROID C4** is used for prototyping (sin
 
 The backend is always on and provides:
 - **Data ingestion** — REST endpoint that accepts uploaded CSV batches or serial data packets
-- **Storage** — time-series database (TinyDB prototype → InfluxDB v1 or SQLite production)
+- **Storage** — time-series database (Tinyflux prototype → InfluxDB v1 or SQLite production)
 - **Visualization** — web dashboard with historical data and derived metrics (Grafana or Plotly Dash)
 - **Inference** — runs trained ML models to produce watering recommendations and short-term weather forecasts
 
@@ -182,7 +181,7 @@ The station supports four data-path strategies. They are not mutually exclusive 
 
 ### A — SD card + phone gateway (baseline)
 
-The station has no radio link at all during normal operation. Data accumulates on the SD card. When the user walks up, flips the switch to SERVER mode, and connects their phone to the station's Wi-Fi AP, the CSV files are downloaded via a browser and later uploaded to the home server over home Wi-Fi.
+The station has no radio link at all during normal operation. Data accumulates on the SD card. When the user walks up, presses the button (or waves a magnet) to trigger SERVER mode, and connects their phone to the station's Wi-Fi AP, the CSV files are downloaded via a browser and later uploaded to the home server over home Wi-Fi.
 
 **How it works:**
 
