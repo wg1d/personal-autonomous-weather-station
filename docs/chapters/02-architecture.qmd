@@ -23,13 +23,12 @@ flowchart TB
     subgraph Station["🌦️ Weather Station (ESP32)"]
         S1[Sensors] --> MCU[ESP32]
         MCU --> SD[SD Card]
-        MCU --> AP[Wi-Fi AP<br/>SERVER mode]
+        MCU -.->|"Primary: Auto Wi-Fi Client"| API
+        MCU -->|"Fallback: Wi-Fi AP (SERVER mode)"| DL
     end
 
-    subgraph Phone["📱 Phone Gateway"]
-        DL[Download logs<br/>via browser / script]
-        UL[Upload to server<br/>over home Wi-Fi]
-        DL --> UL
+    subgraph Phone["📱 Phone Gateway (Fallback)"]
+        DL[Download logs<br/>via browser] --> UL[Upload to server<br/>over home Wi-Fi]
     end
 
     subgraph Backend["🖥️ SBC Server"]
@@ -41,11 +40,10 @@ flowchart TB
         DB --> ML
     end
 
-    AP -->|"User walks up with phone"| DL
     UL -->|"Home Wi-Fi"| API
 ```
 
-There is **no always-on internet connection** at the station. The station operates fully autonomously. Data is collected on the SD card and pulled manually (or on a schedule) by the phone.
+The station operates fully autonomously. Data is collected on the local SD card and automatically pushed to the backend server whenever the home Wi-Fi network is in range. If the station is deployed out of range, the phone acts as an offline fallback gateway to download and transfer logs manually.
 
 ---
 
@@ -83,29 +81,41 @@ stateDiagram-v2
     BOOT --> CHECK_WAKEUP : esp_sleep_get_wakeup_cause()
 
     CHECK_WAKEUP --> INIT_RTC : Power-on (UNDEFINED) AND RTC invalid
-    CHECK_WAKEUP --> CHECK_BUTTON : Power-on (UNDEFINED) AND RTC valid
+    CHECK_WAKEUP --> DATA_LOGGER : Power-on (UNDEFINED) AND RTC valid
     CHECK_WAKEUP --> DATA_LOGGER : EXT0 — RTC alarm interrupt
     CHECK_WAKEUP --> SERVER : EXT1 — button press / magnet wave
 
-    CHECK_BUTTON --> SERVER : Button is held down
-    CHECK_BUTTON --> DATA_LOGGER : Button is not held down
-
     SERVER --> INIT_RTC : Long button press (NTP sync)
-    INIT_RTC --> SERVER : NTP sync successful
+    INIT_RTC --> SERVER : NTP sync successful / completed
 
-    DATA_LOGGER --> DEEP_SLEEP : Measurements written
-    SERVER --> DEEP_SLEEP : 3-minute timeout OR completed sync
+    DATA_LOGGER --> WIFI_UPLOAD : Measurements written AND Wi-Fi available
+    DATA_LOGGER --> DEEP_SLEEP : Measurements written AND Wi-Fi NOT available
+    WIFI_UPLOAD --> DEEP_SLEEP : Upload complete OR timeout/error
+
+    SERVER --> DEEP_SLEEP : 3-minute timeout OR completed manual sync
 
     DEEP_SLEEP --> [*]
 ```
 
 At every boot, `esp_sleep_get_wakeup_cause()` is called first. Three wakeup causes are handled:
 
-- **`UNDEFINED`** (power-on): Check if the button is held down (`CHECK_BUTTON`) — if held, go to `SERVER` (forces manual sync / config mode); otherwise, checks RTC validity — if invalid, go to `INIT_RTC`; if valid, go to `DATA_LOGGER` to take an initial measurement before sleeping.
+- **`UNDEFINED`** (power-on): Checks RTC validity — if invalid, go to `INIT_RTC` to perform NTP sync over Wi-Fi; if valid, go directly to `DATA_LOGGER` to take an initial measurement before sleeping.
 - **`EXT0`** (RTC alarm interrupt): go directly to `DATA_LOGGER`.
-- **`EXT1`** (button press / magnet wave): fires when the momentary button is pressed or magnet waved near the reed switch, waking the device to go directly to `SERVER` mode. The return to deep sleep is handled automatically in software via a 3-minute timer or upon successful sync completion.
+- **`EXT1`** (button press / magnet wave): fires when the momentary button is pressed or magnet waved near the reed switch, waking the device to go directly to `SERVER` mode (AP mode fallback). The return to deep sleep is handled automatically in software via a 3-minute timer or upon successful sync completion.
 
-This requires the button/reed switch to be wired to an EXT1-capable GPIO and registered as a wakeup source, which is what disambiguates a manual trigger from a scheduled alarm or fresh power-on. States are **mutually exclusive**. The FSM is deterministic and fully observable via the status LED — see the [Firmware — Status LED](04-firmware.qmd#status-led) section for the full LED behaviour table.
+This requires the button/reed switch to be wired to an EXT1-capable GPIO and registered as a wakeup source, which is what disambiguates a manual trigger from a scheduled alarm or fresh power-on. States are **mutually exclusive**. The FSM is deterministic and fully observable via the status LED:
+
+### Status LED behavior
+
+| System state | LED behavior |
+|--------------|--------------|
+| `DATA_LOGGER` | Off (deep sleep) |
+| `WIFI_UPLOAD` | Rapid blink (250 ms) |
+| `SERVER` | Steady on |
+| `INIT_RTC` | Slow blink (500 ms) |
+| `Critical error` | Fast blink (100 ms) |
+
+The LED reflects **actual system state**, never user intent.
 
 ---
 
@@ -140,14 +150,11 @@ While consumer smart-home sensors (like SwitchBot) use Bluetooth Low Energy (BLE
 | **Protocol Simplicity** | 🔴 **Complex:** Requires designing custom GATT services/characteristics and managing async BLE scanners on the backend server. | 🟢 **Simple:** Uses standard web HTTP REST APIs and JSON payloads. Very easy to develop, test, and debug. |
 | **Signal Range** | 🔴 **Shorter:** Low transmit power (1–10 mW) makes it difficult to penetrate thick exterior walls. | 🟢 **Longer:** Higher transmit power (100–200 mW) yields better range and wall-penetration. |
 
-#### Note on SwitchBot-style BLE
-SwitchBot sensors are designed to broadcast their current conditions (temperature/humidity) continuously using connectionless **BLE advertisements** (beacons), which fit in a tiny 31-byte payload. While their internal memory is synced when a user opens the app, implementing a robust BLE GATT server for historical data logging on the ESP32 adds massive firmware complexity. Wi-Fi client mode allows the weather station to use standard, highly reliable HTTP protocols with minimal code footprint.
 
----
 
 ## Backend — server role
 
-The SBC is the home server. While the **ODROID C4** is used for prototyping (since it is already owned), a **Raspberry Pi** (such as a Raspberry Pi Zero 2 W in a rugged case like the FLIRC aluminum case, or a Pi 4/5) is the preferred production choice due to lower cost, standard hardware interfaces, and wider ecosystem support.
+The Single Board Computer (SBC) acts as the home server. While the **ODROID C4** is used for prototyping (since it is already owned), a **Raspberry Pi** (such as a Raspberry Pi Zero 2 W in a rugged case like the FLIRC aluminum case, or a Pi 4/5) is the preferred production choice due to lower cost, standard hardware interfaces, and wider ecosystem support.
 
 The backend is always on and provides:
 - **Data ingestion** — REST endpoint that accepts uploaded CSV batches or serial data packets
@@ -170,42 +177,22 @@ These do not change across phases:
 | Firmware model | Wake-do-sleep FSM |
 | Internet at station | Never required |
 ::: {.callout-note}
-**Optional connectivity — Wi-Fi push / LoRa / Cellular:** direct upload from the station will bypass the phone relay entirely, eliminating the manual data-mule step. All three are optional phases — the phone gateway always remains a valid fallback. LoRa and Cellular must be validated before the final outdoor enclosure is assembled (Phase 10). See the [Connectivity options](#connectivity-options) section below and [ROADMAP.md](https://github.com/wg1d/personal-autonomous-weather-station/blob/main/ROADMAP.md) for details.
+**Data Ingestion Link:** Direct Wi-Fi upload from the station serves as the primary data path. The manual phone-based gateway remains as a valid fallback and local recovery path. Other wireless technologies (like LoRa or Cellular) are architectural alternatives but are not part of the active roadmap. See the [Data Ingestion & Fallback Gateway](#connectivity-options) section below for details.
 :::
 
 ---
 
 ## Connectivity options {#connectivity-options}
 
-The station supports four data-path strategies. They are not mutually exclusive — you can use different ones at different times (phone gateway as fallback while Wi-Fi push is the default, for example). The SD card and local CSV log are always present regardless of which connectivity option is active.
+The weather station implements a single primary data-path strategy: **Direct Wi-Fi Push**, with a **Phone-based Gateway** as a local manual fallback. The local SD card and its CSV log are always present and serve as the source of truth regardless of the upload method.
 
-### A — SD card + phone gateway (baseline)
-
-The station has no radio link at all during normal operation. Data accumulates on the SD card. When the user walks up, presses the button (or waves a magnet) to trigger SERVER mode, and connects their phone to the station's Wi-Fi AP, the CSV files are downloaded via a browser and later uploaded to the home server over home Wi-Fi.
-
-**How it works:**
-
-```{mermaid}
-sequenceDiagram
-    participant S as Station (SD + AP)
-    participant P as Phone
-    participant H as Home server
-
-    Note over S: Days of autonomous logging
-    P->>S: Connect to WeatherStation AP
-    P->>S: Download log_2026.csv
-    Note over P: User walks home
-    P->>H: Upload CSV over home Wi-Fi
-    H-->>P: 200 OK
-```
-
-**Trade-offs:** Zero infrastructure at the station. Works anywhere — field, rooftop, remote garden. The cost is manual effort: someone must physically visit the station to collect data. Data latency is hours to days depending on visit frequency.
+Other connectivity options (such as LoRa or Cellular) are documented below as alternative architectural paths that were considered for remote deployments, but they are not part of the active implementation roadmap.
 
 ---
 
-### B — Direct Wi-Fi push
+### A — Direct Wi-Fi Push (Primary)
 
-The ESP32 already has Wi-Fi hardware. A new `PUSH` FSM state is added: after writing the SD row, the station wakes, connects to the home Wi-Fi network, POSTs the latest measurement to the server, and immediately disconnects and sleeps. No phone trip required.
+The ESP32 has built-in Wi-Fi hardware. During normal operation (Phase 2+), the station logs the sensor measurement to the SD card, transitions to the `WIFI_UPLOAD` state, connects to the home Wi-Fi network, and uploads the new CSV log rows to the backend REST API (`POST /api/upload`). It then immediately disconnects and enters deep sleep. No manual intervention or phone trip is required.
 
 **How it works:**
 
@@ -227,26 +214,46 @@ sequenceDiagram
     ESP->>ESP: Deep sleep
 ```
 
-**Trade-offs:** No extra hardware cost (Wi-Fi is built-in). Dashboard updates within minutes of each measurement. Range is limited to home Wi-Fi coverage (~50–100 m). Not suitable for remote field deployments. Power budget increases slightly — a Wi-Fi connect + POST + disconnect adds roughly 5–10 seconds at ~200 mA; on a 1000 mAh cell with 10-minute intervals this is still well within budget.
+**Trade-offs:** No extra hardware cost. Dashboard updates within minutes of each measurement. Range is limited to home Wi-Fi coverage (~50–100 m). Power budget increases slightly — a Wi-Fi connect + POST + disconnect adds roughly 5–10 seconds at ~200 mA; on a 1000 mAh battery with 10-minute intervals this is still well within budget.
 
 ---
 
-### C — LoRa {#lora}
+### B — Phone Gateway (Fallback / Offline / Testing)
+
+The station has no radio link at all during normal operation when configured for offline mode or when out of Wi-Fi range. Data accumulates on the SD card. Waking the device manually via a momentary button press (or magnet wave) triggers `SERVER` mode. The ESP32 spins up its own Wi-Fi Access Point, allowing the user to connect their phone and download the CSV files via a mobile browser. These logs can later be uploaded to the backend server.
+
+**How it works:**
+
+```{mermaid}
+sequenceDiagram
+    participant S as Station (SD + AP)
+    participant P as Phone
+    participant H as Home server
+
+    Note over S: Days of autonomous logging
+    P->>S: Connect to WeatherStation AP
+    P->>S: Download log_2026.csv
+    Note over P: User walks home
+    P->>H: Upload CSV over home Wi-Fi
+    H-->>P: 200 OK
+```
+
+**Trade-offs:** Zero infrastructure required at the station. Works anywhere — field, rooftop, or remote garden. The cost is manual effort: someone must physically visit the station to collect data, resulting in higher data latency.
+
+---
+
+### Alternative Connectivity Options (Not in Roadmap)
+
+The options below were evaluated for remote deployments but are not part of the active implementation path.
+
+#### C — LoRa (Alternative)
 
 ::: {.callout-note}
 **What is LoRa?**
 
-LoRa (**Lo**ng **Range**) is a radio modulation technique developed by Semtech. It operates on unlicensed sub-GHz ISM bands (868 MHz in Europe, 915 MHz in the US) and uses **chirp spread spectrum**: rather than transmitting at a single frequency, the signal sweeps across a band, which makes it robust to noise and interference and gives it exceptional range at very low transmit power.
+LoRa (**Lo**ng **Range**) is a radio modulation technique developed by Semtech. It operates on unlicensed sub-GHz ISM bands (868 MHz in Europe, 915 MHz in the US) and uses **chirp spread spectrum** to achieve exceptional range (1–15 km) at very low transmit power.
 
-Key properties:
-- **Range:** 1–5 km in urban environments, 10–15 km line-of-sight
-- **Power:** ~100 mA peak during a ~1–2 second transmission, then back to sleep
-- **Data rate:** very low — 250 bps to ~50 kbps depending on settings. Ideal for small sensor payloads; not for streaming
-- **Cost:** a LoRa module (e.g., SX1276/SX1278) costs ~$5–10
-
-**LoRaWAN** is the network protocol built on top of LoRa radio. It adds device addressing, AES-128 encryption, and a cloud network server. **The Things Network (TTN)** is a free, community-operated LoRaWAN network with gateways in many urban and suburban areas worldwide. If TTN coverage exists at your deployment location, your node uploads for free with no SIM card.
-
-A **LoRa gateway** bridges the radio link to the internet. A DIY gateway costs $50–100 (Raspberry Pi + LoRa HAT). One gateway covers a radius of several kilometres and can serve many nodes simultaneously.
+**LoRaWAN** is the network protocol built on top of LoRa radio. The Things Network (TTN) is a community-operated LoRaWAN network that allows nodes to upload data for free wherever gateway coverage exists. Alternatively, a DIY gateway costs $50–100 (Raspberry Pi + LoRa HAT).
 
 Boards like the **Heltec WiFi LoRa32** or **TTGO LoRa32** combine an ESP32 and a SX1276 LoRa transceiver on a single board, making the hardware swap straightforward.
 :::
@@ -268,32 +275,169 @@ sequenceDiagram
     H-->>TTN: 200 OK
 ```
 
-**Trade-offs:** Excellent range. The best power profile of any wireless option — the transmit window is short and the module sleeps between sends. No monthly cost if TTN coverage exists. The constraint is data rate: a single measurement row must be encoded compactly (≤50 bytes is easy for this sensor set). Requires either TTN gateway coverage at the deployment site, or a dedicated local gateway.
+**Trade-offs:** Excellent range. The best power profile of any wireless option — the transmit window is short and the module sleeps between sends. No monthly cost if TTN coverage exists. The constraint is data rate: a single measurement row must be encoded compactly (≤50 bytes).
+
+#### D — Cellular (GSM / LTE) (Alternative)
+
+A GSM or LTE modem module (e.g., SIM7600 for LTE, SIM800L for 2G) is connected to the ESP32 via UART. The modem is powered down between wakes via a MOSFET to eliminate standby current.
+
+**Trade-offs:** Works anywhere with cell coverage. The cost is a monthly SIM data plan (~€5–10/month for IoT SIMs), higher peak current during connection (~500 mA), and a more complex hardware footprint.
 
 ---
 
-### D — Cellular (GSM / LTE)
+### Ingestion Strategy Comparison
 
-A GSM or LTE modem module (e.g., SIM7600 for LTE, SIM800L for 2G) is connected to the ESP32 via UART. The `PUSH` state logic from Wi-Fi push is reused — only the transport changes. The modem is powered down between wakes via a MOSFET to eliminate its standby current.
-
-**Trade-offs:** Works anywhere with cell coverage — true remote deployments with no Wi-Fi and no LoRa gateway. The cost is a monthly SIM data plan (~€5–10/month for IoT SIMs), higher peak current during connection (~500 mA), and a more complex hardware footprint (module + antenna + power switching). Use this only when LoRa coverage is unavailable.
-
----
-
-### Comparison
-
-| | Phone gateway | Wi-Fi push | LoRa | Cellular |
+| Feature | Wi-Fi Push (Primary) | Phone Gateway (Fallback) | LoRa (Alternative) | Cellular (Alternative) |
 |---|---|---|---|---|
-| **Range** | Walk-up only | ~50–100 m | 1–15 km | Anywhere with cell signal |
-| **Data latency** | Hours to days | ~1 min | ~2 min | ~2 min |
-| **TX current** | None at station | ~200 mA / ~5–10 s | ~100 mA / ~1–2 s | ~500 mA / ~5–15 s |
-| **Monthly cost** | 0 | 0 | 0 (TTN) | €5–10 (SIM) |
-| **Extra hardware** | None | None (ESP32 built-in) | LoRa module ~$10 | GSM module ~$15–25 |
-| **Infrastructure** | None at station | Home Wi-Fi in range | LoRa gateway or TTN coverage | Cell tower in range |
-| **Must validate before Phase 10** | n/a | No (firmware only) | **Yes** | **Yes** |
+| **Range** | ~50–100 m | Walk-up only | 1–15 km | Anywhere with cell signal |
+| **Data Latency** | ~1 min | Hours to days | ~2 min | ~2 min |
+| **TX Current** | ~200 mA / ~5–10 s | None at station | ~100 mA / ~1–2 s | ~500 mA / ~5–15 s |
+| **Monthly Cost** | 0 | 0 | 0 (TTN) | €5–10 (SIM) |
+| **Extra Hardware** | None (built-in) | None | LoRa module ~$10 | GSM module ~$15–25 |
+| **Infrastructure** | Home Wi-Fi in range | None at station | LoRa gateway or TTN | Cell tower in range |
+| **Roadmap Status** | **Primary** | **Fallback** | Not on roadmap | Not on roadmap |
 
-**Guidance:**
+---
 
-- **Home/garden deployment** in Wi-Fi range → Wi-Fi push + phone gateway as fallback
-- **Field or allotment** beyond Wi-Fi range → LoRa (if TTN coverage or local gateway) → Cellular as last resort
-- **Phone gateway always stays** as a fallback and recovery path regardless of which active push option is chosen
+## Station Time Management
+
+### Why an external RTC is mandatory
+
+| Issue | ESP32 internal timer | DS3231 RTC |
+|-------|----------------------|------------|
+| Survives power loss | ❌ | ✅ (CR2032 backup) |
+| Drift over deep sleep | High | < 2 ppm |
+| Hardware wake alarm | ❌ | ✅ |
+| Absolute timestamp | ❌ | ✅ |
+
+The DS3231 is the **sole time authority** in the system. Timestamps on the SD card always come from the RTC — never from the ESP32's internal counter.
+
+### Alarm scheduling strategy
+
+After every measurement cycle:
+
+```
+next_alarm = RTC.now() + measurement_interval
+RTC.setAlarm(next_alarm)
+```
+
+This "rolling alarm" strategy is robust: if the ESP32 crashes mid-cycle or is reset, the next boot will simply evaluate the FSM state and continue. No state machine corruption is possible.
+
+### RTC initialization (INIT_RTC)
+
+Triggered when `RTC.isValid() == false` or when a manual NTP resync is requested (e.g. via the web interface in `SERVER` mode):
+
+1. Enable Wi-Fi in station mode.
+2. Connect to the home Wi-Fi network (credentials stored in flash or NVS).
+3. Query the NTP server (`pool.ntp.org`).
+4. Set the DS3231 time via I²C.
+5. Mark the RTC as valid.
+6. Disable Wi-Fi.
+7. Return to `SERVER` state (or proceed to deep sleep if triggered at boot).
+
+---
+
+## Station Storage & Data Format
+
+### File format
+
+A single append-only CSV file is stored on the micro SD card. One row is written per measurement cycle.
+
+```
+YYYY-MM-DD HH:MM:SS,TEMP,HUM,PRES,LIGHT,UV_IDX,SOIL,RAIN,WIND_SPD,WIND_DIR
+```
+
+Example row (Phase 7+, all sensors active):
+```
+2026-05-13 10:25:00,18.4,62.1,1013.2,12400,2.1,54.3,0.0,0.0,0
+```
+
+Unused sensor columns are written as empty or `-1` until the corresponding hardware is installed. This keeps the CSV schema stable across all phases.
+
+### Write procedure
+
+To minimize file corruption risks, the micro SD card is mounted and unmounted dynamically during each active log cycle:
+
+```
+Mount SD Card
+Open log file (append mode)
+Write CSV row
+Flush file buffer
+Close log file
+Unmount SD Card
+```
+
+A power loss between cycles loses at most one measurement.
+
+### Data retention
+
+Data is never automatically deleted by the firmware. In manual `SERVER` mode, the web interface allows the user to:
+- List files on the SD card.
+- Download log files.
+- Delete log files (user-initiated only).
+
+---
+
+## Fallback Server Web Interface
+
+### What it does
+
+When the device enters `SERVER` mode (AP fallback gateway):
+- The ESP32 spins up a Wi-Fi Access Point (SSID: `WeatherStation`, password: configurable).
+- A minimal HTTP server runs on port 80.
+- **No measurements occur** during `SERVER` mode.
+
+### Web interface (minimal)
+
+| Endpoint | Action |
+|----------|--------|
+| `GET /` | Status page: firmware version, RTC time, SD free space |
+| `GET /files` | List log files on SD card |
+| `GET /download?file=X` | Download a specific log file |
+| `DELETE /delete?file=X` | Delete a log file (optional / manual recovery) |
+| `POST /sync-rtc` | Trigger `INIT_RTC` NTP sync sequence |
+
+The web interface is intentionally simple and designed to render natively in any phone browser.
+
+---
+
+## Electrical Pull-up & Debounce Notes
+
+### Pull-up strategy
+
+| Signal | Pull-up |
+|--------|---------|
+| I²C SDA/SCL | External 4.7 kΩ to 3.3 V |
+| DS3231 INT | External 10 kΩ to 3.3 V |
+| Push button / Reed switch | Internal (ESP32 pull-up) |
+| LED | Series 330 Ω resistor |
+
+### Debounce
+
+All digital inputs are debounced to prevent false triggers:
+- **Buttons / Reed switch**: 20–50 ms software delay.
+- **Rain gauge / anemometer pulses**: minimum inter-pulse filter (~100 ms).
+
+---
+
+## C++ Firmware Directory Structure
+
+The suggested C++ project layout maps directly to FSM states:
+
+```
+src/
+├── main.cpp              # Boot: FSM evaluation and dispatch
+├── fsm/
+│   ├── data_logger.cpp   # Sensor read + SD write + alarm set
+│   ├── wifi_upload.cpp   # Automated Wi-Fi connect and upload
+│   ├── server.cpp        # Wi-Fi AP + web server
+│   └── init_rtc.cpp      # NTP sync + DS3231 set
+├── drivers/
+│   ├── rtc.cpp           # DS3231 abstraction
+│   ├── sensors.cpp       # All sensor reads (BME280, BH1750, etc.)
+│   ├── sd_logger.cpp     # SD mount/write/unmount
+│   └── pulse.cpp         # Rain + wind pulse counting
+└── config.h              # Pins, intervals, credentials (gitignored)
+```
+
+Adding a new sensor only requires modifying `drivers/sensors.cpp` and updating the CSV write logic in `drivers/sd_logger.cpp`.

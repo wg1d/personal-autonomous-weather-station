@@ -17,7 +17,6 @@ book:
         - chapters/01-motivation.qmd
         - chapters/02-architecture.qmd
         - chapters/03-hardware.qmd
-        - chapters/04-firmware.qmd
     - part: "Backend & Intelligence"
       chapters:
         - chapters/05-backend.qmd
