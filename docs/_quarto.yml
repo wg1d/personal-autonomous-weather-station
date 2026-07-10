@@ -16,11 +16,7 @@ book:
       chapters:
         - chapters/01-motivation.qmd
         - chapters/02-architecture.qmd
-        - chapters/03-hardware.qmd
-    - part: "Backend & Intelligence"
-      chapters:
-        - chapters/05-backend.qmd
-        - chapters/06-forecasting.qmd
+        - chapters/03-prototyping.qmd
 
 format:
   html:

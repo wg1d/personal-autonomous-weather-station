@@ -1,0 +1,623 @@
+# Incremental Prototyping Guide {.unnumbered}
+
+> Status: 🟡 Draft
+
+To ensure a robust and debuggable build, the station is developed **incrementally**. Instead of building the entire system at once, you will assemble and validate it step-by-step on a breadboard. This approach makes it easy to isolate hardware defects (like bad jumper wires or faulty modules) from software bugs.
+
+This chapter walks through the six prototyping milestones. Each milestone includes the necessary wiring, complete example code, and instructions for verifying that it works.
+
+---
+
+## ESP32 Breadboard Pin Mapping
+
+To ensure you can reuse your existing breadboard configuration without rewiring, we align all code with the pin connections established in your archive project:
+
+| Module / Component | ESP32 Pin | Function | Description |
+| :--- | :--- | :--- | :--- |
+| **DS3231 RTC** | GPIO 21 | `SDA` (I²C Data) | Shared I²C communication line |
+| | GPIO 22 | `SCL` (I²C Clock) | Shared I²C clock line |
+| | **GPIO 36** (`VP`) | `SQW / INT` | RTC Alarm output; wakes ESP32 from sleep via `EXT0` |
+| **BME280 Sensor** | GPIO 21 | `SDA` (I²C Data) | Shared I²C communication line |
+| | GPIO 22 | `SCL` (I²C Clock) | Shared I²C clock line |
+| **SD Card Reader** | GPIO 5 | `CS` (Chip Select) | Dedicated SPI Select line |
+| | GPIO 18 | `SCK` (Serial Clock) | Shared SPI Clock line |
+| | GPIO 19 | `MISO` | Shared SPI Master In Slave Out line |
+| | GPIO 23 | `MOSI` | Shared SPI Master Out Slave In line |
+| | **GPIO 13** | `Power Gate` | Controlled VCC supply to cut power to the SD reader during sleep |
+| **Manual Button** | **GPIO 39** (`VN`) | `Switch Trigger` | Manual trigger for AP mode; wakes ESP32 via `EXT1` |
+
+---
+
+## Step 1: ESP32 Deep Sleep & Wakeup Causes (Resistor Physics)
+
+### The Concept
+The ESP32 is a low-power microcontroller, but only if it is allowed to sleep. In a normal deployment, it spends 99% of its life in **Deep Sleep**, drawing roughly 10–15 µA. In this state, the CPUs, Wi-Fi, and main RAM are powered down.
+
+Because main RAM is lost, **every wakeup is a fresh boot**. To preserve state (like boot count) across sleep cycles, we use the `RTC_DATA_ATTR` modifier to store variables in the ultra-low-power RTC slow memory.
+
+To wake up the ESP32 manually to trigger its web server, we connect a button to a pin. However, digital pins cannot be left "floating" (unconnected to a voltage source when the switch is open) because electromagnetic noise will cause the pin to read random highs and lows. We resolve this by using a **Pull-Up** or **Pull-Down** resistor.
+
+### Pull-Up vs. Pull-Down Resistors
+*   **Pull-Up Resistor:** Connects the digital pin to `VCC` ($3.3\text{V}$). When the button is open, the pin reads `HIGH` (logic 1). When the button is pressed, it connects the pin directly to Ground (`GND`), reading `LOW` (logic 0). This is called an **active-low** configuration.
+*   **Pull-Down Resistor:** Connects the digital pin to `GND`. When the button is open, the pin reads `LOW` (logic 0). When the button is pressed, it connects the pin to `VCC`, reading `HIGH` (logic 1). This is called an **active-high** configuration.
+
+#### Which is better?
+For microcontrollers like the ESP32, **active-low (pull-up)** is the standard industry convention for buttons for three reasons:
+1.  **Safety:** If an external wire carrying `GND` gets shorted to a metal frame or shield, it is harmless. If a wire carrying `VCC` gets shorted, it creates a short circuit that can burn out components or the board.
+2.  **Internal Hardware:** The ESP32 contains built-in internal pull-up and pull-down resistors (typically $30\text{ k}\Omega - 80\text{ k}\Omega$) that can be enabled in software. However, for deep-sleep wakeups, an external resistor is preferred to ensure a solid logic state without consuming leakage current during sleep.
+3.  **Low-Power Wakeup:** The ESP32's RTC IO controller is highly optimized for detecting Ground transitions.
+
+#### The Resistor Equation
+The value of the resistor $R$ must be selected such that when the switch is open, the voltage at the input pin ($V_{pin}$) remains well within the threshold for a stable logic state, despite the tiny input leakage current ($I_{leak}$) flowing into or out of the pin.
+
+For a pull-up resistor:
+$$V_{pin} = V_{dd} - (I_{leak} \times R)$$
+
+To guarantee the ESP32 registers a logic `HIGH`, $V_{pin}$ must stay above the minimum high-level input voltage ($V_{IH}$). For the ESP32 running at $V_{dd} = 3.3\text{V}$, $V_{IH} = 0.75 \times V_{dd} = 2.475\text{V}$. The input leakage current is typically $I_{leak} = 1\text{ }\mu\text{A}$ maximum.
+
+Rearranging the formula to solve for the maximum allowable resistance $R_{pu}$:
+$$R_{pu} \le \frac{V_{dd} - V_{IH}}{I_{leak}}$$
+$$R_{pu} \le \frac{3.3\text{V} - 2.475\text{V}}{10^{-6}\text{A}} = 825\text{ k}\Omega$$
+
+While any resistor under $825\text{ k}\Omega$ works in theory, standard practice is to use a **$10\text{ k}\Omega$** or **$47\text{ k}\Omega$** resistor. 
+*   **Why not use the maximum ($825\text{ k}\Omega$)?** High resistance leaves the pin susceptible to electromagnetic interference (noise), which can cause false wakeups.
+*   **Why not use very low resistance (e.g. $1\text{ k}\Omega$)?** When the button is pressed, a current path is created from $V_{dd}$ to `GND`. The current is $I = V_{dd} / R$. A $1\text{ k}\Omega$ resistor draws $3.3\text{ mA}$ while pressed. A $10\text{ k}\Omega$ resistor drops that draw to $0.33\text{ mA}$ ($330\text{ }\mu\text{A}$), protecting the battery during manual button presses.
+
+### Example Code: Button Wakeup (`EXT1`)
+Because our RTC interrupt is wired to GPIO 36 (`EXT0` wakeup), we must use the **`EXT1`** wakeup controller for the button on GPIO 39. `EXT1` can monitor multiple pins at once and wakes up the chip when the pin goes LOW.
+
+```cpp
+#include <Arduino.h>
+
+// Save variable in RTC slow memory
+RTC_DATA_ATTR int bootCount = 0;
+
+#define BUTTON_PIN 39
+
+void printWakeupReason() {
+  esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
+
+  switch (wakeup_reason) {
+    case ESP_SLEEP_WAKEUP_EXT0:     Serial.println("Wakeup caused by external signal using RTC_IO (EXT0 - RTC)"); break;
+    case ESP_SLEEP_WAKEUP_EXT1:     Serial.println("Wakeup caused by external signal using RTC_CNTL (EXT1 - Button)"); break;
+    case ESP_SLEEP_WAKEUP_TIMER:    Serial.println("Wakeup caused by timer"); break;
+    default:                        Serial.printf("Wakeup not caused by deep sleep (%d)\n", wakeup_reason); break;
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  while(!Serial);
+  delay(1000);
+
+  bootCount++;
+  Serial.println("------------------------------------");
+  Serial.printf("Boot number: %d\n", bootCount);
+
+  printWakeupReason();
+
+  // Configure GPIO 39 as input. External resistor pulls it HIGH.
+  pinMode(BUTTON_PIN, INPUT);
+
+  // Configure EXT1 wakeup on GPIO 39 when it goes LOW (button pressed)
+  // EXT1 requires a bitmask of the chosen pins: 1ULL << pin_number
+  uint64_t pinMask = 1ULL << BUTTON_PIN;
+  esp_sleep_enable_ext1_wakeup(pinMask, ESP_EXT1_WAKEUP_ALL_LOW);
+
+  Serial.println("Entering deep sleep. Press the button on GPIO 39 to wake me.");
+  Serial.flush();
+  
+  esp_deep_sleep_start();
+}
+
+void loop() {
+}
+```
+
+### Verification
+1. Open the Serial Monitor at `115200` baud.
+2. Press `EN` on the ESP32. You should see `Boot number: 1` and `Wakeup not caused by deep sleep`.
+3. The board goes to sleep. Now press your external button on GPIO 39 (or touch a Ground wire to GPIO 39).
+4. The ESP32 should instantly boot and print:
+   * `Boot number: 2`
+   * `Wakeup caused by external signal using RTC_CNTL (EXT1 - Button)`
+
+---
+
+## Step 3: External RTC (DS3231) & Alarms
+
+### The Concept
+The DS3231 RTC is temperature-compensated and drift-free. In this step, we program the DS3231 to trigger its interrupt output pin (`SQW / INT`) every minute. The SQW pin is connected to **GPIO 36** on the ESP32. 
+
+Because we used `EXT1` for the button in the previous step, we can now use **`EXT0`** (which allows a single RTC pin to trigger a wakeup) for the RTC on GPIO 36.
+
+### Example Code
+Ensure the **Adafruit RTClib** is installed. In this code, we set the RTC to compile time on initialization, configure the alarm to trigger every minute, and sleep.
+
+```cpp
+#include <Arduino.h>
+#include <Wire.h>
+#include <RTClib.h>
+
+#define RTC_INTERRUPT_PIN 36
+RTC_DS3231 rtc;
+
+void setup() {
+  Serial.begin(115200);
+  while(!Serial);
+  delay(1000);
+
+  // GPIO 36 is input-only on the ESP32 and does not have an internal pull-up.
+  // An external pull-up resistor (e.g. 10k) must connect GPIO 36 to 3.3V.
+  pinMode(RTC_INTERRUPT_PIN, INPUT);
+
+  if (!rtc.begin()) {
+    Serial.println("Couldn't find RTC module!");
+    while (1) delay(10);
+  }
+
+  // Adjust time to compilation time on fresh power-on
+  if (rtc.lostPower()) {
+    Serial.println("RTC lost power, adjusting time...");
+    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+  }
+
+  DateTime now = rtc.now();
+  char buf[] = "YYYY-MM-DD hh:mm:ss";
+  Serial.printf("Current RTC time: %s\n", now.toString(buf));
+
+  // Reset alarms
+  rtc.disableAlarm(1);
+  rtc.disableAlarm(2);
+  rtc.clearAlarm(1);
+  rtc.clearAlarm(2);
+
+  // Set SQW to alarm interrupt mode
+  rtc.writeSqwPinMode(DS3231_OFF);
+
+  // Schedule alarm 1 to trigger when seconds match 00 (every minute)
+  DateTime nextAlarm = DateTime(now.year(), now.month(), now.day(), now.hour(), now.minute() + 1, 0);
+  if (!rtc.setAlarm1(nextAlarm, DS3231_A1_Minute)) {
+    Serial.println("Error setting alarm!");
+  } else {
+    Serial.println("Alarm scheduled for the start of the next minute.");
+  }
+
+  // Enable EXT0 wakeup on GPIO 36 when it goes LOW (0)
+  esp_sleep_enable_ext0_wakeup((gpio_num_t)RTC_INTERRUPT_PIN, 0);
+
+  Serial.println("Going to sleep...");
+  Serial.flush();
+  esp_deep_sleep_start();
+}
+
+void loop() {
+}
+```
+
+### Verification
+1. Open the Serial Monitor.
+2. The system sets the alarm and enters deep sleep.
+3. When the seconds roll over to `:00`, the DS3231 pulls GPIO 36 LOW.
+4. The ESP32 wakes up, prints the new time, clears the alarm register, schedules the next minute alarm, and sleeps again.
+
+---
+
+## Step 4: Sensor Reading (BME280)
+
+### The Concept
+We measure temperature, humidity, and pressure using the BME280 sensor over **I²C**. 
+The I²C bus uses only two shared wires (`SDA` and `SCL`) to talk to multiple chips by assigning each chip a unique hex address. 
+
+In contrast:
+*   **SPI (Serial Peripheral Interface):** Used by the SD Card reader. SPI uses three shared wires (`SCK`, `MISO`, `MOSI`) and one dedicated `CS` (Chip Select) wire per chip. SPI is much faster than I²C, making it suitable for bulk data storage, while I²C is simpler and requires fewer pins, making it ideal for sensors.
+
+### Example Code
+Install the **Adafruit BME280 Library**.
+
+```cpp
+#include <Arduino.h>
+#include <Wire.h>
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
+
+Adafruit_BME280 bme;
+
+void setup() {
+  Serial.begin(115200);
+  while(!Serial);
+  delay(1000);
+
+  Serial.println("Initializing BME280...");
+  
+  // Try default address 0x76 first, then fallback to 0x77
+  bool status = bme.begin(0x76);
+  if (!status) {
+    status = bme.begin(0x77);
+  }
+
+  if (!status) {
+    Serial.println("Could not find a valid BME280 sensor! Check wiring.");
+    while (1) delay(10);
+  }
+
+  Serial.println("BME280 Initialized successfully.");
+}
+
+void loop() {
+  float temp = bme.readTemperature();
+  float hum  = bme.readHumidity();
+  float pres = bme.readPressure() / 100.0F; // Pa to hPa
+
+  Serial.printf("Temp: %.2f °C | Hum: %.2f %% | Pres: %.2f hPa\n", temp, hum, pres);
+  delay(5000);
+}
+```
+
+### Verification
+1. Upload and monitor the serial window.
+2. Confirm the BME280 outputs realistic local readings every 5 seconds.
+
+---
+
+## Step 5: SD Card CSV Logger (Power Gating)
+
+### The Concept
+Standard SD card modules can draw anywhere from $100\text{ }\mu\text{A}$ to $2\text{ mA}$ during idle standby. In a battery-powered device, this standby leakage is unacceptable.
+
+We solve this using **Power Gating**. We connect the SD Card reader's power pin (`VCC`) to a GPIO pin (**GPIO 13**), or use a PNP transistor/P-channel MOSFET switched by GPIO 13.
+*   Before writing: Set `GPIO 13` `HIGH` to power on the SD card module, call `SD.begin()`, and append the CSV row.
+*   After writing: Call `SD.end()`, and set `GPIO 13` `LOW` to completely cut power to the reader before entering deep sleep.
+
+### Example Code
+We will log mock values into a database-ready schema format:
+`timestamp,temp_c,hum_pct,pres_hpa,light_lux,uv_idx,soil_pct,rain_mm,wind_spd_ms,wind_dir_deg,bat_v`
+
+```cpp
+#include <Arduino.h>
+#include <SPI.h>
+#include <SD.h>
+#include <Wire.h>
+#include <RTClib.h>
+
+#define SD_POWER_PIN 13
+#define SD_CS_PIN 5
+RTC_DS3231 rtc;
+
+const char* filename = "/data.csv";
+const char* csvHeader = "timestamp,temp_c,hum_pct,pres_hpa,light_lux,uv_idx,soil_pct,rain_mm,wind_spd_ms,wind_dir_deg,bat_v";
+
+void setup() {
+  Serial.begin(115200);
+  while(!Serial);
+  delay(1000);
+
+  // Configure SD power gating pin
+  pinMode(SD_POWER_PIN, OUTPUT);
+  digitalWrite(SD_POWER_PIN, HIGH); // Power ON the SD Card module
+  delay(100); // Give the card reader time to power stabilize
+
+  if (!rtc.begin()) {
+    Serial.println("RTC missing!");
+    while(1);
+  }
+
+  // Initialize SD Card
+  Serial.println("Mounting SD Card...");
+  if (!SD.begin(SD_CS_PIN)) {
+    Serial.println("Failed to mount SD card!");
+    digitalWrite(SD_POWER_PIN, LOW); // Cut power on failure
+    while(1);
+  }
+
+  // Write header if file doesn't exist
+  if (!SD.exists(filename)) {
+    File file = SD.open(filename, FILE_WRITE);
+    if (file) {
+      file.println(csvHeader);
+      file.close();
+      Serial.println("New data.csv created with header.");
+    }
+  }
+
+  // Read time & write a mock row
+  DateTime now = rtc.now();
+  char tBuf[25];
+  sprintf(tBuf, "%04d-%02d-%02dT%02d:%02d:%02d", now.year(), now.month(), now.day(), now.hour(), now.minute(), now.second());
+
+  File file = SD.open(filename, FILE_APPEND);
+  if (file) {
+    // Write timestamp, temperature, humidity, pressure, and placeholders
+    file.printf("%s,23.50,55.40,1012.30,,,,,,,\n", tBuf);
+    file.close();
+    Serial.println("Logged CSV measurement row.");
+  }
+
+  // Read and dump contents to serial to verify
+  File readFile = SD.open(filename, FILE_READ);
+  if (readFile) {
+    Serial.println("--- Current Logs ---");
+    while (readFile.available()) {
+      Serial.write(readFile.read());
+    }
+    readFile.close();
+  }
+
+  // Shutdown SD card and gate power OFF to save battery
+  SD.end();
+  digitalWrite(SD_POWER_PIN, LOW); // Power OFF
+  Serial.println("SD Card powered off. Entering standby.");
+}
+
+void loop() {
+}
+```
+
+### Verification
+1. Verify the Serial Monitor outputs the newly written rows.
+2. Confirm the SD reader's power LED (if equipped) turns off when the ESP32 reports entering standby.
+
+---
+
+## Step 6: Wi-Fi Hotspot & SERVER Mode (AP Mode)
+
+### The Concept
+When manual downloads are triggered by waking the ESP32 via the button on GPIO 39, we start an Access Point (AP) named `PAWS-Station`. The ESP32 hosts a web server listing the SD card files. A 3-minute timer ensures the ESP32 automatically shuts down if left unattended.
+
+### Example Code
+
+```cpp
+#include <Arduino.h>
+#include <WiFi.h>
+#include <WebServer.h>
+#include <SPI.h>
+#include <SD.h>
+
+#define BUTTON_PIN 39
+#define SD_POWER_PIN 13
+#define SD_CS_PIN 5
+#define RUNTIME_LIMIT_MS 180000 // 3 minutes
+
+WebServer server(80);
+unsigned long serverStartTime;
+
+void handleRoot() {
+  serverStartTime = millis(); // Refresh activity timer
+  
+  String html = "<!DOCTYPE html><html><head><meta charset='utf-8'><title>PAWS Data Center</title>";
+  html += "<style>body{font-family:sans-serif;background:#eceff1;margin:40px;}";
+  html += ".box{background:#fff;padding:30px;border-radius:8px;box-shadow:0 2px 4px rgba(0,0,0,0.1);max-width:500px;margin:auto;}";
+  html += "h1{color:#37474f;} ul{padding:0;} li{margin:10px 0;display:flex;justify-content:space-between;}</style></head><body>";
+  html += "<div class='box'><h1>🌦️ PAWS Station CSV Download</h1><ul>";
+
+  File root = SD.open("/");
+  if (!root) {
+    html += "<li>Failed to open SD!</li>";
+  } else {
+    File file = root.openNextFile();
+    while (file) {
+      String fName = String(file.name());
+      if (fName.startsWith("/")) fName = fName.substring(1);
+      html += "<li><span>📄 " + fName + "</span> <a href='/download?file=" + fName + "'>Download</a></li>";
+      file = root.openNextFile();
+    }
+  }
+  html += "</ul></div></body></html>";
+  server.send(200, "text/html", html);
+}
+
+void handleDownload() {
+  serverStartTime = millis();
+  if (!server.hasArg("file")) {
+    server.send(400, "text/plain", "Bad Request");
+    return;
+  }
+
+  String path = "/" + server.arg("file");
+  File file = SD.open(path, FILE_READ);
+  if (!file) {
+    server.send(404, "text/plain", "Not Found");
+    return;
+  }
+
+  server.sendHeader("Content-Disposition", "attachment; filename=" + server.arg("file"));
+  server.streamFile(file, "text/csv");
+  file.close();
+}
+
+void shutdownAndSleep() {
+  Serial.println("Shutting down AP and SD Card...");
+  WiFi.softAPdisconnect(true);
+  SD.end();
+  digitalWrite(SD_POWER_PIN, LOW); // Cut power to SD card reader
+
+  // Configure Button (GPIO 39) for next wakeup
+  uint64_t pinMask = 1ULL << BUTTON_PIN;
+  esp_sleep_enable_ext1_wakeup(pinMask, ESP_EXT1_WAKEUP_ALL_LOW);
+
+  Serial.println("Going to sleep...");
+  Serial.flush();
+  esp_deep_sleep_start();
+}
+
+void setup() {
+  Serial.begin(115200);
+  while(!Serial);
+  delay(1000);
+
+  pinMode(SD_POWER_PIN, OUTPUT);
+  digitalWrite(SD_POWER_PIN, HIGH);
+  delay(100);
+
+  if (!SD.begin(SD_CS_PIN)) {
+    Serial.println("SD Card missing! AP starting anyway.");
+  }
+
+  WiFi.softAP("PAWS-Station", "password123");
+  Serial.print("AP IP Address: ");
+  Serial.println(WiFi.softAPIP());
+
+  server.on("/", handleRoot);
+  server.on("/download", handleDownload);
+  server.begin();
+
+  serverStartTime = millis();
+}
+
+void loop() {
+  server.handleClient();
+
+  if (millis() - serverStartTime > RUNTIME_LIMIT_MS) {
+    Serial.println("Activity timeout reached.");
+    shutdownAndSleep();
+  }
+  delay(1);
+}
+```
+
+### Verification
+1. Upload and connect your phone to `PAWS-Station` (password: `password123`).
+2. Go to `http://192.168.4.1` in your browser.
+3. Download `data.csv` and verify it contains the schema headers and logged data rows.
+
+---
+
+## Step 7: Direct Wi-Fi Connection & Linux Server Integration
+
+### The Concept
+The primary sync triggers the ESP32 to connect as a client to the home router and HTTP POST the raw CSV contents of `/data.csv` to a simple Python server running on your Linux host.
+
+### 1. Python Server Script (Linux Host)
+Save this script as `server.py` on your Linux host and run it:
+```bash
+python3 server.py
+```
+
+```python
+import http.server
+import socketserver
+import os
+
+PORT = 8000
+LOG_FILE = "paws_log_sink.csv"
+
+class DataSinkHandler(http.server.SimpleHTTPRequestHandler):
+    def do_POST(self):
+        if self.path == "/api/upload":
+            length = int(self.headers['Content-Length'])
+            raw_data = self.rfile.read(length)
+            
+            print(f"\n[+] Incoming upload of {length} bytes received.")
+            try:
+                decoded = raw_data.decode('utf-8')
+                with open(LOG_FILE, "w") as f:
+                    f.write(decoded)
+                print(f"[+] Saved successfully to: {os.path.abspath(LOG_FILE)}")
+                
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/plain')
+                self.end_headers()
+                self.wfile.write(b"Success")
+            except Exception as e:
+                print(f"[-] Write error: {e}")
+                self.send_response(500)
+                self.end_headers()
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+if __name__ == "__main__":
+    with socketserver.TCPServer(("", PORT), DataSinkHandler) as server:
+        print(f"[*] Linux Receiver online on port {PORT}...")
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            print("\n[-] Server closed.")
+```
+
+### 2. ESP32 Wi-Fi Client Code
+Update `ssid`, `password`, and `serverIP` to match your local network settings.
+
+```cpp
+#include <Arduino.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <SPI.h>
+#include <SD.h>
+
+#define SD_POWER_PIN 13
+#define SD_CS_PIN 5
+
+const char* ssid = "YOUR_WIFI_SSID";
+const char* password = "YOUR_WIFI_PASSWORD";
+const char* serverIP = "192.168.1.50"; // Linux IP
+const int serverPort = 8000;
+
+void setup() {
+  Serial.begin(115200);
+  while(!Serial);
+  delay(1000);
+
+  pinMode(SD_POWER_PIN, OUTPUT);
+  digitalWrite(SD_POWER_PIN, HIGH);
+  delay(100);
+
+  if (!SD.begin(SD_CS_PIN)) {
+    Serial.println("SD Card Failed!");
+    return;
+  }
+
+  Serial.printf("Connecting to %s...\n", ssid);
+  WiFi.begin(ssid, password);
+  
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+    delay(500);
+    Serial.print(".");
+    attempts++;
+  }
+
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("Wi-Fi failed!");
+    return;
+  }
+
+  Serial.print("Connected! IP: ");
+  Serial.println(WiFi.localIP());
+
+  HTTPClient http;
+  String url = "http://" + String(serverIP) + ":" + String(serverPort) + "/api/upload";
+  http.begin(url);
+  http.addHeader("Content-Type", "text/csv");
+
+  File file = SD.open("/data.csv", FILE_READ);
+  if (file) {
+    String csvData = "";
+    while(file.available()) {
+      csvData += (char)file.read();
+    }
+    file.close();
+
+    Serial.println("Uploading CSV...");
+    int code = http.POST(csvData);
+    if (code > 0) {
+      Serial.printf("HTTP Success: %d. Response: %s\n", code, http.getString().c_str());
+    } else {
+      Serial.printf("HTTP Failed: %s\n", http.errorToString(code).c_str());
+    }
+  }
+
+  http.end();
+  WiFi.disconnect(true);
+  SD.end();
+  digitalWrite(SD_POWER_PIN, LOW); // Gated OFF
+  Serial.println("Process complete. Entering standby.");
+}
+
+void loop() {
+}
+```
+
+### Verification
+1. Boot the ESP32.
+2. Confirm the Python console reports the connection and displays the CSV file payload saved to `paws_log_sink.csv`.

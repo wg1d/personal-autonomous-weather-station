@@ -46,29 +46,49 @@ Breadboard-first stays the governing rule throughout: sensors, solar, and charge
 
 **Goal:** Validate the core architecture.
 
-### Hardware
-- Upesy ESP32 WROVER DevKit
-- DS3231 RTC module
-- BME280 sensor
-- SD card module
-- Breadboard + Dupont wires
+### Hardware Pin Mapping (from Breadboard)
+- **ESP32 DevKit** (e.g. Upesy WROVER DevKit)
+- **BME280 Sensor (I²C):** SDA = GPIO 21, SCL = GPIO 22
+- **DS3231 RTC Module (I²C):** SQW/INT = GPIO 36 (wakes ESP32 via `EXT0` wakeup)
+- **Manual Button:** GPIO 39 with external pull-up resistor (wakes ESP32 via `EXT1` wakeup)
+- **SD Card Reader Module (SPI):** CS = GPIO 5, SCK = GPIO 18, MISO = GPIO 19, MOSI = GPIO 23
+- **SD Card Power Control Pin:** GPIO 13 (acts as a power gate to disable SD reader during deep sleep)
+- **MicroSD Card:** 32GB or less, formatted to FAT32
+- **Linux computer:** acting as the test server
 
-### Software deliverables
-- [ ] FSM with 3 states: `DATA_LOGGER`, `SERVER`, `INIT_RTC`
-- [ ] Deep sleep + EXT0 wake on DS3231 INT
-- [ ] Rolling alarm scheduling
-- [ ] SD append-only CSV logging (full schema with placeholder columns for all planned sensors)
-- [ ] `SERVER` mode Wi-Fi AP + minimal web UI (file list + download)
-- [ ] `INIT_RTC` via NTP
+### Incremental Software Steps
+- [ ] **Step 1.1: ESP32 Deep Sleep & Wakeup Causes**
+  - Implement deep sleep entry and track wakeup causes.
+  - Configure manual button wakeup on GPIO 39 via `EXT1`.
+  - Preserve boot count and state during sleep using `RTC_DATA_ATTR`.
+- [ ] **Step 1.2: External RTC (DS3231) & NTP Time Sync**
+  - Connect DS3231 RTC over I²C.
+  - Set the RTC from an online NTP server via a temporary Wi-Fi connection.
+  - Configure DS3231 periodic interrupts (every 1 minute, 10 minutes, or daily) to wake the ESP32 via `EXT0` wakeup on GPIO 36.
+- [ ] **Step 1.3: Sensor Reading (Temperature, Humidity, Pressure)**
+  - Read environmental conditions from the BME280 sensor over I²C (address `0x76` or `0x77`).
+  - Handle communication errors or missing readings.
+- [ ] **Step 1.4: SD Card CSV Logger**
+  - Interface with the SD card reader over SPI using default VSPI pins.
+  - Implement power gating via GPIO 13 (power on before read/write, power off before sleep).
+  - Open/create log files and append timestamped, schema-compliant rows (with placeholder columns for future sensors).
+- [ ] **Step 1.5: Wi-Fi Hotspot & Local Web Server (SERVER Mode)**
+  - Wake up via `EXT1` trigger (button press / Ground connection on GPIO 39).
+  - Spin up the ESP32 in Access Point (AP) mode.
+  - Launch a lightweight web server serving a basic HTML page listing the logged CSV files and offering downloads.
+- [ ] **Step 1.6: Direct Wi-Fi Connection & Linux Server Integration**
+  - Connect the ESP32 as a Wi-Fi client to the local network.
+  - Perform HTTP POST requests to upload CSV data to a server.
+  - Implement a simple Python HTTP receiver script to run on the Linux host machine.
 
 ### Key decisions frozen in this phase
 - CSV column schema (include placeholder columns for all future sensors)
-- GPIO pin assignments
-- Measurement interval (default: 10 minutes)
+- GPIO pin assignments (frozen to match breadboard)
+- Measurement interval (default: 10 minutes, wake-on-alarm)
 - Filesystem layout on SD
 
 ### Exit criterion
-48 continuous hours of measurements with correct timestamps, no SD errors, correct deep sleep current (~10–15 µA).
+48 continuous hours of measurements with correct timestamps, no SD errors, correct deep sleep current (~10–15 µA) on the breadboard, and successful direct upload/manual download verification.
 
 ---
 
