@@ -43,9 +43,18 @@ To wake up the ESP32 manually to trigger its web server, we connect a button to 
 
 #### Which is better?
 For microcontrollers like the ESP32, **active-low (pull-up)** is the standard industry convention for buttons for three reasons:
-1.  **Safety:** If an external wire carrying `GND` gets shorted to a metal frame or shield, it is harmless. If a wire carrying `VCC` gets shorted, it creates a short circuit that can burn out components or the board.
-2.  **Internal Hardware:** The ESP32 contains built-in internal pull-up and pull-down resistors (typically $30\text{ k}\Omega - 80\text{ k}\Omega$) that can be enabled in software. However, for deep-sleep wakeups, an external resistor is preferred to ensure a solid logic state without consuming leakage current during sleep.
+1.  **Safety:** If an external wire carrying `GND` gets shorted to a metal frame or shield, it is harmless. If a wire carrying `VCC` gets shorted, it creates a short circuit that can damage components or the board.
+2.  **Internal Hardware:** The ESP32 contains built-in internal pull-up and pull-down resistors (typically $30\text{ k}\Omega - 80\text{ k}\Omega$) that can be enabled in software.
 3.  **Low-Power Wakeup:** The ESP32's RTC IO controller is highly optimized for detecting Ground transitions.
+
+::: {.callout-note}
+### Can I just use the ESP32's internal pull-up resistors?
+Yes! The ESP32 actually does allow you to enable its internal pull-up/pull-down resistors during deep sleep, provided you use the RTC-specific control functions (e.g., `rtc_gpio_pullup_en(GPIO_NUM_39)`). If you do this, you can omit the external resistor from your breadboard.
+
+However, using a **physical external resistor** (like the $10\text{ k}\Omega$ or $100\text{ k}\Omega$ you set up) remains the recommended best practice for two main reasons:
+* **Lower Power Consumption:** The internal RTC resistors are fixed at roughly $45\text{ k}\Omega$. While a button is pressed, the current flowing to GND is $3.3\text{V} / 45\text{ k}\Omega = 73\text{ }\mu\text{A}$. If you use a physical external $100\text{ k}\Omega$ pull-up resistor, this current is cut in half to just $33\text{ }\mu\text{A}$.
+* **Noise Immunity & Stability:** Internal resistors are transistor-based and can drift with temperature and manufacturing tolerances. Physical discrete resistors are highly stable and far more effective at preventing false wakeups caused by electromagnetic noise in long sensor wires.
+:::
 
 #### The Resistor Equation
 The value of the resistor $R$ must be selected such that when the switch is open, the voltage at the input pin ($V_{pin}$) remains well within the threshold for a stable logic state, despite the tiny input leakage current ($I_{leak}$) flowing into or out of the pin.
