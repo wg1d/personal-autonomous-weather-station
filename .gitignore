@@ -7,6 +7,7 @@ docs/_output/
 firmware/.pio/
 firmware/build/
 firmware/.vscode/
+**/compile_commands.json
 
 # Firmware secrets — copy config.h.example → config.h and fill in values
 firmware/src/config.h
