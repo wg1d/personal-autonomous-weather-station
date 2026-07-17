@@ -1,7 +1,5 @@
 # Incremental Prototyping Guide {.unnumbered}
 
-> Status: 🟢 Restructured & Aligned with Prototyping Code
-
 To ensure a robust and debuggable build, the station is developed **incrementally**. Instead of building the entire system at once, you will assemble and validate it step-by-step on a breadboard. This approach makes it easy to isolate hardware defects (like bad jumper wires or faulty modules) from software bugs.
 
 This chapter walks through the **8 prototyping milestones**. Each milestone includes the necessary wiring diagrams in ASCII, links to the complete Arduino example code, and instructions for verifying that it works.

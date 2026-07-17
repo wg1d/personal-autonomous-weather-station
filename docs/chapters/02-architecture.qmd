@@ -1,7 +1,5 @@
 # System Architecture {.unnumbered}
 
-> Status: 🟢 Stable
-
 ---
 
 ## Two clearly separated subsystems

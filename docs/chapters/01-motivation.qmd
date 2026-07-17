@@ -1,7 +1,5 @@
 # Motivation & Goals {.unnumbered}
 
-> Status: 🟢 Stable
-
 ---
 
 ## What this project is really about
