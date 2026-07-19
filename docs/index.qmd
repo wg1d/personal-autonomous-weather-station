@@ -16,7 +16,6 @@ A learning-oriented project covering the full stack: embedded firmware, solar po
 |------|---------|
 | Understand *why* this project exists | [Motivation & Goals](chapters/01-motivation.qmd) |
 | See the big picture and data flow | [System Architecture](chapters/02-architecture.qmd) |
-| Learn how to build the station step-by-step | [Incremental Prototyping](chapters/03-prototyping.qmd) |
 
 ---
 

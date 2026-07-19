@@ -16,7 +16,6 @@ book:
       chapters:
         - chapters/01-motivation.qmd
         - chapters/02-architecture.qmd
-        - chapters/03-prototyping.qmd
 
 format:
   html:
