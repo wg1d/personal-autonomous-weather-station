@@ -73,12 +73,4 @@ Each phase of this project must be **independently useful** — you can stop at 
 
 These are all compatible with the architecture but are explicitly out of scope.
 
----
 
-## Minimum Viable Product (Phase 1)
-
-Following the build philosophy, the very first working version (the MVP) will simply be:
-1. An ESP32 that wakes up, reads a basic temperature/humidity sensor, and saves it to a local SD card with a timestamp.
-2. No Wi-Fi, no backend, no solar power, just the ESP plugged into a computer via USB and a breadboard.
-
-Once this works reliably, subsequent phases will introduce the backend, automated uploads, and advanced power management.

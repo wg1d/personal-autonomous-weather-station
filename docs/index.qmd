@@ -24,7 +24,8 @@ It's a learning-oriented project covering several topics, such as:
 | Goal | Chapter |
 |------|---------|
 | Understand *why* this project exists | [Motivation & Goals](chapters/01-motivation.qmd) |
-| See the big picture and data flow | [System Architecture](chapters/02-architecture.qmd) |
+| Understand *how* the project evolves | [Roadmap](chapters/02-roadmap.qmd) |
+| See the big picture and data flow | [System Architecture](chapters/03-architecture.qmd) |
 
 ---
 
