@@ -14,7 +14,6 @@ book:
     - index.qmd
     - chapters/01-motivation.qmd
     - chapters/02-roadmap.qmd
-    - chapters/03-architecture.qmd
 
 format:
   html:
