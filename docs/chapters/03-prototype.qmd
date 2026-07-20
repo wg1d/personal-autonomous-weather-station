@@ -21,6 +21,7 @@ However, feel free to use any other microcontroller that you are more familiar w
 
 ### Why use the uPesy ESP32 Wrover DevKit v2.1?
 This specific board was chosen for several practical reasons:
+
 - **Breadboard Friendly**: It is 100% compatible with a standard breadboard, leaving pins accessible on both sides.
 - **Convenience**: It features a modern USB-C connector.
 - **High Performance**: It includes 4MB of PSRAM and 16MB of Flash memory.
@@ -28,6 +29,7 @@ This specific board was chosen for several practical reasons:
 
 ### Why use the uPesy Micro SD card reader module?
 We use this specific module because:
+
 - **Energy Efficient**: It can be powered off completely via a dedicated control pin, which is a critical feature for our future battery-powered data logger.
 
 ### Why start with the BME280?
