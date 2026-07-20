@@ -6,9 +6,9 @@
 
 This is a **personal learning project** with a clear, hands-on goal: understand how a weather station works end-to-end, from raw sensor reading to a usable dashboard and simple predictive models.
 
-The motivating use case is intentionally concrete and humble:
+The motivating use case is intentionally concrete and minimalistic:
 
-> *Knowing when it actually makes sense to water outdoor plants, based on observed local conditions — not guesswork.*
+> *Knowing when it actually makes sense to water outdoor plants, based on observed local conditions.*
 
 The project is **not** intended to compete with commercial stations, replace a professional meteorological network, or solve large-scale climate problems. It is intended to be educational, achievable, and progressively useful.
 
@@ -21,50 +21,46 @@ The project has three layers of goals, ordered by priority:
 ### Layer 1 — Hardware & firmware (core)
 
 - Build a reliable, low-power data logger from scratch
-- Understand sensor acquisition, embedded timekeeping, and deep-sleep power management
+- Understand sensor data acquisition, embedded timekeeping, and deep-sleep power management of an ESP32 microcontroller
 - Produce consistent, timestamped, locally-stored data
 
 ### Layer 2 — Data pipeline
 
 - Understand how to move data from a field device with intermittent Wi-Fi access to a server
-- Build a simple backend with data ingestion, storage, and a visual dashboard
+- Build a simple backend (ingestion, storage, dashboard) hosted locally on a Raspberry Pi
 
 ### Layer 3 — Local intelligence
 
 - Use collected data for practical decisions (plant watering)
 - Explore short-term weather forecasting using machine learning on local sensor data
-- Use data from nearby public weather stations to bootstrap models before enough local data is available
 
 ---
 
 ## Scope and constraints
 
-The project explicitly accepts the following constraints from day one:
+The project explicitly accepts the following constraints:
 
 | Constraint | Rationale |
 |------------|-----------|
 | Single station | Manageable scope for a personal project |
 | Single user | No multi-user, permissions, or security requirements |
-| No permanent internet connection at the station | Enables solar/battery operation; the station connects to Wi-Fi only to upload data, remaining offline during measurement and sleep |
-| Learning value over absolute precision | Cheap, accessible sensors are acceptable |
+| No permanent internet connection at the station | Enables solar/battery operation, the station connects to Wi-Fi only to upload data, remaining offline during measurement and deep sleep |
 | Incremental approach | Each phase must be independently useful |
 
 ---
 
 ## Day-to-day operation
 
-In typical operation, data transmission is fully automated. However, a local fallback mode is available for offline environments or testing:
+In typical operation, data transmission would be fully automated. However, a local fallback mode will be developed for offline environments or testing purposes (manual data transfer using a phone as gateway):
 
-1. **Automated Upload (Primary)**: The station wakes up on its schedule, reads the sensors, appends the data to the local SD card CSV log, and attempts to connect to the home Wi-Fi network. If successful, it uploads the latest readings directly to the server API and returns to deep sleep. If the home Wi-Fi is out of range or unavailable, it directly goes to deep sleep, leaving the data safely buffered on the SD card.
-2. **Manual Download Gateway (Fallback)**: When deployed out of range, the user walks up to the station and presses a momentary button (or waves a magnet near a reed switch). This wakes the ESP32 and puts it in `SERVER` mode, spinning up a local Wi-Fi Access Point for 3 minutes. The user connects their phone, downloads the CSV log via a browser, and later uploads it to the backend server. The station automatically returns to deep sleep after the 3-minute timeout.
-
-No custom app is required — only a standard mobile browser for manual downloads, and home Wi-Fi for automated synchronization.
+1. **Automated Upload (Primary)**: The station wakes up on its schedule, reads the sensors, appends the data to the local SD card, and attempts to connect to the home Wi-Fi network. If successful, it uploads the latest readings directly to the server API and returns to deep sleep. If the home Wi-Fi is out of range or unavailable, it directly goes to deep sleep, leaving the data safely buffered on the SD card.
+2. **Manual Download Gateway (Fallback)**: When deployed out of range (or for testing purposes), the user can press a button. This wakes the ESP32 and puts it in `SERVER` mode, spinning up a local Wi-Fi Access Point for 3 minutes. The user connects their phone, downloads the data via a browser, and later uploads it to the backend server. The station automatically returns to deep sleep after the 3-minute timeout.
 
 ---
 
 ## Build philosophy
 
-Each phase of this project must be **independently useful** — you can stop at any phase and have a working, valuable system. Hardware and software investments made in one phase are never thrown away. The architecture (FSM, data format, connector interfaces) is frozen from Phase 1 onward. Only capabilities are added.
+Each phase of this project must be **independently useful** — you can stop at any phase and have a working, valuable system. Hardware and software investments made in one phase are never thrown away.
 
 ---
 
@@ -76,3 +72,13 @@ Each phase of this project must be **independently useful** — you can stop at 
 - A multi-node sensor network
 
 These are all compatible with the architecture but are explicitly out of scope.
+
+---
+
+## Minimum Viable Product (Phase 1)
+
+Following the build philosophy, the very first working version (the MVP) will simply be:
+1. An ESP32 that wakes up, reads a basic temperature/humidity sensor, and saves it to a local SD card with a timestamp.
+2. No Wi-Fi, no backend, no solar power, just the ESP plugged into a computer via USB and a breadboard.
+
+Once this works reliably, subsequent phases will introduce the backend, automated uploads, and advanced power management.

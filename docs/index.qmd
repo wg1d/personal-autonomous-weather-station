@@ -6,7 +6,7 @@
 
 It's a learning-oriented project covering several topics, such as:
 
-- Embedded firmware based on Arduino
+- Embedded firmware based on Arduino code
 - Weather data collection
 - Solar-powered systems
 - Data transfer & time-series databases
