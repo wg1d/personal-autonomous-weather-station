@@ -4,6 +4,7 @@ This station will be built incrementally. Following our build philosophy, each p
 
 ## Prototype (Phase 1)
 The very first working version (the prototype) will simply be:
+
 1. An ESP32 that wakes up, reads a basic temperature/humidity sensor, and saves it to a local SD card with a timestamp.
 2. No Wi-Fi, no backend, no solar power, just the ESP plugged into a computer via USB and a breadboard.
 
@@ -16,22 +17,22 @@ Once the minimal weather station is available, it will be time to start working 
 Before adding complex hardware, we will introduce basic Machine Learning (LSTM) on our initial temperature, pressure, and humidity data. This proves the end-to-end data pipeline early on.
 
 ## Adding Light & UV Sensors (Phase 4)
-Once we validate that the system is working fine (data acquisition, storage, data transfer, and basic ML), let's improve the station by adding some new sensors. Let's start by adding a light and UV sensor to the station.
+Once we validate that the system is working fine (data acquisition, storage, data transfer, and basic ML), let's improve the station by adding some new sensors. Let's start by adding a light and UV sensor to the station like the BH1750 and the VEML6075.
 
 ## Adding Soil Moisture Sensor (Phase 5)
-After that, we can add a soil moisture sensor to the station in order to determine if plants need to be watered.
+After that, we can add a soil moisture sensor (such as the ubiquitous Capacitive Soil Moisture Sensor v1.2 or v2.0) to the station in order to determine if plants need to be watered.
 
 ## Adding a Rain Gauge (Phase 6)
-Adding a tipping bucket rain gauge sensor to measure rainfall would be a good improvement to the station.
+Adding a tipping bucket rain gauge sensor to measure rainfall would be a good improvement to the station. The 3D-PAWS project has a good example of a 3D-printed tipping bucket rain gauge.
 
 ## Adding an Anemometer (Phase 7)
-Adding an anemometer and wind vane to measure wind speed and direction.
+Adding an anemometer and wind vane to measure wind speed and direction would be a good addition to the station. The 3D-PAWS project also has a good example of a 3D-printed anemometer and wind vane.
 
 ## Advanced ML & Watering (Phase 8)
 With all sensors active, we will retrain our ML models and add a Random Forest model specifically to optimize the watering schedule of the plants based on the new local data.
 
 ## Solar & Power Management (Phase 9)
-Making the station solar-powered and weatherproof would allow us to deploy it in the field for extended periods of time without human intervention.
+Making the station solar-powered would allow us to deploy it in the field for extended periods of time without human intervention.
 
 ## Stevenson Screen & Deployment (Phase 10)
 In order to put it outside, the station should be protected from the elements. A Stevenson screen would be a good solution for that. It would allow us to measure temperature, humidity, rainfall, wind speed, and direction without interference from direct sunlight or precipitation.
