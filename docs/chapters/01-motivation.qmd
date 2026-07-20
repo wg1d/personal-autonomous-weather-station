@@ -62,6 +62,12 @@ No custom app is required — only a standard mobile browser for manual download
 
 ---
 
+## Build philosophy
+
+Each phase of this project must be **independently useful** — you can stop at any phase and have a working, valuable system. Hardware and software investments made in one phase are never thrown away. The architecture (FSM, data format, connector interfaces) is frozen from Phase 1 onward. Only capabilities are added.
+
+---
+
 ## What this project is NOT
 
 - A commercial product

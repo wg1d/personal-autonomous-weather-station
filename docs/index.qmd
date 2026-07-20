@@ -1,8 +1,17 @@
-# Preface {.unnumbered}
+# Introduction {.unnumbered}
 
-**PAWS** (*Personal Autonomous Weather Station*) is a low-powered ESP32 weather station with SD card logging, RTC timekeeping, phone-based data gateway, time-series database, online dashboard, plant watering decisions, and local weather forecasting.
+<img src="../assets/images/logo.svg" alt="PAWS logo" width="80" align="right"/>
 
-A learning-oriented project covering the full stack: embedded firmware, solar power, asynchronous data pipeline, and machine learning. This document is the **single authoritative reference** for the end-to-end design — iterate quickly, validate early, add complexity only when the foundation is solid.
+**PAWS** (*Personal Autonomous Weather Station*) is a low-powered ESP32 weather station with SD card logging, RTC timekeeping, direct Wi-Fi data transfer (and a phone-based data gateway as fallback), time-series database, online dashboard, plant watering decisions, and local weather forecasting on a Single-Board Computer like a Raspberry Pi.
+
+It's a learning-oriented project covering several topics, such as:
+
+- Embedded firmware based on Arduino
+- Weather data collection
+- Solar-powered systems
+- Data transfer & time-series databases
+- Web dashboards
+- Machine learning
 
 ::: {.callout-note}
 **Related project — 3D-PAWS** (*3D-Printed Automatic Weather Station*, UCAR/COMET): an open-source initiative for low-cost weather stations using 3D-printed sensor housings. Their sensor designs (tipping bucket rain gauge, anemometer) are a useful reference for the DIY hardware phases of this project. See [3dpaws.comet.ucar.edu](https://3dpaws.comet.ucar.edu/).
@@ -16,12 +25,6 @@ A learning-oriented project covering the full stack: embedded firmware, solar po
 |------|---------|
 | Understand *why* this project exists | [Motivation & Goals](chapters/01-motivation.qmd) |
 | See the big picture and data flow | [System Architecture](chapters/02-architecture.qmd) |
-
----
-
-## Build philosophy
-
-Each phase of this project must be **independently useful** — you can stop at any phase and have a working, valuable system. Hardware and software investments made in one phase are never thrown away. The architecture (FSM, data format, connector interfaces) is frozen from Phase 1 onward. Only capabilities are added.
 
 ---
 

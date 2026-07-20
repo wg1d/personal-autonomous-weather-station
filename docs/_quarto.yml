@@ -4,7 +4,7 @@ project:
 
 book:
   title: "PAWS"
-  subtitle: "Personal Autonomous Weather Station — From Sensors to Local Intelligence"
+  subtitle: "Personal Autonomous Weather Station"
   repo-url: https://github.com/wg1d/personal-autonomous-weather-station
   repo-branch: main
   date: last-modified
@@ -12,10 +12,8 @@ book:
 
   chapters:
     - index.qmd
-    - part: "The Station"
-      chapters:
-        - chapters/01-motivation.qmd
-        - chapters/02-architecture.qmd
+    - chapters/01-motivation.qmd
+    - chapters/02-architecture.qmd
 
 format:
   html:
