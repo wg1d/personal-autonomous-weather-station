@@ -1,0 +1,25 @@
+% ==========================================
+% Component: uPesy ESP32 Wrover DevKit v2.1
+% ==========================================
+\tikzset{
+    upesy_esp32/.pic={
+        % Draw the module body
+        \draw[thick, fill=black!85, rounded corners=4pt] (0,0) rectangle (5, 8.5);
+        \node[font=\bfseries\sffamily, text=white] at (2.5, 6.8) {uPesy ESP32 Wrover};
+        \node[font=\scriptsize\sffamily, text=white] at (2.5, 6.3) {DevKit v2.1};
+        
+        % Draw left pins
+        \foreach \y/\name in {0.5/GND, 1.0/5V, 1.5/VIN, 2.0/13, 2.5/12, 3.0/14, 3.5/27, 4.0/26, 4.5/25, 5.0/33, 5.5/32, 6.0/35, 6.5/34, 7.0/39, 7.5/36, 8.0/EN} {
+            \coordinate (-\name) at (0,\y);
+            \node[right, font=\tiny\sffamily, text=white] at (0.1,\y) {\name};
+            \draw[fill=gray!50] (0.1,\y) circle (1.5pt);
+        }
+        
+        % Draw right pins
+        \foreach \y/\name in {0.5/GND, 1.0/3V3, 1.5/15, 2.0/2, 2.5/0, 3.0/4, 3.5/NC, 4.0/NC, 4.5/5, 5.0/18, 5.5/19, 6.0/21, 6.5/RX0, 7.0/TX0, 7.5/22, 8.0/23} {
+            \coordinate (-\name) at (5,\y);
+            \node[left, font=\tiny\sffamily, text=white] at (4.9,\y) {\name};
+            \draw[fill=gray!50] (4.9,\y) circle (1.5pt);
+        }
+    }
+}

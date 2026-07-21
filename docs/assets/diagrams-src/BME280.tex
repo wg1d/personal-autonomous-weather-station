@@ -1,0 +1,17 @@
+% ==========================================
+% Component: BME280 Temperature/Humidity/Pressure
+% ==========================================
+\tikzset{
+    bme280/.pic={
+        % Draw the module body
+        \draw[thick, fill=purple!10, rounded corners=2pt] (0,0) rectangle (2.5, 3);
+        \node[font=\bfseries\sffamily] at (1.5, 1.7) {BME280};
+        
+        % Draw pins
+        \foreach \y/\name in {0.5/SDA, 1.1/SCL, 1.7/GND, 2.3/VIN} {
+            \coordinate (-\name) at (0,\y);
+            \node[right, font=\tiny\sffamily] at (0.1,\y) {\name};
+            \draw[fill=gray!50] (0.1,\y) circle (1.5pt);
+        }
+    }
+}

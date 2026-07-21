@@ -1,0 +1,27 @@
+\input{common.tex}
+
+\begin{document}
+\begin{circuitikz}
+
+% Place ESP32 Wrover DevKit v2.1
+\pic (esp) at (0,0) {upesy_esp32};
+
+% Place BME280 a bit to the right and slightly up
+\pic (bme) at (8,4) {bme280};
+
+% Wires
+
+% GND: ESP32 right side -> BME280 GND
+\draw[black, thick] (esp-GND) -- ++(1,0) |- (bme-GND);
+
+% 3V3: ESP32 right side -> BME280 VIN
+\draw[red, thick] (esp-3V3) -- ++(1.5,0) |- (bme-VIN);
+
+% SDA: ESP32 Pin 21 right side -> BME280 SDA
+\draw[blue, thick] (esp-21) -- ++(0.5,0) |- (bme-SDA);
+
+% SCL: ESP32 Pin 22 right side -> BME280 SCL
+\draw[green!70!black, thick] (esp-22) -- ++(1.2,0) |- (bme-SCL);
+
+\end{circuitikz}
+\end{document}
