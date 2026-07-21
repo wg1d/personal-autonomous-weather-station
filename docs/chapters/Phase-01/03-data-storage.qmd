@@ -1,0 +1,32 @@
+# Data Storage {.unnumbered}
+Now that we are successfully acquiring data from the environment, we need to save it so it isn't lost when the ESP32 goes to sleep or loses power. 
+
+This chapter will cover:
+
+1. Connecting the micro SD card reader to the ESP32.
+2. Programming the ESP32 to write our sensor data to the SD card.
+
+## Connect the SD Card Reader to the ESP32
+
+The uPesy Micro SD card reader uses the **SPI** (Serial Peripheral Interface) protocol to communicate with the ESP32. 
+
+> [!NOTE]
+> **A brief primer on SPI:**
+> Unlike I2C which uses only two wires, SPI is much faster but requires four wires to operate:
+> *   **MISO (Master In Slave Out):** Data from the SD card to the ESP32.
+> *   **MOSI (Master Out Slave In):** Data from the ESP32 to the SD card.
+> *   **SCK (Serial Clock):** Synchronizes the data transfer.
+> *   **CS (Chip Select):** Used to select which SPI device to talk to.
+
+The ESP32 has default pins for SPI communication (specifically the VSPI bus). We will connect the SD card reader as follows:
+
+*   **VCC:** Connect to the ESP32 **5V** pin (the module regulates it down to 3.3V).
+*   **GND:** Connect to an ESP32 **GND** pin.
+*   **MISO:** Connect to ESP32 Pin **19**.
+*   **MOSI:** Connect to ESP32 Pin **23**.
+*   **SCK:** Connect to ESP32 Pin **18**.
+*   **CS:** Connect to ESP32 Pin **5**.
+
+## Program the ESP32 to Save Data
+
+*Content coming soon...*

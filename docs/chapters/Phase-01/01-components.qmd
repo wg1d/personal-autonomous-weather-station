@@ -1,0 +1,60 @@
+# Required components {.unnumbered}
+In order to start building our prototype, we need to gather the following components:
+
+## Hardware
+
+| Component | Value | Purpose | Link |
+|-----------|-------|---------|------|
+| Microcontroller | uPesy ESP32 Wrover DevKit v2.1 | Main processor and Wi-Fi controller | [Link](https://www.upesy.fr/products/upesy-esp32-wrover-devkit-board) |
+| Real-Time Clock | DS3231 | Provides accurate timekeeping (even when powered off) | [Link](https://www.az-delivery.de/fr/products/ds3231-real-time-clock?srsltid=AfmBOorNai4kXegLFEw-4mSHvFswVeqO0FldU-CSSQ6eLwvgBxkJBAr8) |
+| Micro SD Card Module | uPesy Micro SD card reader | Local data storage | [Link](https://www.upesy.fr/products/upesy-micro-sd-card-reader-module) |
+| Temp/Humidity/Pressure | BME280 | Measures temperature, humidity, and pressure | [Link](https://www.az-delivery.de/fr/products/gy-bme280?_pos=2&_psq=BME&_psid=b7c45d31b&_ss=e&_v=1.0) |
+
+
+In addition, we will need a breadboard, some jumper wires, a push button, some resistors, a micro SD card, and a USB cable to program and power the ESP32.
+
+### Why use an ESP32?
+The main reason is that it is incredibly well-known in the open-source community, meaning there is a wealth of information and libraries available for it. It also has built-in Wi-Fi and Bluetooth, along with excellent deep-sleep capabilities which are essential for a solar-powered weather station. 
+
+However, feel free to use any other microcontroller that you are more familiar with. The code is written using the Arduino framework, which is compatible with many microcontrollers, making it relatively easy to switch to another board. The main hardware requirements are that the microcontroller must have deep-sleep capabilities, I2C and SPI interfaces, and at least two deep-sleep wake-up sources (e.g., a timer and an external pin). It is also assumed that your chosen microcontroller has enough digital and analog GPIO pins to connect all the required sensors.
+
+### Why use the uPesy ESP32 Wrover DevKit v2.1?
+This specific board was chosen for several practical reasons:
+
+- **Breadboard Friendly**: It is 100% compatible with a standard breadboard, leaving pins accessible on both sides.
+- **Convenience**: It features a modern USB-C connector.
+- **High Performance**: It includes 4MB of PSRAM and 16MB of Flash memory.
+- **Clear Pinout**: It only exposes truly usable pins, avoiding common ESP32 strapping pin pitfalls that often catch beginners.
+
+![uPesy ESP32 Wrover DevKit v2.1](../../assets/images/components/upesy-esp32-wrover-devkit-3.jpg){width=200}
+
+### Why use the uPesy Micro SD card reader module?
+We use this specific module because:
+
+- **Energy Efficient**: It can be powered off completely via a dedicated control pin, which is a critical feature for our future battery-powered data logger.
+
+![uPesy micro SD card reader](../../assets/images/components/upesy-micro-sd-module-for-arduino-showcase.jpg){width=200}
+
+### Why start with the BME280?
+Simply because it is a small, affordable, and highly accurate sensor that measures temperature, humidity, and atmospheric pressure all in one package. It is very easy to use, well-documented, and perfect for getting a basic weather station up and running quickly.
+
+![Temp/Humidity/Pressure sensor: BME 280](../../assets/images/components/bme280.jpg){width=200}
+
+### Why use an external Real-Time Clock (RTC)?
+While the ESP32 has an internal RTC, it is not very accurate and can drift significantly over time. The DS3231 is a highly precise RTC with a built-in battery backup (coin cell). It will keep perfect time even when the ESP32 is completely powered down (or in deep sleep), ensuring all our logged data is accurately timestamped.
+
+![Real-Time Clock sensor: DS3231](../../assets/images/components/real-time-clock-rtc-ds3231.jpg){width=200}
+
+## Software
+
+In order to program the ESP32, we will use VS Code as our primary environment, along with the PlatformIO extension to handle the Arduino framework.
+
+| Software | Purpose |
+|----------|---------|
+| VS Code | Programming environment |
+| PlatformIO extension for VS Code | Arduino programming environment |
+
+All the code and PlatformIO projects will be available on [GitHub](https://github.com/wg1d/personal-autonomous-weather-station).
+
+### Why use VS Code and PlatformIO?
+Using VS Code with the PlatformIO extension provides a much richer development experience than the standard Arduino IDE. However, feel free to use the Arduino IDE if you prefer, it is purely a personal choice.

@@ -14,18 +14,20 @@ book:
     - index.qmd
     - chapters/01-motivation.qmd
     - chapters/02-roadmap.qmd
-    - part: "Prototype"
+    - part: "Phase 1: Prototype"
       chapters:
-        - chapters/03-prototype.qmd
+        - chapters/Phase-01/01-components.qmd
+        - chapters/Phase-01/02-data-acquisition.qmd
+        - chapters/Phase-01/03-data-storage.qmd
 
 format:
   html:
     theme: cosmo
     fig-align: center
     toc: true
-    toc-depth: 3
+    toc-depth: 4
     number-sections: true
-    number-depth: 3
+    number-depth: 4
     highlight-style: github
     code-fold: false
     html-math-method: katex

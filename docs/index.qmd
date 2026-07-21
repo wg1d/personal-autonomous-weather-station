@@ -25,6 +25,8 @@ It's a learning-oriented project covering several topics, such as:
 |------|---------|
 | Understand *why* this project exists | [Motivation & Goals](chapters/01-motivation.qmd) |
 | Understand *how* the project evolves | [Roadmap](chapters/02-roadmap.qmd) |
+| Start building the prototype | [Prototype](chapters/Phase-01/01-components.qmd)|
+
 
 ---
 
