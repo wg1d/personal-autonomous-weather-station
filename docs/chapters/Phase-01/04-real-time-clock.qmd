@@ -7,7 +7,7 @@ This chapter will cover:
 2. Connecting the DS3231 RTC to the ESP32.
 3. Programming the ESP32 to retrieve the exact time.
 
-## 1. Introducing the DS3231 RTC
+## Introducing the DS3231 RTC
 
 The DS3231 is a highly accurate real-time clock. It has a dedicated coin-cell battery, meaning it keeps track of time even when the ESP32 is completely unpowered. 
 
@@ -18,7 +18,7 @@ Besides just keeping time, the DS3231 has some powerful built-in features that w
 
 Because the DS3231 has its own battery, its internal settings (like active alarms or the SQW pin state) are permanently saved. If you don't explicitly turn them off in your code, they will stay active forever, even if you upload brand new code to the ESP32! That is why our code will include a "cleanup" step to reset these features.
 
-## 2. The Hardware Connection
+## The Hardware Connection
 
 The DS3231 communicates using the I2C protocol, just like our BME280 sensor. This is incredibly convenient because we can connect it to the exact same I2C pins (SDA and SCL) on the ESP32!
 
@@ -33,7 +33,7 @@ Since the BME280 is already using the I2C bus, you can simply connect the DS3231
 
 ![Connection between ESP32 and DS3231 RTC](../../assets/diagrams/connection_esp32_ds3231.svg){width=500}
 
-## 3. Program the ESP32 to Save Data
+## Program the ESP32 to Save Data
 
 ### Setup
 
