@@ -1,0 +1,20 @@
+% ==========================================
+% Component: Real Time Clock (DS3231)
+% ==========================================
+\tikzset{
+    ds3231/.pic={
+        % Draw the module body
+        \draw[thick, fill=blue!75, rounded corners=2pt] (0,0) rectangle (2.5, 4);
+        \node[font=\bfseries\sffamily] at (1.25, 2.2) {DS3231};
+        
+        % Draw pins (GND, VCC, SDA, SCL, SQW, 32K)
+        \foreach \y/\name in {0.5/GND, 1.1/VCC, 1.7/SDA, 2.3/SCL, 2.9/SQW, 3.5/32K} {
+            % The line for the pin
+            \coordinate (-\name) at (0,\y);
+            % Pin label inside the box
+            \node[right, font=\tiny\sffamily] at (0.1,\y) {\name};
+            % Small circle for the solder pad
+            \draw[fill=gray!50] (0.1,\y) circle (1.5pt);
+        }
+    }
+}

@@ -1,0 +1,63 @@
+\input{common.tex}
+
+\begin{document}
+\begin{circuitikz}
+
+% Place ESP32 Wrover DevKit v2.1
+\pic (esp) at (0,0) {upesy_esp32};
+
+% Place BME280
+\pic (bme) at (8,8) {bme280};
+
+% Place DS3231 RTC
+\pic (rtc) at (8,3) {ds3231};
+
+% Place SD Card Reader
+\pic (sd) at (8,-2) {sdcard};
+
+% Wires
+
+% --- BME280 & RTC Wires (I2C & Power) ---
+% GND: ESP32 right side -> BME280 GND, branch to RTC
+\draw[black, thick] (esp-GND) -- ++(1.0,0) coordinate(gnd_split) |- (bme-GND);
+\draw[black, thick] (gnd_split) |- (rtc-GND);
+
+% 3V3: ESP32 right side -> BME280 VIN, branch to RTC VCC
+\draw[red, thick] (esp-3V3) -- ++(1.5,0) coordinate(vcc_split) |- (bme-VIN);
+\draw[red, thick] (vcc_split) |- (rtc-VCC);
+
+% SDA: ESP32 Pin 21 right side -> BME280 SDA, branch to RTC SDA
+\draw[blue, thick] (esp-21) -- ++(0.5,0) coordinate(sda_split) |- (bme-SDA);
+\draw[blue, thick] (sda_split) |- (rtc-SDA);
+
+% SCL: ESP32 Pin 22 right side -> BME280 SCL, branch to RTC SCL
+\draw[green!70!black, thick] (esp-22) -- ++(1.2,0) coordinate(scl_split) |- (bme-SCL);
+\draw[green!70!black, thick] (scl_split) |- (rtc-SCL);
+
+% --- SD Card Wires ---
+% VCC: ESP32 Pin 5V left side -> SD Card 5V (Route under)
+\draw[red, thick] (esp-5V) -- ++(-0.5,0) |- (-0.5, -1.8) -- (7.8, -1.8) |- (sd-5V);
+
+% GND: ESP32 right side -> SD Card GND (Branch off existing GND wire)
+\draw[black, thick] (esp-GND) -- ++(1.8,0) |- (sd-GND);
+
+% MISO: ESP32 Pin 19 right side -> SD Card MISO
+\draw[blue, thick] (esp-19) -- ++(0.8,0) |- (sd-MISO);
+
+% MOSI: ESP32 Pin 23 right side -> SD Card MOSI
+\draw[green!70!black, thick] (esp-23) -- ++(2.0,0) |- (sd-MOSI);
+
+% SCLK: ESP32 Pin 18 right side -> SD Card SCLK
+\draw[orange, thick] (esp-18) -- ++(2.2,0) |- (sd-SCLK);
+
+% CS: ESP32 Pin 5 right side -> SD Card CS
+\draw[purple, thick] (esp-5) -- (5.2, 4.5) -- (5.2, 4.2) -- (7.4, 4.2) |- (sd-CS);
+
+% OFF: ESP32 Pin 13 left side -> SD Card OFF (Route under)
+\draw[gray, thick] (esp-13) -- ++(-1.0,0) |- (-1.0, -2.2) -- (7.6, -2.2) coordinate(off_mid) |- (sd-OFF);
+
+% Pull-down resistor on OFF pin
+\draw[black, thick] (off_mid) -- ++(0, -0.3) to[R, l=$10k\Omega$, *-] ++(0, -1.5) node[ground]{};
+
+\end{circuitikz}
+\end{document}
