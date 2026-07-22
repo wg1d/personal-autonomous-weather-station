@@ -1,7 +1,7 @@
 /*
  * Project: Personal Autonomous Weather Station
  * Phase 01: Data Acquisition
- * File: 01_bme280.ino
+ * File: 01_data_acquisition.ino
  * 
  * Description:
  * This sketch initializes the BME280 sensor and continuously reads 

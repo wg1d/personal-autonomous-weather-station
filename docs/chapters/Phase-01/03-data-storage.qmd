@@ -57,7 +57,22 @@ The ESP32 has default pins for SPI communication. Since we are building upon the
 
 We will build upon the code from the previous chapter. First, we need to include the necessary libraries to handle the SD card and the SPI communication. 
 
-The `SD` and `SPI` libraries are built into the Arduino core for the ESP32, so you don't need to add any new dependencies to your `platformio.ini`.
+The `SD` and `SPI` libraries are built into the Arduino core for the ESP32, so you don't need to add any new dependencies to your `platformio.ini`. It should look like this:
+
+```ini
+[platformio]
+src_dir = .
+
+[env:upesy_wrover]
+platform = espressif32
+board = upesy_wrover
+framework = arduino
+monitor_speed = 115200
+lib_deps =
+    adafruit/Adafruit BME280 Library @ ^2.2.4
+```
+
+> **Ready-to-use project:** If you don't want to copy-paste, you can directly open the complete PlatformIO project from the source code here: [`02_data_storage`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-01/02_data_storage)
 
 ### The Code
 
@@ -67,6 +82,7 @@ Here is the updated code that reads the sensor and appends the data to a file on
 /*
  * Project: Personal Autonomous Weather Station
  * Phase 01: Data Storage
+ * File: 02_data_storage.ino
  * 
  * Description:
  * This sketch initializes the BME280 sensor and the SD Card module.
@@ -124,6 +140,13 @@ void setup() {
   // Initialize SD Card
   if (!SD.begin(SD_CS_PIN)) {
     Serial.println("Card Mount Failed. Check wiring and make sure an SD card is inserted.");
+    while (1) delay(10);
+  }
+
+  // Check if an SD card is actually attached
+  uint8_t cardType = SD.cardType();
+  if (cardType == CARD_NONE) {
+    Serial.println("No SD card attached");
     while (1) delay(10);
   }
 
@@ -185,13 +208,25 @@ Upload the code and open the Serial Monitor. You should see the sensor readings 
 
 ```text
 Initializing Weather Station...
+Created weather_data.csv with header.
 -------------------------
-Temperature: 29.31 *C
-Humidity: 35.68 %
-Pressure: 1000.12 hPa
+Temperature: 28.70 *C
+Humidity: 25.73 %
+Pressure: 1000.83 hPa
+Data saved to SD card.
+-------------------------
+Temperature: 28.71 *C
+Humidity: 25.75 %
+Pressure: 1000.86 hPa
 Data saved to SD card.
 ```
 
-If you pop the SD card out and put it into your computer, you should find a `weather_data.csv` file containing all the saved measurements. 
+If you pop the SD card out and put it into your computer, you should find a `weather_data.csv` file containing all the saved measurements and it should looked like this:
+
+```csv
+timestamp;temperature;humidity;pressure
+756;28.70;25.73;1000.83
+5907;28.71;25.75;1000.86.86
+```
 
 With data acquisition and persistent storage now implemented, we have a fully functional baseline for our weather station!
