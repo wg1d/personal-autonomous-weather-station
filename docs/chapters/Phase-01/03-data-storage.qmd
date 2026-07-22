@@ -92,12 +92,12 @@ Here is the updated code that reads the sensor and appends the data to a file on
  *
  * Wiring:
  * - BME280: 3V3 -> VIN, GND -> GND, Pin 21 -> SDA, Pin 22 -> SCL
- * - SD Card: 5V -> VCC, GND -> GND, Pin 19 -> MISO, Pin 23 -> MOSI, Pin 18 -> SCLK, Pin 5 -> CS
+ * - SD Card: 5V -> VCC, GND -> GND, Pin 19 -> MISO, 
+ *   Pin 23 -> MOSI, Pin 18 -> SCLK, Pin 5 -> CS
  * - SD OFF Pin -> Pin 13 (with a 10k pull-down resistor to GND)
  */
 
 #include <Arduino.h>
-#include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 #include <SPI.h>
@@ -139,7 +139,8 @@ void setup() {
 
   // Initialize SD Card
   if (!SD.begin(SD_CS_PIN)) {
-    Serial.println("Card Mount Failed. Check wiring and make sure an SD card is inserted.");
+    Serial.println("Card Mount Failed. Check wiring "
+                   "and make sure an SD card is inserted.");
     while (1) delay(10);
   }
 
@@ -161,6 +162,7 @@ void setup() {
   }
 
   // Turn off the SD card module until we need to write
+  SD.end();
   digitalWrite(SD_OFF_PIN, LOW);
 }
 
@@ -177,9 +179,11 @@ void loop() {
   Serial.printf("Pressure: %.2f hPa\n", pressure);
 
   // 2. Format the data into a CSV string
-  // Note: We don't have a real-time clock yet, so we'll use millis() as a placeholder timestamp
+  // Note: We don't have a real-time clock yet, 
+  // so we'll use millis() as a placeholder timestamp
   char dataString[100];
-  sprintf(dataString, "%lu;%.2f;%.2f;%.2f\n", millis(), temperature, humidity, pressure);
+  sprintf(dataString, "%lu;%.2f;%.2f;%.2f\n", 
+          millis(), temperature, humidity, pressure);
 
   // 3. Save to SD Card
   // Power on the SD card module
@@ -195,12 +199,22 @@ void loop() {
   }
 
   // Power off the SD card module to save battery
+  SD.end();
   digitalWrite(SD_OFF_PIN, LOW);
 
   // Wait for 5 seconds before taking the next reading
   delay(5000); 
 }
 ```
+
+### Code Explanation
+
+Here is a breakdown of what the code does:
+
+1. **`pinMode(SD_OFF_PIN, OUTPUT); digitalWrite(SD_OFF_PIN, HIGH);`**: We first power on the SD card module by pulling the OFF pin HIGH. This gives the module power so we can initialize it.
+2. **`SD.begin(SD_CS_PIN)`**: Initializes communication with the SD card using the standard SPI pins, but specifying our custom Chip Select (CS) pin (Pin 5).
+3. **`appendFile(...)`**: A helper function that opens the file in `FILE_APPEND` mode. This ensures that new data is added to the end of the file without overwriting previous measurements.
+4. **`SD.end(); digitalWrite(SD_OFF_PIN, LOW);`**: After writing, we end the SD SPI connection and pull the OFF pin LOW to completely shut off power to the module, saving battery during the 5-second delay.
 
 ### Expected Output
 
@@ -229,4 +243,4 @@ timestamp;temperature;humidity;pressure
 5907;28.71;25.75;1000.86.86
 ```
 
-With data acquisition and persistent storage now implemented, we have a fully functional baseline for our weather station!
+With data acquisition and persistent storage now implemented, we have a fully functional baseline for our weather station! However, our timestamps are currently just the number of milliseconds since the device booted. In the next chapter, we will integrate a Real-Time Clock (RTC) to provide accurate, real-world timestamps for our data!

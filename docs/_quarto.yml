@@ -19,6 +19,7 @@ book:
         - chapters/Phase-01/01-components.qmd
         - chapters/Phase-01/02-data-acquisition.qmd
         - chapters/Phase-01/03-data-storage.qmd
+        - chapters/Phase-01/04-real-time-clock.qmd
 
 format:
   html:

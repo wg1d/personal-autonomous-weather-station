@@ -79,7 +79,6 @@ Here is the code to read the sensor:
  * - Adafruit Unified Sensor Library
  */
 
-#include <Wire.h>
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 
@@ -122,6 +121,14 @@ void loop() {
   delay(5000); 
 }
 ```
+
+### Code Explanation
+
+Here is a quick breakdown of what the code is doing:
+
+1. **`Adafruit_BME280 bme;`**: This creates an object named `bme` that we use to interact with the sensor via the Adafruit library.
+2. **`bme.begin(0x76)`**: This initializes the sensor on the I2C bus using the specific address `0x76` (common for BME280 modules). If it returns false, it means the ESP32 cannot communicate with the sensor (likely a wiring issue).
+3. **`bme.readTemperature()`, `bme.readHumidity()`, `bme.readPressure()`**: These functions retrieve the latest measurements from the sensor. Note that `readPressure()` returns the value in Pascals, so we divide it by `100.0F` to convert it to hectoPascals (hPa), which is the standard unit for weather forecasting.
 
 Before running this code, make sure your ESP32 is connected to your computer via a **USB-C cable**. This connection is necessary to power the board, upload the program, and view the data coming back over the Serial connection.
 
