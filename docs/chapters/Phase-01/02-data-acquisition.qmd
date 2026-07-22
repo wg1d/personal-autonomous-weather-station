@@ -8,15 +8,16 @@ Let's start working on how to collect data from our environment. In this chapter
 
 The BME280 sensor measures temperature, humidity, and atmospheric pressure, it's a perfect match to start building our weather station.
 
-To communicate with the ESP32, it uses a digital communication protocol called **I2C** (Inter-Integrated Circuit).
+### The I2C Interface
+To communicate with the ESP32, the BME280 uses a digital communication protocol called **I2C** (Inter-Integrated Circuit).
 
-> **A brief primer on I2C:**
-> I2C is a very popular communication protocol for microcontrollers because it allows you to connect multiple sensors to the same two pins. It uses two lines:
-> *   **SCL (Serial Clock):** Synchronizes the data transfer.
-> *   **SDA (Serial Data):** Carries the actual data.
-> 
-> Each sensor on the I2C "bus" has a unique address (like a house number) so the ESP32 knows exactly which sensor it's talking to.
+I2C is a very popular communication protocol for microcontrollers because it allows you to connect multiple sensors to the same two pins. It uses two lines:
+*   **SCL (Serial Clock):** Synchronizes the data transfer.
+*   **SDA (Serial Data):** Carries the actual data.
 
+Each sensor on the I2C "bus" has a unique address (like a house number) so the ESP32 knows exactly which sensor it's talking to.
+
+### Wiring the Components
 The ESP32 has default pins for I2C communication. We will connect the BME280 as follows:
 
 *   **VIN:** Connect to the ESP32 **3.3V** pin.
@@ -28,6 +29,7 @@ The ESP32 has default pins for I2C communication. We will connect the BME280 as 
 
 ## Program the ESP32 to Read the BME280
 
+### Setup
 Now that the sensor is wired, let's write a simple program to read the data and print it to the Serial Monitor. We'll put this in a loop with a small delay so it continuously outputs the readings.
 
 If you are using the standard Arduino IDE, you will need to manually install the **Adafruit BME280 Library** and the **Adafruit Unified Sensor** library using the Library Manager.
@@ -50,6 +52,8 @@ lib_deps =
 ```
 
 > **Ready-to-use project:** If you don't want to copy-paste, you can directly open the complete PlatformIO project from the source code here: [`01_bme280`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-01/01_bme280)
+
+### The Code
 
 Here is the code to read the sensor:
 
@@ -123,6 +127,7 @@ Before running this code, make sure your ESP32 is connected to your computer via
 
 Run this code, upload it to the ESP32, and open your Serial Monitor (set to 115200 baud). You should see the temperature, humidity, and pressure readings updating every 5 seconds!
 
+### Expected Output
 After building and uploading the code, you should see something like this in the Serial Monitor (if it's not the case, restart the esp by pressing the EN button):
 
 ```text

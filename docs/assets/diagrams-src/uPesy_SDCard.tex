@@ -1,0 +1,18 @@
+% ==========================================
+% Component: SD Card Reader (SPI)
+% ==========================================
+\tikzset{
+    sdcard/.pic={
+        % Draw the module body
+        \draw[thick, fill=black!85, rounded corners=2pt] (0,0) rectangle (3.5, 4);
+        \node[font=\bfseries\sffamily, align=center, text=white] at (1.85, 2.2) {uPesy Micro};
+        \node[font=\bfseries\sffamily, align=center, text=white] at (1.85, 1.8) {SD Card};
+        
+        % Draw pins
+        \foreach \y/\name in {0.5/GND, 1.0/5V, 1.5/OFF, 2.0/MISO, 2.5/SCLK, 3.0/MOSI, 3.5/CS} {
+            \coordinate (-\name) at (0,\y);
+            \node[right, font=\tiny\sffamily, text=white] at (0.1,\y) {\name};
+            \draw[fill=gray!50] (0.1,\y) circle (1.5pt);
+        }
+    }
+}
