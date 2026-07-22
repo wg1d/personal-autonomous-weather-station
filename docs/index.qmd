@@ -1,6 +1,6 @@
 # Introduction {.unnumbered}
 
-<img src="../assets/images/logo.svg" alt="PAWS logo" width="80" align="right"/>
+<img src="assets/images/logo.svg" alt="PAWS logo" width="80" align="right"/>
 
 **PAWS** (*Personal Autonomous Weather Station*) is a low-powered ESP32 weather station with SD card logging, RTC timekeeping, direct Wi-Fi data transfer (and a phone-based data gateway as fallback), time-series database, online dashboard, plant watering decisions, and local weather forecasting on a Single-Board Computer like a Raspberry Pi.
 
