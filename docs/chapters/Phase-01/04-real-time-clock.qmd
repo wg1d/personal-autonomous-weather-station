@@ -12,6 +12,7 @@ This chapter will cover:
 The DS3231 is a highly accurate real-time clock. It has a dedicated coin-cell battery, meaning it keeps track of time even when the ESP32 is completely unpowered. 
 
 Besides just keeping time, the DS3231 has some powerful built-in features that we will use later in the project to wake up our ESP32 from deep sleep:
+
 *   **Two Hardware Alarms (Alarm 1 & Alarm 2):** You can program these alarms to trigger at a specific time. When they trigger, the RTC changes the state of a specific pin (the SQW pin).
 *   **SQW (Square Wave) Pin:** This pin can either output a continuous oscillating signal, or it can act as an interrupt pin that drops to 0V when an alarm goes off.
 *   **32K Pin:** This pin outputs a continuous 32kHz signal, which is useful for some specific electronics but completely unnecessary for our project.
@@ -21,6 +22,7 @@ Because the DS3231 has its own battery, its internal settings (like active alarm
 ### Pinout
 
 In addition to the 32K and SQW pins described above, the DS3231 uses the following standard I2C and power pins:
+
 *   **SCL:** Serial Clock for I2C communication.
 *   **SDA:** Serial Data for I2C communication.
 *   **VCC:** Power supply input (typically 3.3V).

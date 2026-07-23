@@ -20,6 +20,7 @@ Each sensor on the I2C "bus" has a unique address (like a house number) so the E
 ### Pinout
 
 The BME280 module typically has 4 pins (we will focus on the I2C version):
+
 *   **VIN:** Power supply input (3.3V).
 *   **GND:** Ground connection.
 *   **SCL:** Serial Clock for I2C communication.

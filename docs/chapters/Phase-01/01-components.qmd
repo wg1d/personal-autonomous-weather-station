@@ -30,7 +30,7 @@ This specific board was chosen for several practical reasons:
 
 The full pin configuration is shown here and additionnal information can be found [here](https://www.upesy.com/blogs/tutorials/esp32-quickstart-installation-programming-guide).
 
-![uPesy ESP32 Wrover DevKit v2.1](../../assets/images/components/upesy-esp32-wrover-full-pinout.jpg){width=200}
+![uPesy ESP32 Wrover DevKit v2.1](../../assets/images/components/upesy-esp32-wrover-full-pinout.jpg){width=800}
 
 ### Why use the uPesy Micro SD card reader module?
 We use this specific module because:
@@ -62,3 +62,6 @@ All the code and PlatformIO projects will be available on [GitHub](https://githu
 
 ### Why use VS Code and PlatformIO?
 Using VS Code with the PlatformIO extension provides a much richer development experience than the standard Arduino IDE. However, feel free to use the Arduino IDE if you prefer, it is purely a personal choice.
+
+
+Now that we have list all the needed materials, let's start by assembling everything on a breadboard.

@@ -22,6 +22,7 @@ Unlike I2C which uses only two wires, SPI is much faster but requires four wires
 ### Pinout
 
 The uPesy Micro SD card reader has the following pins:
+
 *   **CS:** Chip Select, used by SPI to activate the module.
 *   **SCLK:** Serial Clock, used by SPI for synchronization.
 *   **MOSI:** Master Out Slave In, used by SPI to send data to the SD card.
@@ -30,11 +31,12 @@ The uPesy Micro SD card reader has the following pins:
 *   **GND:** Ground connection.
 *   **OFF:** Unique to this module, used to cut power to the SD card when pulled LOW (we will leave it unconnected for now so it defaults to ON).
 
-> [!NOTE]
+![SD Card Reader Standalone Circuit](../../assets/diagrams/component_sdcard.svg){width=150}
+
+
 > **Documentation Note (EN vs OFF pin)**
 > Depending on the version of the uPesy documentation you read, this pin might be labeled as **EN** instead of **OFF**, with conflicting behavior described (e.g., turning off when HIGH instead of LOW). The current French documentation states it is the **OFF** pin, which turns the module ON at 3.3V/5V and OFF at 0V. Regardless of the version, leaving it unconnected allows the module to safely default to ON.
 
-![SD Card Reader Standalone Circuit](../../assets/diagrams/component_sdcard.svg){width=150}
 
 ### Wiring the Components
 
