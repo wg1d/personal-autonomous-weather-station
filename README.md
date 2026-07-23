@@ -13,8 +13,8 @@ Full design documentation (architecture, hardware, firmware, backend, ML) is ava
 | Phase | Name | Key addition | Status |
 |-------|------|-------------|--------|
 | 1 | Core Functionality | Temp/pressure/humidity sensor + SD logging + RTC timekeeping | 🟢 Done |
-| 2 | Power Management | ESP32 deep sleep + peripheral power cycling + RTC alarms | 🟡 In progress |
-| 3 | Wi-Fi & Data Transmission | ESP32 automated Wi-Fi push + phone-based gateway fallback | ⬜ Planned |
+| 2 | Power Management | ESP32 deep sleep + peripheral power cycling + RTC alarms | 🟢 Done |
+| 3 | Wi-Fi & Data Transmission | ESP32 automated Wi-Fi push + phone-based gateway fallback | 🟡 In progress |
 | 4 | Firmware Architecture | State machine design + code refactoring (splitting into .h/.cpp) | ⬜ Planned |
 | 5 | Backend MVP | SBC deployment + time-series database + online dashboard | ⬜ Planned |
 | 6 | Forecasting — basic | LSTM on temp/pressure/humidity | ⬜ Planned |

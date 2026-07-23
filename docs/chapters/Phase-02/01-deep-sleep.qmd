@@ -1,0 +1,89 @@
+# Introduction to Deep Sleep  {.unnumbered}
+
+The ESP32 is a powerful microcontroller, but with that power comes significant energy consumption. When running normally, the ESP32 draws around 40-70mA of current. If it's constantly awake reading sensors, a standard battery would be drained in just a few days.
+
+To build an autonomous weather station that can run for months or years in the field, we must utilize **Deep Sleep**.
+
+## What is Deep Sleep?
+
+Deep sleep puts the ESP32 into a primitive state where almost everything shuts down:
+
+*   The 2 main CPUs stop functioning, and the **ULP (Ultra Low Power) processor** takes over. This tiny processor consumes very little energy but can still perform basic actions.
+*   Wi-Fi and Bluetooth radios are completely disabled.
+*   The Flash and the main system memory (RAM) are no longer powered. Only the special **RTC memory** remains active and usable.
+
+In this state, the ESP32 consumes a mere **10µA to 150µA**! 
+
+### RAM Erasure and RTC_DATA_ATTR
+
+Because the main CPU and RAM are unpowered during deep sleep, all standard variables saved in RAM are completely erased. 
+
+Fortunately, the RTC RAM remains powered. If we need to keep track of data across deep sleep cycles (for example, storing a boot counter to track how many times the ESP32 has woken up), we can force the ESP32 to save the variable in this special memory by adding the `RTC_DATA_ATTR` attribute to its declaration.
+
+### The Deep Sleep Paradigm (`setup` vs `loop`)
+
+In Phase 01, our code relied on the standard Arduino structure: we initialized our sensors in the `setup()` function once, and then continuously took measurements and called `delay()` inside the `loop()` function.
+
+Deep sleep completely changes this paradigm. When the ESP32 wakes up from deep sleep, it resets. The `setup()` function runs from the very beginning, and once it hits the command to go back to sleep, execution stops entirely. Therefore, in a deep sleep application, the `loop()` function is **never called**.
+
+## Wake-up Sources
+
+After putting the ESP32 into deep sleep, there are several ways to wake it back up. We must configure a **Wake-up Source** before telling the ESP32 to go to sleep:
+
+### 1. Internal Timer Wake-up
+The ESP32 has an internal timer in its RTC subsystem. You can tell it to sleep for a specific number of microseconds, and it will automatically wake itself up when the time expires.
+
+Here is a quick "Hello Deep Sleep" example using the internal timer:
+
+```cpp
+#include <Arduino.h>
+
+// Conversion factor for micro seconds to seconds
+#define uS_TO_S_FACTOR 1000000ULL  
+#define TIME_TO_SLEEP  10          // Sleep for 10 seconds
+
+void setup(){
+  Serial.begin(115200);
+  delay(1000); 
+  
+  Serial.println("Waking up! Reading sensors...");
+  // ... (Your sensor code would go here) ...
+  
+  Serial.println("Going to sleep for 10 seconds.");
+  Serial.flush(); 
+  
+  // Configure the timer wake-up
+  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP * uS_TO_S_FACTOR);
+  
+  // Enter deep sleep
+  esp_deep_sleep_start();
+}
+
+void loop(){
+  // This is never reached because esp_deep_sleep_start() halts execution!
+}
+```
+
+> **Ready-to-use project:** If you don't want to copy-paste, you can directly open the complete PlatformIO project from the source code here: [`04_deep_sleep_timer`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-02/04_deep_sleep_timer)
+
+*   **Pros:** Requires no external hardware or wiring. Extremely easy to program in software as seen above.
+*   **Cons:** The internal timer is notorious for drifting, especially when temperature fluctuates (which happens a lot outdoors!). Over a few weeks, your station might wake up minutes or even hours off schedule.
+
+### 2. Capacitive Touch Pins
+The ESP32 has several pins that act as capacitive touch sensors. You can configure the ESP32 to wake up simply when a user physically touches one of these pins.
+
+### 3. RTC Pins (External Interrupt EXT0 / EXT1)
+You can configure the ESP32 to wake up when an electrical signal on a specific RTC pin changes state (e.g., goes from 3.3V down to 0V). This is perfect for waking up the ESP32 instantly when a user presses a physical button, when a magnetic hall sensor detects a door opening, or when a PIR motion sensor detects movement.
+
+*   **Pros:** Allows an external component to dictate the schedule.
+*   **Cons:** Requires additional hardware (like an external RTC module or sensor) and extra wiring.
+
+## Why We Use the DS3231 RTC Alarms
+
+Because weather data relies heavily on accurate timestamping, and because our station will be subjected to temperature fluctuations, we will avoid the ESP32's internal timer. 
+
+Instead, we will use the **DS3231 RTC** we installed in Phase 01. The DS3231 contains a Temperature Compensated Crystal Oscillator (TCXO), meaning it keeps perfect time regardless of the weather. 
+
+We will program a hardware **Alarm** inside the DS3231. When the alarm triggers, the DS3231 will pull its **SQW (Square Wave)** pin LOW. By wiring this SQW pin to our ESP32 and configuring an `EXT0` external wake-up, the DS3231 will physically "tap the ESP32 on the shoulder" and wake it up exactly when a reading is required!
+
+In the next chapter, we will modify our hardware circuit to connect this wake-up pin and implement an additional hardware trick to save even more power.

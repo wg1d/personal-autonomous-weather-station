@@ -14,12 +14,17 @@ book:
     - index.qmd
     - chapters/01-motivation.qmd
     - chapters/02-roadmap.qmd
-    - part: "Phase 1: Prototype"
+    - part: "Phase 1: Core Functionality"
       chapters:
         - chapters/Phase-01/01-components.qmd
         - chapters/Phase-01/02-data-acquisition.qmd
         - chapters/Phase-01/03-data-storage.qmd
         - chapters/Phase-01/04-real-time-clock.qmd
+    - part: "Phase 2: Power Management"
+      chapters:
+        - chapters/Phase-02/01-deep-sleep.qmd
+        - chapters/Phase-02/02-hardware-modifications.qmd
+        - chapters/Phase-02/03-software-implementation.qmd
 
 format:
   html:
