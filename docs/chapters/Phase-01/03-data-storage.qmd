@@ -74,6 +74,8 @@ lib_deps =
 
 > **Ready-to-use project:** If you don't want to copy-paste, you can directly open the complete PlatformIO project from the source code here: [`02_data_storage`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-01/02_data_storage)
 
+> **Official uPesy Tutorial:** For a more comprehensive example showcasing the micro SD card reader module, you can refer to the [official uPesy MicroSD Quickstart Guide](https://www.upesy.fr/blogs/tutorials/upesy-microsd-module-quickstart-guide#e1e5dd1f4b6ebf1c1249330e08a6).
+
 ### The Code
 
 Here is the updated code that reads the sensor and appends the data to a file on the SD card:

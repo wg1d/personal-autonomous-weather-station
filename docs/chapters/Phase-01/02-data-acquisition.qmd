@@ -64,6 +64,8 @@ lib_deps =
 
 > **Ready-to-use project:** If you don't want to copy-paste, you can directly open the complete PlatformIO project from the source code here: [`01_data_acquisition`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-01/01_data_acquisition)
 
+> **Adafruit Example:** For a more comprehensive example showcasing all features of the sensor, you can refer to the official [Adafruit BME280 Library example](https://github.com/adafruit/Adafruit_BME280_Library/blob/master/examples/bme280test/bme280test.ino).
+
 ### The Code
 
 Here is the code to read the sensor:
