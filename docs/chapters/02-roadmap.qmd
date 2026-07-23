@@ -2,37 +2,44 @@
 
 This station will be built incrementally. Following our build philosophy, each phase is independently useful and introduces a vertical slice of functionality.
 
-## Prototype (Phase 1)
-The very first working version (the prototype) will simply be:
+## Core Functionality (Phase 1)
+The very first working version will focus strictly on the baseline hardware, without any deep sleep optimizations:
 
-1. An ESP32 that wakes up, reads a basic temperature/humidity sensor, and saves it to a local SD card with a timestamp.
+1. An ESP32 that wakes up, reads a basic temperature/humidity sensor, logs the data to a local SD card, and fetches real time from an RTC.
 2. No Wi-Fi, no backend, no solar power, just the ESP plugged into a computer via USB and a breadboard.
 
-Once this works reliably, subsequent phases will introduce the backend, automated uploads, and advanced power management.
+## Power Management (Phase 2)
+Once the baseline works reliably, we will focus entirely on optimizing it to run on batteries. We'll introduce ESP32 deep sleep, cut power to peripherals like the SD card when not in use, and use the RTC's hardware alarms as an ultra-low-power wake-up source.
 
-## Backend MVP (Phase 2)
-Once the minimal weather station is available, it will be time to start working on the data transfer to the backend server and display the first measurements in a dashboard.
+## Wi-Fi & Data Transmission (Phase 3)
+With the power foundations solid, we will introduce wireless capabilities to the ESP32. We will attempt a Wi-Fi connection to push data and fall back to a smartphone gateway if no networks are available.
 
-## Basic Forecasting (Phase 3)
+## Firmware Architecture (Phase 4)
+Now that the ESP32 has all its core responsibilities (Sensors, SD, Power, Wi-Fi), the firmware will have grown quite complex. We will document the state machine driving the deep sleep wake/sleep cycles and refactor the monolithic code into a clean, modular architecture (header and source files) before moving on.
+
+## Backend MVP (Phase 5)
+Once the minimal weather station is available and power-efficient, it will be time to shift focus away from the ESP32. We will deploy the backend on a Single Board Computer (SBC) to handle the time-series database and display the first measurements in a dashboard.
+
+## Basic Forecasting (Phase 6)
 Before adding complex hardware, we will introduce basic Machine Learning (LSTM) on our initial temperature, pressure, and humidity data. This proves the end-to-end data pipeline early on.
 
-## Adding Light & UV Sensors (Phase 4)
+## Adding Light & UV Sensors (Phase 7)
 Once we validate that the system is working fine (data acquisition, storage, data transfer, and basic ML), let's improve the station by adding some new sensors. Let's start by adding a light and UV sensor to the station like the BH1750 and the VEML6075.
 
-## Adding Soil Moisture Sensor (Phase 5)
+## Adding Soil Moisture Sensor (Phase 8)
 After that, we can add a soil moisture sensor (such as the ubiquitous Capacitive Soil Moisture Sensor v1.2 or v2.0) to the station in order to determine if plants need to be watered.
 
-## Adding a Rain Gauge (Phase 6)
+## Adding a Rain Gauge (Phase 9)
 Adding a tipping bucket rain gauge sensor to measure rainfall would be a good improvement to the station. The 3D-PAWS project has a good example of a 3D-printed tipping bucket rain gauge.
 
-## Adding an Anemometer (Phase 7)
+## Adding an Anemometer (Phase 10)
 Adding an anemometer and wind vane to measure wind speed and direction would be a good addition to the station. The 3D-PAWS project also has a good example of a 3D-printed anemometer and wind vane.
 
-## Advanced ML & Watering (Phase 8)
+## Advanced ML & Watering (Phase 11)
 With all sensors active, we will retrain our ML models and add a Random Forest model specifically to optimize the watering schedule of the plants based on the new local data.
 
-## Solar & Power Management (Phase 9)
+## Solar & Power Management (Phase 12)
 Making the station solar-powered would allow us to deploy it in the field for extended periods of time without human intervention.
 
-## Stevenson Screen & Deployment (Phase 10)
+## Stevenson Screen & Deployment (Phase 13)
 In order to put it outside, the station should be protected from the elements. A Stevenson screen would be a good solution for that. It would allow us to measure temperature, humidity, rainfall, wind speed, and direction without interference from direct sunlight or precipitation.

@@ -12,16 +12,19 @@ Full design documentation (architecture, hardware, firmware, backend, ML) is ava
 
 | Phase | Name | Key addition | Status |
 |-------|------|-------------|--------|
-| 1 | Prototype | Core FSM + temp/pressure/humidity sensor + SD logging | 🟡 In progress |
-| 2 | Backend MVP | SBC + automated Wi-Fi push + gateway fallback | ⬜ Planned |
-| 3 | Forecasting — basic | LSTM on temp/pressure/humidity | ⬜ Planned |
-| 4 | Sensors: BH1750 + VEML6075 | Light + UV sensors | ⬜ Planned |
-| 5 | Sensor: Soil moisture | Capacitive sensor | ⬜ Planned |
-| 6 | Sensor: Rain gauge | Tipping bucket | ⬜ Planned |
-| 7 | Sensor: Wind | Anemometer + wind vane | ⬜ Planned |
-| 8 | Model retrain + watering | Expanded LSTM + Random Forest watering model | ⬜ Planned |
-| 9 | Power: Solar + battery | Solar panel + battery monitoring | ⬜ Planned |
-| 10 | Stevenson screen + outdoor deployment | Final assembly into a Stevenson screen | ⬜ Planned |
+| 1 | Core Functionality | Temp/pressure/humidity sensor + SD logging + RTC timekeeping | 🟢 Done |
+| 2 | Power Management | ESP32 deep sleep + peripheral power cycling + RTC alarms | 🟡 In progress |
+| 3 | Wi-Fi & Data Transmission | ESP32 automated Wi-Fi push + phone-based gateway fallback | ⬜ Planned |
+| 4 | Firmware Architecture | State machine design + code refactoring (splitting into .h/.cpp) | ⬜ Planned |
+| 5 | Backend MVP | SBC deployment + time-series database + online dashboard | ⬜ Planned |
+| 6 | Forecasting — basic | LSTM on temp/pressure/humidity | ⬜ Planned |
+| 7 | Sensors: BH1750 + VEML6075 | Light + UV sensors | ⬜ Planned |
+| 8 | Sensor: Soil moisture | Capacitive sensor | ⬜ Planned |
+| 9 | Sensor: Rain gauge | Tipping bucket | ⬜ Planned |
+| 10 | Sensor: Wind | Anemometer + wind vane | ⬜ Planned |
+| 11 | Model retrain + watering | Expanded LSTM + Random Forest watering model | ⬜ Planned |
+| 12 | Power: Solar + battery | Solar panel + battery monitoring | ⬜ Planned |
+| 13 | Stevenson screen + outdoor deployment | Final assembly into a Stevenson screen | ⬜ Planned |
 
 
 ## Related projects
