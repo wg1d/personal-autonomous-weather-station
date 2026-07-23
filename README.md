@@ -10,6 +10,8 @@ Full design documentation (architecture, hardware, firmware, backend, ML) is ava
 
 ## Roadmap
 
+The primary goal of this project is to build a full, end-to-end **Proof of Concept (PoC)**, spanning from initial data collection (Phase 1) up through basic Machine Learning forecasting (Phase 6). Once this core foundation is proven, the remaining items are logged as optional future ideas to expand the station over time.
+
 | Phase | Name | Key addition | Status |
 |-------|------|-------------|--------|
 | 1 | Core Functionality | Temp/pressure/humidity sensor + SD logging + RTC timekeeping | 🟢 Done |
@@ -18,13 +20,13 @@ Full design documentation (architecture, hardware, firmware, backend, ML) is ava
 | 4 | Firmware Architecture | State machine design + code refactoring (splitting into .h/.cpp) | ⬜ Planned |
 | 5 | Backend MVP | SBC deployment + time-series database + online dashboard | ⬜ Planned |
 | 6 | Forecasting — basic | LSTM on temp/pressure/humidity | ⬜ Planned |
-| 7 | Sensors: BH1750 + VEML6075 | Light + UV sensors | ⬜ Planned |
-| 8 | Sensor: Soil moisture | Capacitive sensor | ⬜ Planned |
-| 9 | Sensor: Rain gauge | Tipping bucket | ⬜ Planned |
-| 10 | Sensor: Wind | Anemometer + wind vane | ⬜ Planned |
-| 11 | Model retrain + watering | Expanded LSTM + Random Forest watering model | ⬜ Planned |
-| 12 | Power: Solar + battery | Solar panel + battery monitoring | ⬜ Planned |
-| 13 | Stevenson screen + outdoor deployment | Final assembly into a Stevenson screen | ⬜ Planned |
+| 7 | Sensors: BH1750 + VEML6075 | Light + UV sensors | 💭 Idea |
+| 8 | Sensor: Soil moisture | Capacitive sensor | 💭 Idea |
+| 9 | Sensor: Rain gauge | Tipping bucket | 💭 Idea |
+| 10 | Sensor: Wind | Anemometer + wind vane | 💭 Idea |
+| 11 | Model retrain + watering | Expanded LSTM + Random Forest watering model | 💭 Idea |
+| 12 | Power: Solar + battery | Solar panel + battery monitoring | 💭 Idea |
+| 13 | Stevenson screen + outdoor deployment | Final assembly into a Stevenson screen | 💭 Idea |
 
 
 ## Related projects

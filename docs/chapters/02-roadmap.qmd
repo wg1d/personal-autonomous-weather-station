@@ -1,5 +1,7 @@
 # Roadmap {.unnumbered}
 
+The primary goal of this project is to build a full, end-to-end **Proof of Concept (PoC)**. This core foundation spans from initial data collection (Phase 1) up through basic Machine Learning forecasting (Phase 6). Once this pipeline is rock-solid and proven, we have logged a variety of future ideas to expand and improve the station over time.
+
 This station will be built incrementally. Following our build philosophy, each phase is independently useful and introduces a vertical slice of functionality.
 
 ## Core Functionality (Phase 1)
@@ -23,23 +25,29 @@ Once the minimal weather station is available and power-efficient, it will be ti
 ## Basic Forecasting (Phase 6)
 Before adding complex hardware, we will introduce basic Machine Learning (LSTM) on our initial temperature, pressure, and humidity data. This proves the end-to-end data pipeline early on.
 
-## Adding Light & UV Sensors (Phase 7)
+---
+
+# Future Expansions (Ideas) {.unnumbered}
+
+While Phases 1 through 6 represent the core project (from data collection to forecasting), the following sections are purely optional ideas to expand the station's capabilities if we decide to take it further.
+
+## Adding Light & UV Sensors (Idea)
 Once we validate that the system is working fine (data acquisition, storage, data transfer, and basic ML), let's improve the station by adding some new sensors. Let's start by adding a light and UV sensor to the station like the BH1750 and the VEML6075.
 
-## Adding Soil Moisture Sensor (Phase 8)
+## Adding Soil Moisture Sensor (Idea)
 After that, we can add a soil moisture sensor (such as the ubiquitous Capacitive Soil Moisture Sensor v1.2 or v2.0) to the station in order to determine if plants need to be watered.
 
-## Adding a Rain Gauge (Phase 9)
+## Adding a Rain Gauge (Idea)
 Adding a tipping bucket rain gauge sensor to measure rainfall would be a good improvement to the station. The 3D-PAWS project has a good example of a 3D-printed tipping bucket rain gauge.
 
-## Adding an Anemometer (Phase 10)
+## Adding an Anemometer (Idea)
 Adding an anemometer and wind vane to measure wind speed and direction would be a good addition to the station. The 3D-PAWS project also has a good example of a 3D-printed anemometer and wind vane.
 
-## Advanced ML & Watering (Phase 11)
+## Advanced ML & Watering (Idea)
 With all sensors active, we will retrain our ML models and add a Random Forest model specifically to optimize the watering schedule of the plants based on the new local data.
 
-## Solar & Power Management (Phase 12)
+## Solar & Power Management (Idea)
 Making the station solar-powered would allow us to deploy it in the field for extended periods of time without human intervention.
 
-## Stevenson Screen & Deployment (Phase 13)
+## Stevenson Screen & Deployment (Idea)
 In order to put it outside, the station should be protected from the elements. A Stevenson screen would be a good solution for that. It would allow us to measure temperature, humidity, rainfall, wind speed, and direction without interference from direct sunlight or precipitation.
