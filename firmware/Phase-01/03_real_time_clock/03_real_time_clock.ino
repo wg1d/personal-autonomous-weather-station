@@ -18,7 +18,6 @@
 #include <RTClib.h>
 
 #define SD_CS_PIN 5
-#define SD_OFF_PIN 13
 
 Adafruit_BME280 bme;
 RTC_DS3231 rtc;
@@ -39,11 +38,6 @@ void appendFile(fs::FS &fs, const char * path, const char * message) {
 void setup() {
   Serial.begin(115200);
   Serial.println("\nInitializing Weather Station...");
-
-  // Initialize the OFF pin to turn on the SD card reader
-  pinMode(SD_OFF_PIN, OUTPUT);
-  digitalWrite(SD_OFF_PIN, HIGH);
-  delay(100);
 
   // Initialize BME280
   if (!bme.begin(0x76)) {
@@ -102,10 +96,6 @@ void setup() {
       Serial.println("Created weather_data.csv with header.");
     }
   }
-
-  // Turn off the SD card module until we need to write
-  SD.end();
-  digitalWrite(SD_OFF_PIN, LOW);
 }
 
 void loop() {
@@ -135,20 +125,9 @@ void loop() {
   sprintf(dataString, "%s;%.2f;%.2f;%.2f\n", 
           timestamp, temperature, humidity, pressure);
 
-  // Power on the SD card module
-  digitalWrite(SD_OFF_PIN, HIGH);
-  delay(100);
-  
-  if (SD.begin(SD_CS_PIN)) {
-    appendFile(SD, "/weather_data.csv", dataString);
-    Serial.println("Data saved to SD card.");
-  } else {
-    Serial.println("Failed to mount SD card during write.");
-  }
-
-  // Power off the SD card module
-  SD.end();
-  digitalWrite(SD_OFF_PIN, LOW);
+  // Save to SD Card
+  appendFile(SD, "/weather_data.csv", dataString);
+  Serial.println("Data saved to SD card.");
 
   // Wait for 5 seconds
   delay(5000); 

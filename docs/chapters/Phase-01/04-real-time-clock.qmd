@@ -18,6 +18,16 @@ Besides just keeping time, the DS3231 has some powerful built-in features that w
 
 Because the DS3231 has its own battery, its internal settings (like active alarms or the SQW pin state) are permanently saved. If you don't explicitly turn them off in your code, they will stay active forever, even if you upload brand new code to the ESP32! That is why our code will include a "cleanup" step to reset these features.
 
+### Pinout
+
+In addition to the 32K and SQW pins described above, the DS3231 uses the following standard I2C and power pins:
+*   **SCL:** Serial Clock for I2C communication.
+*   **SDA:** Serial Data for I2C communication.
+*   **VCC:** Power supply input (typically 3.3V).
+*   **GND:** Ground connection.
+
+![DS3231 Standalone Circuit](../../assets/diagrams/component_ds3231.svg){width=150}
+
 ## The Hardware Connection
 
 The DS3231 communicates using the I2C protocol, just like our BME280 sensor. This is incredibly convenient because we can connect it to the exact same I2C pins (SDA and SCL) on the ESP32!
@@ -82,7 +92,6 @@ Here is the updated code that reads the RTC, formats an ISO 8601 string, and app
 #include <RTClib.h>
 
 #define SD_CS_PIN 5
-#define SD_OFF_PIN 13
 
 Adafruit_BME280 bme;
 RTC_DS3231 rtc;
@@ -103,11 +112,6 @@ void appendFile(fs::FS &fs, const char * path, const char * message) {
 void setup() {
   Serial.begin(115200);
   Serial.println("\nInitializing Weather Station...");
-
-  // Initialize the OFF pin to turn on the SD card reader
-  pinMode(SD_OFF_PIN, OUTPUT);
-  digitalWrite(SD_OFF_PIN, HIGH);
-  delay(100);
 
   // Initialize BME280
   if (!bme.begin(0x76)) {
@@ -166,10 +170,6 @@ void setup() {
       Serial.println("Created weather_data.csv with header.");
     }
   }
-
-  // Turn off the SD card module until we need to write
-  SD.end();
-  digitalWrite(SD_OFF_PIN, LOW);
 }
 
 void loop() {
@@ -199,20 +199,9 @@ void loop() {
   sprintf(dataString, "%s;%.2f;%.2f;%.2f\n", 
           timestamp, temperature, humidity, pressure);
 
-  // Power on the SD card module
-  digitalWrite(SD_OFF_PIN, HIGH);
-  delay(100);
-  
-  if (SD.begin(SD_CS_PIN)) {
-    appendFile(SD, "/weather_data.csv", dataString);
-    Serial.println("Data saved to SD card.");
-  } else {
-    Serial.println("Failed to mount SD card during write.");
-  }
-
-  // Power off the SD card module
-  SD.end();
-  digitalWrite(SD_OFF_PIN, LOW);
+  // Save to SD Card
+  appendFile(SD, "/weather_data.csv", dataString);
+  Serial.println("Data saved to SD card.");
 
   // Wait for 5 seconds
   delay(5000); 

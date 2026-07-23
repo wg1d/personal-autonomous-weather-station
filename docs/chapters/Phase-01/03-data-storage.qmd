@@ -19,23 +19,22 @@ Unlike I2C which uses only two wires, SPI is much faster but requires four wires
 *   **SCLK (Serial Clock):** Synchronizes the data transfer.
 *   **CS (Chip Select):** Used to select which SPI device to talk to.
 
-### Power Saving with the OFF Pin
+### Pinout
 
-Unlike some other SD card readers, the uPesy Micro SD card module has an additional OFF pin that allows it to be turned off completely to save power via a logic signal. By default, if the pin is not used, the module is turned on. However, if we impose a LOW logic state (0V) to this pin, the module will be turned off, and so will the micro SD board. Imposing a HIGH logic state (3.3V or 5V) turns the module back on. For more information, check the [uPesy documentation](https://www.upesy.com/blogs/tutorials/upesy-microsd-module-quickstart-guide#).
+The uPesy Micro SD card reader has the following pins:
+*   **CS:** Chip Select, used by SPI to activate the module.
+*   **SCLK:** Serial Clock, used by SPI for synchronization.
+*   **MOSI:** Master Out Slave In, used by SPI to send data to the SD card.
+*   **MISO:** Master In Slave Out, used by SPI to receive data from the SD card.
+*   **VCC:** Power supply input (5V, internally regulated to 3.3V).
+*   **GND:** Ground connection.
+*   **OFF:** Unique to this module, used to cut power to the SD card when pulled LOW (we will leave it unconnected for now so it defaults to ON).
 
-**Hardware Tip:**
-It's recommended to connect a pull-down resistor (e.g., 10kΩ) between the OFF pin and GND. This ensures that when the ESP32 goes into Deep Sleep and its pins become floating, the OFF pin is safely pulled LOW, guaranteeing the SD card reader stays powered off to save battery. 
- 
-**Why 10kΩ?**
+> [!NOTE]
+> **Documentation Note (EN vs OFF pin)**
+> Depending on the version of the uPesy documentation you read, this pin might be labeled as **EN** instead of **OFF**, with conflicting behavior described (e.g., turning off when HIGH instead of LOW). The current French documentation states it is the **OFF** pin, which turns the module ON at 3.3V/5V and OFF at 0V. Regardless of the version, leaving it unconnected allows the module to safely default to ON.
 
-This is a standard value that strikes the perfect balance. It is high enough to minimize current loss when the ESP32 drives the pin HIGH to turn the module on (only wasting ~0.33mA), but low enough to reliably pull the voltage down to 0V and prevent the pin from picking up random electrical noise when the ESP32 is sleeping. 
- 
-**What if I don't have a 10kΩ resistor?**
-
-Any value between **4.7kΩ and 100kΩ** will work perfectly. The limits are determined by the datasheets of the ESP32 and the SD module:
-
-- **Minimum ($R_{min}$):** Dictated by the ESP32's maximum output current. If the resistor is too small (e.g., 100Ω), driving it HIGH (3.3V) would draw 33mA ($I = V/R$), wasting battery and pushing the ESP32 pin near its absolute maximum limit (~40mA).
-- **Maximum ($R_{max}$):** Dictated by the module's input leakage current and environmental noise. If the resistor is too large (e.g., 1MΩ), it creates a weak pull-down. Tiny leakage currents from the SD module's input pin ($I_{leakage}$) could create a voltage drop ($V = I_{leakage} \times R$) high enough to accidentally register as a logic HIGH. It also makes the wire act like an antenna, picking up random electromagnetic noise that could turn the module on.
+![SD Card Reader Standalone Circuit](../../assets/diagrams/component_sdcard.svg){width=150}
 
 ### Wiring the Components
 
@@ -47,7 +46,6 @@ The ESP32 has default pins for SPI communication. Since we are building upon the
 *   **MOSI:** Connect to ESP32 Pin **23**.
 *   **SCLK:** Connect to ESP32 Pin **18**.
 *   **CS:** Connect to ESP32 Pin **5** (can be changed).
-*   **OFF:** Connect to ESP32 Pin **13** (can be changed).
 
 ![Connection between ESP32 and SD Card Reader](../../assets/diagrams/connection_esp32_sd_card_reader.svg){width=500}
 
@@ -88,13 +86,11 @@ Here is the updated code that reads the sensor and appends the data to a file on
  * This sketch initializes the BME280 sensor and the SD Card module.
  * It continuously reads the temperature, humidity, and atmospheric pressure. 
  * The data is appended to a CSV file on the SD card every 5 seconds.
- * The SD card module is turned on only when writing data to save power.
  *
  * Wiring:
  * - BME280: 3V3 -> VIN, GND -> GND, Pin 21 -> SDA, Pin 22 -> SCL
  * - SD Card: 5V -> VCC, GND -> GND, Pin 19 -> MISO, 
  *   Pin 23 -> MOSI, Pin 18 -> SCLK, Pin 5 -> CS
- * - SD OFF Pin -> Pin 13 (with a 10k pull-down resistor to GND)
  */
 
 #include <Arduino.h>
@@ -105,7 +101,6 @@ Here is the updated code that reads the sensor and appends the data to a file on
 #include <FS.h>
 
 #define SD_CS_PIN 5
-#define SD_OFF_PIN 13
 
 Adafruit_BME280 bme;
 
@@ -125,11 +120,6 @@ void appendFile(fs::FS &fs, const char * path, const char * message) {
 void setup() {
   Serial.begin(115200);
   Serial.println("\nInitializing Weather Station...");
-
-  // Initialize the OFF pin to turn on the SD card reader
-  pinMode(SD_OFF_PIN, OUTPUT);
-  digitalWrite(SD_OFF_PIN, HIGH);
-  delay(100); // Give the module a moment to power up
 
   // Initialize BME280
   if (!bme.begin(0x76)) {
@@ -160,10 +150,6 @@ void setup() {
       Serial.println("Created weather_data.csv with header.");
     }
   }
-
-  // Turn off the SD card module until we need to write
-  SD.end();
-  digitalWrite(SD_OFF_PIN, LOW);
 }
 
 void loop() {
@@ -186,21 +172,8 @@ void loop() {
           millis(), temperature, humidity, pressure);
 
   // 3. Save to SD Card
-  // Power on the SD card module
-  digitalWrite(SD_OFF_PIN, HIGH);
-  delay(100); // Wait for the SD card to power up and stabilize
-  
-  // Re-initialize the SD card after turning power back on
-  if (SD.begin(SD_CS_PIN)) {
-    appendFile(SD, "/weather_data.csv", dataString);
-    Serial.println("Data saved to SD card.");
-  } else {
-    Serial.println("Failed to mount SD card during write.");
-  }
-
-  // Power off the SD card module to save battery
-  SD.end();
-  digitalWrite(SD_OFF_PIN, LOW);
+  appendFile(SD, "/weather_data.csv", dataString);
+  Serial.println("Data saved to SD card.");
 
   // Wait for 5 seconds before taking the next reading
   delay(5000); 
@@ -211,10 +184,8 @@ void loop() {
 
 Here is a breakdown of what the code does:
 
-1. **`pinMode(SD_OFF_PIN, OUTPUT); digitalWrite(SD_OFF_PIN, HIGH);`**: We first power on the SD card module by pulling the OFF pin HIGH. This gives the module power so we can initialize it.
-2. **`SD.begin(SD_CS_PIN)`**: Initializes communication with the SD card using the standard SPI pins, but specifying our custom Chip Select (CS) pin (Pin 5).
-3. **`appendFile(...)`**: A helper function that opens the file in `FILE_APPEND` mode. This ensures that new data is added to the end of the file without overwriting previous measurements.
-4. **`SD.end(); digitalWrite(SD_OFF_PIN, LOW);`**: After writing, we end the SD SPI connection and pull the OFF pin LOW to completely shut off power to the module, saving battery during the 5-second delay.
+1. **`SD.begin(SD_CS_PIN)`**: Initializes communication with the SD card using the standard SPI pins, but specifying our custom Chip Select (CS) pin (Pin 5).
+2. **`appendFile(...)`**: A helper function that opens the file in `FILE_APPEND` mode. This ensures that new data is added to the end of the file without overwriting previous measurements.
 
 ### Expected Output
 

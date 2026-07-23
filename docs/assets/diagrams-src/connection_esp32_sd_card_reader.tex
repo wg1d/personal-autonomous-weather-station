@@ -47,11 +47,7 @@
 % CS: ESP32 Pin 5 right side -> SD Card CS (Route slightly down to avoid BME SDA overlap)
 \draw[purple, thick] (esp-5) -- (5.2, 4.5) -- (5.2, 4.2) -- (7.4, 4.2) |- (sd-CS);
 
-% OFF: ESP32 Pin 13 left side -> SD Card OFF (Route under)
-\draw[gray, thick] (esp-13) -- ++(-1.0,0) |- (-1.0, -2.2) -- (7.6, -2.2) coordinate(off_mid) |- (sd-OFF);
 
-% Pull-down resistor on OFF pin
-\draw[black, thick] (off_mid) -- ++(0, -0.3) to[R, l=$10k\Omega$, *-] ++(0, -1.5) node[ground]{};
 
 \end{circuitikz}
 \end{document}

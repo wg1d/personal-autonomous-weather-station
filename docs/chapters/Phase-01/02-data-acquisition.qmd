@@ -17,6 +17,16 @@ I2C is a very popular communication protocol for microcontrollers because it all
 
 Each sensor on the I2C "bus" has a unique address (like a house number) so the ESP32 knows exactly which sensor it's talking to.
 
+### Pinout
+
+The BME280 module typically has 4 pins (we will focus on the I2C version):
+*   **VIN:** Power supply input (3.3V).
+*   **GND:** Ground connection.
+*   **SCL:** Serial Clock for I2C communication.
+*   **SDA:** Serial Data for I2C communication.
+
+![BME280 Standalone Circuit](../../assets/diagrams/component_bme280.svg){width=150}
+
 ### Wiring the Components
 The ESP32 has default pins for I2C communication. We will connect the BME280 as follows:
 

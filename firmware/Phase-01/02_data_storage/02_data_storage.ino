@@ -7,13 +7,11 @@
  * This sketch initializes the BME280 sensor and the SD Card module.
  * It continuously reads the temperature, humidity, and atmospheric pressure. 
  * The data is appended to a CSV file on the SD card every 5 seconds.
- * The SD card module is turned on only when writing data to save power.
  *
  * Wiring:
  * - BME280: 3V3 -> VIN, GND -> GND, Pin 21 -> SDA, Pin 22 -> SCL
  * - SD Card: 5V -> VCC, GND -> GND, Pin 19 -> MISO, 
  *   Pin 23 -> MOSI, Pin 18 -> SCLK, Pin 5 -> CS
- * - SD OFF Pin -> Pin 13 (with a 10k pull-down resistor to GND)
  */
 
 #include <Arduino.h>
@@ -24,7 +22,6 @@
 #include <FS.h>
 
 #define SD_CS_PIN 5
-#define SD_OFF_PIN 13
 
 Adafruit_BME280 bme;
 
@@ -44,11 +41,6 @@ void appendFile(fs::FS &fs, const char * path, const char * message) {
 void setup() {
   Serial.begin(115200);
   Serial.println("\nInitializing Weather Station...");
-
-  // Initialize the OFF pin to turn on the SD card reader
-  pinMode(SD_OFF_PIN, OUTPUT);
-  digitalWrite(SD_OFF_PIN, HIGH);
-  delay(100); // Give the module a moment to power up
 
   // Initialize BME280
   if (!bme.begin(0x76)) {
@@ -79,10 +71,6 @@ void setup() {
       Serial.println("Created weather_data.csv with header.");
     }
   }
-
-  // Turn off the SD card module until we need to write
-  SD.end();
-  digitalWrite(SD_OFF_PIN, LOW);
 }
 
 void loop() {
@@ -105,21 +93,8 @@ void loop() {
           millis(), temperature, humidity, pressure);
 
   // 3. Save to SD Card
-  // Power on the SD card module
-  digitalWrite(SD_OFF_PIN, HIGH);
-  delay(100); // Wait for the SD card to power up and stabilize
-  
-  // Re-initialize the SD card after turning power back on
-  if (SD.begin(SD_CS_PIN)) {
-    appendFile(SD, "/weather_data.csv", dataString);
-    Serial.println("Data saved to SD card.");
-  } else {
-    Serial.println("Failed to mount SD card during write.");
-  }
-
-  // Power off the SD card module to save battery
-  SD.end();
-  digitalWrite(SD_OFF_PIN, LOW);
+  appendFile(SD, "/weather_data.csv", dataString);
+  Serial.println("Data saved to SD card.");
 
   // Wait for 5 seconds before taking the next reading
   delay(5000); 

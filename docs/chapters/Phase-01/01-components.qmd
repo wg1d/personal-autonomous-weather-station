@@ -28,6 +28,10 @@ This specific board was chosen for several practical reasons:
 
 ![uPesy ESP32 Wrover DevKit v2.1](../../assets/images/components/upesy-esp32-wrover-devkit-3.jpg){width=200}
 
+The full pin configuration is shown here and additionnal information can be found [here](https://www.upesy.com/blogs/tutorials/esp32-quickstart-installation-programming-guide).
+
+![uPesy ESP32 Wrover DevKit v2.1](../../assets/images/components/upesy-esp32-wrover-full-pinout.jpg){width=200}
+
 ### Why use the uPesy Micro SD card reader module?
 We use this specific module because:
 
