@@ -8,6 +8,10 @@ Therefore, in an autonomous deep-sleep architecture, **we do not use the `loop()
 
 ## The Firmware
 
+> **Further Reading:** The core alarm logic used in this phase is heavily adapted from the official [Adafruit RTClib DS3231_alarm example](https://github.com/adafruit/RTClib/blob/master/examples/DS3231_alarm/DS3231_alarm.ino), which provides a fantastic baseline for working with hardware interrupts. For a deeper dive into the specific RTC optimizations we apply here, check out this excellent [EOLab Deep Sleep Wiki](https://wiki.eolab.de/doku.php?id=amc2020:group_n:deepsleep). 
+> 
+> *(Note on Pull-up Resistors: As the EOLab wiki explains, the ESP32's internal pull-up resistors are highly inconsistent (30-80kΩ) and complicated to keep active during deep sleep. This is why an external pull-up resistor is required on the RTC's open-drain `SQW` pin. EOLab uses a 100kΩ resistor to aggressively minimize the microscopic current drawn while the interrupt is actively triggered. We use a standard 10kΩ resistor, which draws slightly more instantaneous current during the trigger, but provides a stronger, more reliable signal against electrical noise).*
+
 > **Ready-to-use project:** If you don't want to copy-paste, you can directly open the complete PlatformIO project from the source code here: [`05_power_management_rtc`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-02/05_power_management_rtc)
 
 Create a new PlatformIO project and use the following code:
@@ -199,8 +203,6 @@ void loop() {
 ```
 
 ## How It Works
-
-> **Further Reading:** For a deep dive into the specific RTC optimizations we apply here, check out this excellent [EOLab Deep Sleep Wiki](https://wiki.eolab.de/doku.php?id=amc2020:group_n:deepsleep).
 
 1.  **Print Wake-up Reason:** We created a helper function `print_wakeup_reason()` to verify exactly what triggered the boot. It will explicitly confirm if it was our RTC alarm (`EXT0`) or a standard power-on.
 2.  **Smart Time Adjustments (`lostPower`):** Notice that we do *not* unconditionally set the time (`rtc.adjust()`)! If we did, we would accidentally reset it to the compile time every single time the ESP32 wakes up. Instead, we use `rtc.lostPower()`. This ensures the time is only set if the user completely skipped Phase 01 or if the RTC's coin-cell battery died.
