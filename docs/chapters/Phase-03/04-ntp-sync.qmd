@@ -1,0 +1,95 @@
+# Bonus: NTP Time Synchronization {.unnumbered}
+
+Over the span of several months, even a highly accurate RTC like our DS3231 will inevitably drift by a few seconds. Since we're already connecting to the internet to upload our weather data, we have an amazing opportunity to perform some self-healing!
+
+In this bonus chapter, we will implement **Network Time Protocol (NTP)** synchronization. Whenever our weather station successfully connects to Wi-Fi and uploads data, it will immediately query a global atomic clock server and transparently recalibrate the DS3231.
+
+## How NTP Works
+
+NTP is the standard protocol that computers use to synchronize their clocks over the internet. The ESP32's core libraries make this incredibly easy via the `configTime()` function.
+
+1. The ESP32 connects to an NTP server pool (e.g., `pool.ntp.org`).
+2. The server responds with the exact current Unix timestamp.
+3. The ESP32 formats it into a C-style `struct tm` time object.
+4. We write this newly acquired, perfectly accurate time back to the DS3231.
+
+> **Timezone Considerations:** It is universally considered best practice in IoT to store and transmit timestamps in **UTC (Universal Coordinated Time)**, which effectively represents the time in Greenwich, London, without Daylight Saving Time. We will set our timezone offset to `0`. If you want to view the data in your local timezone, you should apply the offset on your backend dashboard (like Grafana), not on the edge device!
+
+## The Code
+
+> **Ready-to-use project:** The complete code for this time synchronization firmware is available in the repository here: [`08_ntp_sync`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-03/08_ntp_sync)
+
+To enable NTP, we simply include the `<time.h>` library at the top of the file:
+
+```cpp
+#include <time.h>
+```
+
+In **Path B** (Standard Wakeup), right after we successfully upload the CSV to our dummy backend server and before we disconnect from Wi-Fi, we run our self-healing logic:
+
+```cpp
+// Bonus: NTP Time Synchronization
+Serial.println("Synchronizing DS3231 RTC with NTP...");
+configTime(0, 0, "pool.ntp.org"); // Offset 0 for UTC
+
+struct tm timeinfo;
+if (getLocalTime(&timeinfo, 5000)) { // 5-second timeout
+  Serial.println("NTP Time acquired!");
+  
+  time_t ntpUnix = mktime(&timeinfo);
+  uint32_t rtcUnix = rtc.now().unixtime();
+  
+  // Only update if drift is greater than 2 seconds
+  if (abs((long)(ntpUnix - rtcUnix)) > 2) {
+    Serial.println("Drift detected! Updating RTC...");
+    rtc.adjust(DateTime(timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday, 
+                        timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec));
+  } else {
+    Serial.println("RTC time is accurate. No update needed.");
+  }
+} else {
+  Serial.println("Failed to obtain time from NTP server.");
+}
+```
+
+### Understanding the Code
+- `configTime(gmtOffset, daylightOffset, server)`: Configures the internal ESP32 SNTP client. We pass `0` for both offsets to lock our station to UTC, and we use `pool.ntp.org` as our atomic clock source.
+- `getLocalTime(&timeinfo, 5000)`: Attempts to fetch the time into the `timeinfo` structure. If the network is slow, it gives up after 5000 milliseconds (5 seconds) to prevent draining the battery.
+- **The Drift Check:** Why do we only update if the drift is greater than 2 seconds? Whenever you call `rtc.adjust()`, the DS3231 completely resets its internal sub-second counter to zero. If you call this function every single time the ESP32 wakes up, you artificially force the clock to lose a fraction of a second over and over again, *causing* more drift than you fix! By only updating when the drift exceeds 2 seconds, we allow the RTC to run naturally and only intervene when absolutely necessary.
+
+## Running the Test
+
+To prove that our self-healing logic actually works, we need to intentionally break the clock!
+
+1. In the `setup()` function of `08_ntp_sync.ino`, temporarily add `rtc.adjust(DateTime(2000, 1, 1, 0, 0, 0));` right after `rtc.begin()`.
+2. Compile and upload the code.
+3. Remove the line you just added, and upload it again. Your ESP32 is now trapped in the year 2000!
+4. Watch the Serial Monitor as it wakes up, reads the sensors, connects to Wi-Fi, uploads the data, and triggers the NTP sync.
+
+### Expected Output
+
+```text
+--- Waking up from Deep Sleep ---
+Standard Wakeup (RTC Timer). Taking reading...
+Data: 2000-01-01T00:00:30;29.41;32.10;990.87
+Data saved to SD card.
+Connecting to WiFi...
+Connected to WiFi network
+Uploading CSV file to server: http://192.168.1.15:5000/upload
+HTTP Response code: 200
+Synchronizing DS3231 RTC with NTP...
+NTP Time acquired!
+Drift detected! Updating RTC...
+Next reading scheduled for: 17:15:00
+Entering Deep Sleep...
+```
+
+Notice that the initial timestamp was `2000-01-01`, but right before going to sleep, it fetched the atomic time and instantly snapped the schedule forward to the real time (`17:15:00`)!
+
+Congratulations! Your autonomous weather station is now completely maintenance-free, self-healing, and perpetually locked to the atomic clock grid!
+
+## Next Steps
+
+With NTP synchronization complete, our feature set for the ESP32 is fully realized! However, as we've added sensors, SD cards, sleep logic, and Wi-Fi, our codebase has grown into a massive, monolithic file. 
+
+In **Phase 4: Firmware Architecture**, we will pause adding new features and instead refactor our code into a clean, modular architecture (separating headers and source files) to make it maintainable for the future!
