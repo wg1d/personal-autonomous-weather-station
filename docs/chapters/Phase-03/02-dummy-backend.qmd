@@ -1,0 +1,89 @@
+# Dummy Backend Server {.unnumbered}
+
+To verify that our ESP32 is successfully transmitting its data across the Wi-Fi network, we need something on the other end to receive it! 
+
+Eventually, we will build a full-scale professional backend on a Single-Board Computer (SBC), like a Raspberry Pi using an advanced time-series database. But right now, building that complex architecture would distract us from validating the core firmware. 
+
+Instead, we will build a lightweight "Dummy" backend in Python using **FastAPI**. It takes about 25 lines of code and runs on your local computer to prove the connection works.
+
+## Running the Dummy Server
+
+> **Ready-to-use project:** The complete code for this server is already provided in the repository here: [`dummy_server`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/backend/Phase-03/dummy_server)
+
+We use `uv` (an incredibly fast Python package manager) to keep our dependencies clean. Since the `pyproject.toml` and `uv.lock` files are already set up, `uv` will automatically download FastAPI the first time you run it.
+
+To start the server, open a terminal and run:
+
+```bash
+cd backend/Phase-03/dummy_server
+uv run main.py
+```
+
+## The Server Code
+
+For reference, the entire server is about 25 lines of code:
+
+```python
+from fastapi import FastAPI, Request
+import uvicorn
+
+app = FastAPI()
+
+@app.post("/upload")
+async def upload_data(request: Request):
+    # Read the raw streaming body (our CSV file sent by the ESP32)
+    body = await request.body()
+    
+    # Save the received data to a local file
+    with open("received_data.csv", "wb") as f:
+        f.write(body)
+    
+    print(f"--- Received {len(body)} bytes of CSV data! ---")
+    print(f"Successfully saved to received_data.csv")
+    print("---------------------------------------------")
+    
+    return {"message": "Data received successfully!"}
+
+def start():
+    # Bind to 0.0.0.0 to listen on ALL network interfaces (Wi-Fi, Ethernet, localhost).
+    # This is required so the ESP32 can reach this server over the local network!
+    uvicorn.run("main:app", host="0.0.0.0", port=5000, reload=True)
+
+if __name__ == "__main__":
+    start()
+```
+
+## Running the Test
+
+1. Ensure your server is running (`uv run main.py`).
+2. You will see a message indicating the server is running on `http://0.0.0.0:5000`.
+3. Power on your ESP32.
+4. Watch the Python terminal! Within seconds, you should see the raw CSV data printed to your console, and a new `received_data.csv` file magically appear in your folder.
+
+Once you have verified the data is arriving safely, we can move on to the next step, building the Fallback Access Point for offline deployments.
+
+### Expected Output
+
+If everything is working perfectly, you should see the following logs on both devices.
+
+**ESP32 Serial Monitor:**
+```text
+--- Waking up from Deep Sleep ---
+Wakeup by external signal using RTC_IO (RTC Alarm)
+Data: 2026-07-23T17:21:00;29.72;29.94;992.06
+Data saved to SD card.
+Connecting to WiFi....
+Connected to WiFi network
+Uploading CSV file to server: http://192.168.1.15:5000/upload
+HTTP Response code: 200
+Next reading scheduled for: 17:21:30
+Entering Deep Sleep...
+```
+
+**Python Dummy Server Terminal:**
+```text
+--- Received 1250 bytes of CSV data! ---
+Successfully saved to received_data.csv
+---------------------------------------------
+INFO:     192.168.1.35:60951 - "POST /upload HTTP/1.1" 200 OK
+```

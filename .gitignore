@@ -18,6 +18,7 @@ backend/__pycache__/
 backend/**/__pycache__/
 backend/*.pyc
 backend/data/          # CSV / database files — never commit raw data
+**/received_data.csv
 
 # OS
 .DS_Store
