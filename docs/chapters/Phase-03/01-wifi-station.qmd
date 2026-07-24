@@ -4,9 +4,9 @@ With our power management optimized and our ESP32 reliably waking up from deep s
 
 Instead of just saving the data to the local SD card, the ESP32 will now connect to a local Wi-Fi network and upload the sensor readings to a server using an HTTP POST request.
 
-## The Firmware
+## The Code
 
-> **Ready-to-use project:** If you don't want to copy-paste, you can directly open the complete PlatformIO project from the source code here: [`06_wifi_station`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-03/06_wifi_station)
+> **Ready-to-use project:** The complete code for this firmware is available in the repository here: [`06_wifi_station`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-03/06_wifi_station)
 
 > **Further Reading:** For a deeper dive into Wi-Fi connectivity on the ESP32, you can refer to this excellent [uPesy tutorial on connecting an ESP32 to Wi-Fi](https://www.upesy.fr/blogs/tutorials/how-to-connect-wifi-acces-point-with-esp32).
 
@@ -121,4 +121,6 @@ Here is how the ESP32 handles the connection:
 
 3.  **Radio Shutdown:** Before calling `esp_deep_sleep_start()`, we explicitly call `WiFi.disconnect(true)` and `WiFi.mode(WIFI_OFF)`. This ensures the Wi-Fi radio is cleanly shut down, preventing any microscopic current leaks while the chip sleeps.
 
-Now that our ESP32 is screaming data into the void, we need something to listen to it! In the next step, we will build a dummy backend server to receive these POST requests.
+## Next Steps
+
+Now that our ESP32 is screaming data into the void, we need something to listen to it! In the next chapter, we will build a dummy backend server to receive these POST requests.

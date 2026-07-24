@@ -6,9 +6,9 @@ Eventually, we will build a full-scale professional backend on a Single-Board Co
 
 Instead, we will build a lightweight "Dummy" backend in Python using **FastAPI**. It takes about 25 lines of code and runs on your local computer to prove the connection works.
 
-## Running the Dummy Server
+## The Code
 
-> **Ready-to-use project:** The complete code for this server is already provided in the repository here: [`dummy_server`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/backend/Phase-03/dummy_server)
+> **Ready-to-use project:** The complete code for this dummy server is available in the repository here: [`dummy_server`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/backend/Phase-03/dummy_server)
 
 We use `uv` (an incredibly fast Python package manager) to keep our dependencies clean. Since the `pyproject.toml` and `uv.lock` files are already set up, `uv` will automatically download FastAPI the first time you run it.
 
@@ -60,8 +60,6 @@ if __name__ == "__main__":
 3. Power on your ESP32.
 4. Watch the Python terminal! Within seconds, you should see the raw CSV data printed to your console, and a new `received_data.csv` file magically appear in your folder.
 
-Once you have verified the data is arriving safely, we can move on to the next step, building the Fallback Access Point for offline deployments.
-
 ### Expected Output
 
 If everything is working perfectly, you should see the following logs on both devices.
@@ -87,3 +85,9 @@ Successfully saved to received_data.csv
 ---------------------------------------------
 INFO:     192.168.1.35:60951 - "POST /upload HTTP/1.1" 200 OK
 ```
+
+## Next Steps
+
+With your ESP32 now successfully transmitting its readings over the local Wi-Fi, the core telemetry loop is complete! But what happens if you take your weather station into the woods where there is no Wi-Fi? How do you get your data? 
+
+In the next chapter, we will build a brilliant fallback mechanism: a physical push-button that commands the ESP32 to broadcast its *own* Wi-Fi network so you can download the data straight to your phone.
