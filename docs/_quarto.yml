@@ -29,6 +29,8 @@ book:
       chapters:
         - chapters/Phase-03/01-wifi-station.qmd
         - chapters/Phase-03/02-dummy-backend.qmd
+        - chapters/Phase-03/03-fallback-ap.qmd
+        - chapters/Phase-03/04-ntp-sync.qmd
 
 format:
   html:
