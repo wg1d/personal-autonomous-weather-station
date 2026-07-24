@@ -25,6 +25,10 @@ book:
         - chapters/Phase-02/01-deep-sleep.qmd
         - chapters/Phase-02/02-hardware-modifications.qmd
         - chapters/Phase-02/03-software-implementation.qmd
+    - part: "Phase 3: Wi-Fi & Data Transmission"
+      chapters:
+        - chapters/Phase-03/01-wifi-station.qmd
+        - chapters/Phase-03/02-dummy-backend.qmd
 
 format:
   html:
