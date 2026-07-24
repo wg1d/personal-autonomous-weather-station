@@ -6,6 +6,8 @@ To build an autonomous weather station that can run for months or years in the f
 
 ## What is Deep Sleep?
 
+> **Further Reading:** For a comprehensive overview of the ESP32 deep sleep states, you can refer to this [uPesy tutorial on Deep Sleep](https://www.upesy.fr/blogs/tutorials/how-to-use-deep-sleep-on-esp32-to-reduce-power-consumption).
+
 Deep sleep puts the ESP32 into a primitive state where almost everything shuts down:
 
 *   The 2 main CPUs stop functioning, and the **ULP (Ultra Low Power) processor** takes over. This tiny processor consumes very little energy but can still perform basic actions.
