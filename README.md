@@ -16,8 +16,8 @@ The primary goal of this project is to build a full, end-to-end **Proof of Conce
 |-------|------|-------------|--------|
 | 1 | Core Functionality | Temp/pressure/humidity sensor + SD logging + RTC timekeeping | 🟢 Done |
 | 2 | Power Management | ESP32 deep sleep + peripheral power cycling + RTC alarms | 🟢 Done |
-| 3 | Wi-Fi & Data Transmission | ESP32 automated Wi-Fi push + phone-based gateway fallback | 🟡 In progress |
-| 4 | Firmware Architecture | State machine design + code refactoring (splitting into .h/.cpp) | ⬜ Planned |
+| 3 | Wi-Fi & Data Transmission | ESP32 automated Wi-Fi push + phone-based gateway fallback | 🟢 Done |
+| 4 | Firmware Architecture | State machine design + code refactoring (splitting into .h/.cpp) | 🟡 In progress |
 | 5 | Backend MVP | SBC deployment + time-series database + online dashboard | ⬜ Planned |
 | 6 | Forecasting — basic | LSTM on temp/pressure/humidity | ⬜ Planned |
 | 7 | Sensors: BH1750 + VEML6075 | Light + UV sensors | 💭 Idea |
