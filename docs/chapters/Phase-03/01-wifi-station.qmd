@@ -11,7 +11,7 @@ Instead of just saving the data to the local SD card, the ESP32 will now connect
 > **Further Reading:** For a deeper dive into Wi-Fi connectivity on the ESP32, you can refer to this excellent [uPesy tutorial on connecting an ESP32 to Wi-Fi](https://www.upesy.fr/blogs/tutorials/how-to-connect-wifi-acces-point-with-esp32).
 
 ### Code Cleanup Notice
-As our firmware grows more advanced, the `setup()` function is becoming quite long. For this step, the code is structurally identical to Phase 02. We have simply inserted the new Wi-Fi logic right after the SD card write operation. In **Phase 04**, we will perform a massive architectural refactoring to split this monolithic code into clean `.cpp` and `.h` files!
+As our firmware grows more advanced, the `setup()` function is becoming quite long. For this chapter, the code is structurally identical to Phase 02. We have simply inserted the new Wi-Fi logic right after the SD card write operation. In **Phase 04**, we will perform a massive architectural refactoring to split this monolithic code into clean `.cpp` and `.h` files!
 
 ### Connecting to a Network
 To connect the ESP32 to the internet (or your local network), it needs to act as a **Wi-Fi Station**. Just like your smartphone or laptop, the ESP32 must know two pieces of information to connect to your router:
@@ -45,10 +45,10 @@ Before we can upload data, the ESP32 needs to know *where* to send it. At the to
 
 ```cpp
 // Dummy server endpoint (Update with your computer's local IP address)
-const char* serverName = "http://192.168.1.100:5000/upload";
+const char* serverName = "http://192.168.1.15:5000/upload";
 ```
 
-> **Check your IP Address!** Make sure to replace `192.168.1.100` with your actual local network IP address, otherwise the ESP32 will fail to connect (Error `-1`).
+> **Check your IP Address!** Make sure to replace `192.168.1.15` with your actual local network IP address, otherwise the ESP32 will fail to connect (Error `-1`).
 > 
 > **How to find your IP address:**
 > - **Windows:** Open Command Prompt and type `ipconfig` (look for "IPv4 Address").

@@ -62,7 +62,7 @@ if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT1) {
 ### Hosting the Web Server
 We use the extremely fast and lightweight `ESPAsyncWebServer` library to host a mini-website directly from the ESP32. 
 
-> **Library Fork Notice:** Most older tutorials use the original `me-no-dev/ESPAsyncWebServer` library. However, that repository has been abandoned and throws severe compiler errors on modern ESP32 cores. We are using the actively maintained community fork by `mathieucarbou` (as defined in our `platformio.ini`), which serves as a flawless, modern drop-in replacement.
+> **Library Fork Notice:** Most older tutorials use the original `me-no-dev/ESPAsyncWebServer` library. However, that repository has been abandoned and throws severe compiler errors on modern ESP32 cores. We are using the actively maintained community fork by `mathieucarbou` ([mathieucarbou/ESPAsyncWebServer](https://github.com/mathieucarbou/ESPAsyncWebServer)), which serves as a flawless, modern drop-in replacement.
 
 We define three routes:
 1. `GET /` : Serves a beautiful HTML interface with a green "Download" button and a red "Delete" button.
@@ -180,4 +180,4 @@ And here is what the sleek web interface looks like on your device:
 ![Fallback AP Web Interface](../../assets/images/fallback_ap_interface.png){width=200}
 
 ## Next Steps
-Our weather station is now incredibly robust! We have standard uploads and a foolproof manual fallback mechanism. However, since we're already connecting to Wi-Fi to upload data, we have an amazing opportunity to perform some self-healing. Let's move on to the **Bonus Chapter: NTP Time Synchronization**, where we'll teach the ESP32 to automatically calibrate the DS3231's atomic clock!
+Our weather station is now incredibly robust! We have standard uploads and a foolproof manual fallback mechanism. However, since we're already connecting to Wi-Fi to upload data, we have an amazing opportunity to perform some self-healing. Let's move on to the **Bonus Step: NTP Time Synchronization**, where we'll teach the ESP32 to automatically calibrate the DS3231's atomic clock!

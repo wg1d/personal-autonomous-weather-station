@@ -17,6 +17,15 @@ It's a learning-oriented project covering several topics, such as:
 **Related project — 3D-PAWS** (*3D-Printed Automatic Weather Station*, UCAR/COMET): an open-source initiative for low-cost weather stations using 3D-printed sensor housings. Their sensor designs (tipping bucket rain gauge, anemometer) are a useful reference for the DIY hardware phases of this project. See [3dpaws.comet.ucar.edu](https://3dpaws.comet.ucar.edu/).
 :::
 
+### Target Audience & Scope
+> This project focuses on system integration, software architecture, and power management. It is **not** a beginner tutorial on how to install the Arduino IDE, how to solder, or how to write basic ESP32 blink sketches. It assumes you already know how to compile and upload code to an ESP32.
+
+### Resources for Beginners
+If you are brand new to the ESP32 ecosystem, we highly recommend reading the following tutorials before tackling this weather station:
+
+- **[uPesy Documentation](https://www.upesy.fr/blogs/tutorials/esp32-tutorials-for-arduino-code-and-micropython)**: Incredible, clear, and highly visual tutorials on everything ESP32.
+- **[Random Nerd Tutorials](https://randomnerdtutorials.com/)**: The gold standard for beginner-friendly ESP32 IoT projects and electronics guides.
+
 ---
 
 ## How to read this document

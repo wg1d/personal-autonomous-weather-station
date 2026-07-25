@@ -66,7 +66,7 @@ void loop(){
 }
 ```
 
-> **Ready-to-use project:** If you don't want to copy-paste, you can directly open the complete PlatformIO project from the source code here: [`04_deep_sleep_timer`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-02/04_deep_sleep_timer)
+> **Ready-to-use project:** The complete code for this deep sleep example is available in the repository here: [`04_deep_sleep_timer`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-02/04_deep_sleep_timer)
 
 *   **Pros:** Requires no external hardware or wiring. Extremely easy to program in software as seen above.
 *   **Cons:** The internal timer is notorious for drifting, especially when temperature fluctuates (which happens a lot outdoors!). Over a few weeks, your station might wake up minutes or even hours off schedule.

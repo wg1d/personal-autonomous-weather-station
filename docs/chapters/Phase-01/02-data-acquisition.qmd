@@ -62,9 +62,9 @@ lib_deps =
     adafruit/Adafruit BME280 Library @ ^2.2.4
 ```
 
-> **Ready-to-use project:** If you don't want to copy-paste, you can directly open the complete PlatformIO project from the source code here: [`01_data_acquisition`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-01/01_data_acquisition)
+> **Ready-to-use project:** The complete code for this data acquisition phase is available in the repository here: [`01_data_acquisition`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-01/01_data_acquisition)
 
-> **Adafruit Example:** For a more comprehensive example showcasing all features of the sensor, you can refer to the official [Adafruit BME280 Library example](https://github.com/adafruit/Adafruit_BME280_Library/blob/master/examples/bme280test/bme280test.ino).
+> **Library Reference:** We use the official Adafruit library and follow their BME 280 example [Adafruit BME280 Library](https://github.com/adafruit/Adafruit_BME280_Library/blob/master/examples/bme280test/bme280test.ino).
 
 ### The Code
 
@@ -145,8 +145,6 @@ Here is a quick breakdown of what the code is doing:
 
 Before running this code, make sure your ESP32 is connected to your computer via a **USB-C cable**. This connection is necessary to power the board, upload the program, and view the data coming back over the Serial connection.
 
-Run this code, upload it to the ESP32, and open your Serial Monitor (set to 115200 baud). You should see the temperature, humidity, and pressure readings updating every 5 seconds!
-
 ### Expected Output
 After building and uploading the code, you should see something like this in the Serial Monitor (if it's not the case, restart the esp by pressing the EN button):
 
@@ -166,4 +164,8 @@ Pressure: 1000.14 hPa
 -------------------------
 ```
 
-With the sensor working, our next step is to make sure we don't lose this data when we power off the ESP32. We need to save it to an SD card.
+## Next Steps
+
+Now that we are successfully reading the environment, we need a place to store it! In the next chapter, we will learn how to interface with an SD card module so our weather station can preserve its data offline.
+
+

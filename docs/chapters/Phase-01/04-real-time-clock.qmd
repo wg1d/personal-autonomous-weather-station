@@ -1,7 +1,7 @@
 # Real-Time Clock {.unnumbered}
-In the previous chapter, we used `millis()` to stamp our sensor readings. While this works to measure time since the ESP32 booted, we need an absolute timestamp (e.g., Year, Month, Day, Hour, Minute, Second) that survives reboots and power losses. This is why we are introducing the DS3231 Real-Time Clock (RTC).
+In the previous step, we used `millis()` to stamp our sensor readings. While this works to measure time since the ESP32 booted, we need an absolute timestamp (e.g., Year, Month, Day, Hour, Minute, Second) that survives reboots and power losses. This is why we are introducing the DS3231 Real-Time Clock (RTC).
 
-This chapter will cover:
+This step will cover:
 
 1. Introducing the DS3231 RTC and its features.
 2. Connecting the DS3231 RTC to the ESP32.
@@ -49,7 +49,7 @@ Since the BME280 is already using the I2C bus, you can simply connect the DS3231
 
 ### Setup
 
-We will build upon the code from the previous chapter. First, we need to include the necessary library to handle the RTC. We will use the `RTClib` library by Adafruit.
+We will build upon the code from the previous step. First, we need to include the necessary library to handle the RTC. We will use the `RTClib` library by Adafruit.
 
 Your `platformio.ini` should now look like this:
 
@@ -67,11 +67,11 @@ lib_deps =
     adafruit/RTClib @ ^2.1.4
 ```
 
-> **Ready-to-use project:** If you don't want to copy-paste, you can directly open the complete PlatformIO project from the source code here: [`03_real_time_clock`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-01/03_real_time_clock)
+> **Ready-to-use project:** The complete code for this RTC phase is available in the repository here: [`03_real_time_clock`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-01/03_real_time_clock)
+
+> **Library Reference:** We use the [RTClib](https://github.com/adafruit/RTClib) by Adafruit. We have added some initialization logic to properly clear the RTC alarms, based on the [Adafruit RTClib Alarm Example](https://github.com/adafruit/RTClib/blob/master/examples/DS3231_alarm/DS3231_alarm.ino).
 
 ### The Code
-
-Here is the updated code that reads the RTC, formats an ISO 8601 string, and appends the data to the SD card. We have added some initialization logic to properly clear the RTC alarms, based on the [Adafruit RTClib Alarm Example](https://github.com/adafruit/RTClib/blob/master/examples/DS3231_alarm/DS3231_alarm.ino).
 
 ```cpp
 /*
@@ -225,7 +225,7 @@ Here is a breakdown of the new RTC components in the code:
 ### Expected Output
 > Before running this code, it is recommended to delete the existing
 > `weather_data.csv` file from your SD card. This prevents mixing the old 
-> `millis()` timestamps from the previous chapter with our new absolute RTC 
+> `millis()` timestamps from the previous step with our new absolute RTC 
 > timestamps!
 
 Upload the code and open the Serial Monitor.
@@ -261,5 +261,8 @@ timestamp;temperature;humidity;pressure
 2026-07-22T15:34:26;28.46;26.14;1000.29
 2026-07-22T15:34:31;28.50;26.09;1000.30
 ```
+```
+
+## Next Steps
 
 Now that we have accurate timestamps and reliable data storage, our basic weather station is complete! However, if you tried to run this on a battery right now, it would drain very quickly. In the next phase, we will introduce Deep Sleep mode and use the RTC alarms we configured earlier to drastically reduce power consumption.
