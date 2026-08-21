@@ -31,6 +31,9 @@ book:
         - chapters/Phase-03/02-dummy-backend.qmd
         - chapters/Phase-03/03-fallback-ap.qmd
         - chapters/Phase-03/04-ntp-sync.qmd
+    - part: "Phase 4: Firmware Architecture"
+      chapters:
+        - chapters/Phase-04/01-modular-architecture.qmd
 
 format:
   html:
