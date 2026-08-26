@@ -92,4 +92,4 @@ Congratulations! Your autonomous weather station is now completely maintenance-f
 
 With NTP synchronization complete, our feature set for the ESP32 is fully realized! However, as we've added sensors, SD cards, sleep logic, and Wi-Fi, our codebase has grown into a massive, monolithic file. 
 
-In **Phase 4: Firmware Architecture**, we will pause adding new features and instead refactor our code into a clean, modular architecture (separating headers and source files) to make it maintainable for the future!
+In Phase 4: Modular Architecture, we will pause adding new features and instead refactor our code into a clean, modular architecture (separating headers and source files) to make it maintainable for the future!

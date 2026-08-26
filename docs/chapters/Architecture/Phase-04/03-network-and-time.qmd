@@ -1,4 +1,4 @@
-# Network & Time Specialists
+# Network & Time Specialists {.unnumbered}
 
 The final piece of our modular architecture is the network layer. 
 

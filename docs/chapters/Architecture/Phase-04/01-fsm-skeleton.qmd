@@ -1,4 +1,4 @@
-# The FSM Skeleton
+# The FSM Skeleton {.unnumbered}
 
 In previous chapters (The Proof of Concept), our weather station firmware started out as a simple Arduino sketch. As we added features—I2C sensors, SD card logging, Wi-Fi connections, NTP synchronization, and an embedded web server—that single file grew into a tangled 300-line monolith. 
 

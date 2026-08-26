@@ -1,4 +1,4 @@
-# Sensor & Storage Specialists
+# Sensor & Storage Specialists {.unnumbered}
 
 Now that our Finite State Machine (the Orchestrator) is in place, it needs workers. The Specialists are C++ classes dedicated to doing exactly one thing perfectly. 
 
