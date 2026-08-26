@@ -1,0 +1,25 @@
+# Sensor & Storage Specialists
+
+Now that our Finite State Machine (the Orchestrator) is in place, it needs workers. The Specialists are C++ classes dedicated to doing exactly one thing perfectly. 
+
+## The Sensor Wrapper
+
+To make adding future sensors trivial, we create a `SensorManager` wrapper. It contains a unified `SensorData` struct. If you want to add a UV sensor tomorrow, you simply add `float uvIndex;` to the struct, write a `UVSensor` class, and tell the `SensorManager` to read it. The FSM won't even notice the change!
+
+```cpp
+// Unified struct to hold all sensor readings
+struct SensorData {
+    String timestamp;
+    float temperature;
+    float humidity;
+    float pressure;
+    // Easy to add more fields here later (e.g., float uvIndex;)
+};
+```
+
+## The SD Manager
+
+Similarly, the `SDManager` class abstracts away all the file system mounting and power cycling logic. The FSM simply passes the populated `SensorData` struct to the `SDManager`, which handles the heavy lifting of appending to the CSV.
+
+## Next Steps
+With the sensors and SD card integrated into the FSM, we have successfully rebuilt Phase 1 and 2 in a modular way. Next, we will tackle the network logic.

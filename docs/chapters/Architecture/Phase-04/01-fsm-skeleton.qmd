@@ -1,0 +1,47 @@
+# The FSM Skeleton
+
+In previous chapters (The Proof of Concept), our weather station firmware started out as a simple Arduino sketch. As we added features—I2C sensors, SD card logging, Wi-Fi connections, NTP synchronization, and an embedded web server—that single file grew into a tangled 300-line monolith. 
+
+If we ever wanted to add three new sensors to this monolith, the code would collapse under its own weight. It's time to graduate from a basic script to a professional, modular C++ architecture.
+
+## The Motivation
+
+Our goal in this phase is strictly architectural. We won't add any new sensors yet; we are simply laying the foundation for future expansions. To do this, we are splitting the codebase using an **"Orchestrator vs. Specialists"** analogy.
+
+## The Orchestrator (Finite State Machine)
+
+The brain of our new architecture is a Finite State Machine (FSM). Think of the FSM as a Project Manager. The Project Manager doesn't actually know *how* to read an I2C bus or *how* to construct an HTTP POST request. Instead, it looks at the current state of the system and delegates tasks to highly trained Specialists.
+
+Our FSM (`WeatherStationFSM`) has exactly five states:
+
+1. **`BOOT`**: Evaluates the wake-up cause and routes the logic.
+2. **`DATA_LOGGER`**: The normal routine. Reads sensors and writes to the SD card.
+3. **`WIFI_SYNC`**: Uploads data and syncs time.
+4. **`FALLBACK_SERVER`**: Runs the local web server when the button is pressed.
+5. **`DEEP_SLEEP`**: Sets the next alarm and halts the CPU.
+
+### The Empty `loop()` Paradigm
+
+In standard Arduino tutorials, you put your code in the `loop()` function. In a deep-sleep paradigm, this is an anti-pattern. Our ESP32 should wake up, execute its logic linearly, and immediately go back to sleep to conserve battery.
+
+As a result, our `main.cpp` is beautifully simple, and the `loop()` is completely empty:
+
+```cpp
+#include <Arduino.h>
+#include "WeatherStationFSM.h"
+
+WeatherStationFSM fsm;
+
+void setup() {
+    Serial.begin(115200);
+    // Runs the entire lifecycle, ending in deep sleep. It never returns!
+    fsm.execute(); 
+}
+
+void loop() {
+    // Empty. We never reach this.
+}
+```
+
+## Next Steps
+In this first step, we will create the empty FSM structure. In the next chapters, we will build the "Specialists" to fill in the blanks.

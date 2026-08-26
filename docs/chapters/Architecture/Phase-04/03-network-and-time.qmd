@@ -1,0 +1,22 @@
+# Network & Time Specialists
+
+The final piece of our modular architecture is the network layer. 
+
+## Decoupling the Network
+
+Previously, all our network logic was mashed together in a single file. We have now split it into three distinct Specialists:
+- **`WiFiConnection`**: Only knows how to connect to a router.
+- **`TelemetryUploader`**: Only knows how to send a CSV file to our Python backend.
+- **`FallbackServer`**: Only knows how to host an Access Point and web interface.
+
+## Massive Power Savings: The Daily Sync
+
+During this refactoring, we can introduce a critical optimization. 
+
+Connecting to Wi-Fi draws a massive amount of power (~120mA). In the PoC, we connected to Wi-Fi every 15 minutes (96 times a day!). In this new architecture, the `DATA_LOGGER` state checks the time. It only transitions to the `WIFI_SYNC` state **once a day** (e.g., at 2:00 AM) to upload the entire daily batch and sync the clock. 
+
+For the other 95 wake-ups, the ESP32 simply reads the sensors, writes to the SD card, and goes back to sleep in under 100 milliseconds. This extends our battery life exponentially.
+
+## Next Steps
+
+Now that we have a robust, extensible, and highly power-efficient C++ architecture, our field weather station is truly ready for deployment and future sensor additions!
