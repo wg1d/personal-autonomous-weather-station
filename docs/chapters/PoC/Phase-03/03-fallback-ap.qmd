@@ -6,7 +6,7 @@ We solve this by implementing a **Fallback Access Point**. If we press a physica
 
 ## The Hardware: The Fallback Button
 
-![Connection between ESP32 and Fallback Button](../../assets/diagrams/connection_esp32_fallback_ap.svg){width=600}
+![Connection between ESP32 and Fallback Button](../../../assets/diagrams/connection_esp32_fallback_ap.svg){width=600}
 
 To trigger this mode, we wire a physical push-button to **Pin 39** (an RTC pin capable of waking the ESP32 from deep sleep). But we can't just wire the button directly to the pin, we must use a **Pull-down Resistor**.
 
@@ -177,7 +177,7 @@ Entering Deep Sleep...
 
 And here is what the sleek web interface looks like on your device:
 
-![Fallback AP Web Interface](../../assets/images/fallback_ap_interface.png){width=200}
+![Fallback AP Web Interface](../../../assets/images/fallback_ap_interface.png){width=200}
 
 ## Next Steps
 Our weather station is now incredibly robust! We have standard uploads and a foolproof manual fallback mechanism. However, since we're already connecting to Wi-Fi to upload data, we have an amazing opportunity to perform some self-healing. Let's move on to the **Bonus Step: NTP Time Synchronization**, where we'll teach the ESP32 to automatically calibrate the DS3231's atomic clock!

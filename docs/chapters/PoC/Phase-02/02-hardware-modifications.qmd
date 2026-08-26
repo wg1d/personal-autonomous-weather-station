@@ -41,7 +41,7 @@ Because the SQW pin is an open-drain output, it requires a **pull-up resistor** 
 
 Here is the updated circuit incorporating these two power management modifications:
 
-![Connection between ESP32 and DS3231](../../assets/diagrams/connection_esp32_ds3231_deep_sleep.svg){width=600}
+![Connection between ESP32 and DS3231](../../../assets/diagrams/connection_esp32_ds3231_deep_sleep.svg){width=600}
 
 ### Wiring Summary
 

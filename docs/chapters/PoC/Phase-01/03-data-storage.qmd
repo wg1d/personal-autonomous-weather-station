@@ -31,7 +31,7 @@ The uPesy Micro SD card reader has the following pins:
 *   **GND:** Ground connection.
 *   **OFF:** Unique to this module, used to cut power to the SD card when pulled LOW (we will leave it unconnected for now so it defaults to ON).
 
-![SD Card Reader Standalone Circuit](../../assets/diagrams/component_sdcard.svg){width=150}
+![SD Card Reader Standalone Circuit](../../../assets/diagrams/component_sdcard.svg){width=150}
 
 
 > **Documentation Note (EN vs OFF pin)**
@@ -49,7 +49,7 @@ The ESP32 has default pins for SPI communication. Since we are building upon the
 *   **SCLK:** Connect to ESP32 Pin **18**.
 *   **CS:** Connect to ESP32 Pin **5** (can be changed).
 
-![Connection between ESP32 and SD Card Reader](../../assets/diagrams/connection_esp32_sd_card_reader.svg){width=500}
+![Connection between ESP32 and SD Card Reader](../../../assets/diagrams/connection_esp32_sd_card_reader.svg){width=500}
 
 ## Program the ESP32 to Save Data
 

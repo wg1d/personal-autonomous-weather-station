@@ -26,28 +26,28 @@ This specific board was chosen for several practical reasons:
 - **High Performance**: It includes 4MB of PSRAM and 16MB of Flash memory.
 - **Clear Pinout**: It only exposes truly usable pins, avoiding common ESP32 strapping pin pitfalls that often catch beginners.
 
-![uPesy ESP32 Wrover DevKit v2.1](../../assets/images/components/upesy-esp32-wrover-devkit-3.jpg){width=200}
+![uPesy ESP32 Wrover DevKit v2.1](../../../assets/images/components/upesy-esp32-wrover-devkit-3.jpg){width=200}
 
 The full pin configuration is shown here and additionnal information can be found [here](https://www.upesy.com/blogs/tutorials/esp32-quickstart-installation-programming-guide).
 
-![uPesy ESP32 Wrover DevKit v2.1](../../assets/images/components/upesy-esp32-wrover-full-pinout.jpg){width=800}
+![uPesy ESP32 Wrover DevKit v2.1](../../../assets/images/components/upesy-esp32-wrover-full-pinout.jpg){width=800}
 
 ### Why use the uPesy Micro SD card reader module?
 We use this specific module because:
 
 - **Energy Efficient**: It can be powered off completely via a dedicated control pin, which is a critical feature for our future battery-powered data logger.
 
-![uPesy micro SD card reader](../../assets/images/components/upesy-micro-sd-module-for-arduino-showcase.jpg){width=200}
+![uPesy micro SD card reader](../../../assets/images/components/upesy-micro-sd-module-for-arduino-showcase.jpg){width=200}
 
 ### Why start with the BME280?
 Simply because it is a small, affordable, and highly accurate sensor that measures temperature, humidity, and atmospheric pressure all in one package. It is very easy to use, well-documented, and perfect for getting a basic weather station up and running quickly.
 
-![Temp/Humidity/Pressure sensor: BME 280](../../assets/images/components/bme280.jpg){width=200}
+![Temp/Humidity/Pressure sensor: BME 280](../../../assets/images/components/bme280.jpg){width=200}
 
 ### Why use an external Real-Time Clock (RTC)?
 While the ESP32 has an internal RTC, it is not very accurate and can drift significantly over time. The DS3231 is a highly precise RTC with a built-in battery backup (coin cell). It will keep perfect time even when the ESP32 is completely powered down (or in deep sleep), ensuring all our logged data is accurately timestamped.
 
-![Real-Time Clock sensor: DS3231](../../assets/images/components/real-time-clock-rtc-ds3231.jpg){width=200}
+![Real-Time Clock sensor: DS3231](../../../assets/images/components/real-time-clock-rtc-ds3231.jpg){width=200}
 
 ## Software
 

@@ -28,7 +28,7 @@ In addition to the 32K and SQW pins described above, the DS3231 uses the followi
 *   **VCC:** Power supply input (typically 3.3V).
 *   **GND:** Ground connection.
 
-![DS3231 Standalone Circuit](../../assets/diagrams/component_ds3231.svg){width=150}
+![DS3231 Standalone Circuit](../../../assets/diagrams/component_ds3231.svg){width=150}
 
 ## The Hardware Connection
 
@@ -43,7 +43,7 @@ Since the BME280 is already using the I2C bus, you can simply connect the DS3231
 *   **SDA:** Connect to ESP32 Pin **21** (shared with BME280).
 *   **SCL:** Connect to ESP32 Pin **22** (shared with BME280).
 
-![Connection between ESP32 and DS3231 RTC](../../assets/diagrams/connection_esp32_ds3231.svg){width=500}
+![Connection between ESP32 and DS3231 RTC](../../../assets/diagrams/connection_esp32_ds3231.svg){width=500}
 
 ## Program the ESP32 to Save Data
 

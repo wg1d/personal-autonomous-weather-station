@@ -26,7 +26,7 @@ The BME280 module typically has 4 pins (we will focus on the I2C version):
 *   **SCL:** Serial Clock for I2C communication.
 *   **SDA:** Serial Data for I2C communication.
 
-![BME280 Standalone Circuit](../../assets/diagrams/component_bme280.svg){width=150}
+![BME280 Standalone Circuit](../../../assets/diagrams/component_bme280.svg){width=150}
 
 ### Wiring the Components
 The ESP32 has default pins for I2C communication. We will connect the BME280 as follows:
@@ -36,7 +36,7 @@ The ESP32 has default pins for I2C communication. We will connect the BME280 as 
 *   **SCL:** Connect to ESP32 Pin **22**.
 *   **SDA:** Connect to ESP32 Pin **21**.
 
-![Connection between ESP32 and BME280](../../assets/diagrams/connection_esp32_bme.svg){width=500}
+![Connection between ESP32 and BME280](../../../assets/diagrams/connection_esp32_bme.svg){width=500}
 
 ## Program the ESP32 to Read the BME280
 
