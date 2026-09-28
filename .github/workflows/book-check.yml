@@ -9,6 +9,10 @@ on:
       - 'firmware/**/platformio.ini'
       - 'backend/**/*.py'
       - '.github/workflows/book-check.yml'
+      # Development environment
+      - 'pixi.toml'
+      - 'pixi.lock'
+      - 'scripts/**'
 
 permissions:
   contents: read
@@ -25,22 +29,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
-      - name: Set up Quarto
-        uses: quarto-dev/quarto-actions/setup@8a96df13519ee81fd526f2dfca5962811136661b  # v2.2.0
+      - name: Set up pixi
+        # Installs the tools frozen in pixi.lock (same versions as locally)
+        uses: prefix-dev/setup-pixi@d3f436a425481402e6a95a1d1fc10331c708cd9e  # v0.10.2
         with:
-          version: 1.7.32
+          pixi-version: v0.50.1
+          cache: true
 
       - name: Render book
-        working-directory: docs
-        # The include-code-files filter only warns when a file is missing:
-        # fail explicitly instead of publishing an empty code block
-        run: |
-          set -o pipefail
-          quarto render --to html --no-execute 2>&1 | tee render.log
-          if grep -q 'Cannot open file' render.log; then
-            echo "::error::Some code includes could not be resolved"
-            exit 1
-          fi
+        # Fails if a code include cannot be resolved (see the script)
+        run: pixi run book --no-execute
 
       - name: Clean up
         if: always()
