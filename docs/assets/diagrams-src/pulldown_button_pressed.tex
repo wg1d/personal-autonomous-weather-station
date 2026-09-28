@@ -1,0 +1,28 @@
+\input{common.tex}
+\begin{document}
+\begin{circuitikz}[scale=1.5]
+
+% 3.3V Source with European symbol
+\draw[thick] (-0.25, 4) -- (0.25, 4);
+\node[above] at (0, 4) {VCC};
+\node[right] at (0.25, 4) {+3.3V};
+
+% Pressed Push button (closed) connected to 3.3V
+\draw (0, 4)
+    to[short, l=Pressed Button, i=$I_{sw}{=}0.33\text{ mA}$] (0, 2)
+    coordinate (junction);
+
+% Pull-Down resistor (pressed state) connected to GND
+\draw (junction)
+    to[R, l=$R_{pd}$ ($10\text{ k}\Omega$), i=$I_{pd}{=}0.33\text{ mA}$, v=$U_R{=}3.3\text{ V}$] (0, 0)
+    node[ground] {};
+
+% Connection to the ESP32 pin
+\draw (junction)
+    to[short, i=$I_{in}{\approx}0\text{ A}$, *-o] (2.5, 2) node[right, font=\bfseries\sffamily] {Pin (Logic HIGH)};
+
+% Explicit Vin tension
+\draw (2.5, 2) to[open, v^=$V_{in}{\approx}3.3\text{ V}$] (2.5, 0) node[ground] {};
+
+\end{circuitikz}
+\end{document}

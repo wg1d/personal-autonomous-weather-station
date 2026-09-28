@@ -16,6 +16,16 @@ A pin that is not connected to anything is "floating": it picks up electrical no
 - **Pull-up Resistor:** connects the pin to `3.3V`. The default state is `HIGH`; pressing the button connects the pin to `GND`, driving it `LOW`.
 - **Pull-down Resistor:** connects the pin to `GND`. The default state is `LOW`; pressing the button connects the pin to `3.3V`, driving it `HIGH`.
 
+::: {layout-ncol=2}
+![Pull-up, button released: the pin reads HIGH](../../../assets/diagrams/pullup_button_released.svg)
+
+![Pull-up, button pressed: the pin reads LOW](../../../assets/diagrams/pullup_button_pressed.svg)
+
+![Pull-down, button released: the pin reads LOW](../../../assets/diagrams/pulldown_button_released.svg)
+
+![Pull-down, button pressed: the pin reads HIGH](../../../assets/diagrams/pulldown_button_pressed.svg)
+:::
+
 In both cases, no current flows through the resistor while the button is released, since both ends are at the same voltage. The consumption during deep sleep is therefore the same.
 
 ### Why a Pull-Down and a Wake-up on HIGH?
