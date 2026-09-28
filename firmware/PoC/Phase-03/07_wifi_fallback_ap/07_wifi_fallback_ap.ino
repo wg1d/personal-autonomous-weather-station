@@ -197,7 +197,7 @@ void setup() {
     bootTime.toString(timestamp);
 
     char dataString[100];
-    snprintf(dataString, sizeof(dataString), "%s;%.2f;%.2f;%.2f\n",
+    snprintf(dataString, sizeof(dataString), "%s,%.2f,%.2f,%.2f\n",
              timestamp, bme.readTemperature(), bme.readHumidity(),
              bme.readPressure() / 100.0F);
 
@@ -206,7 +206,7 @@ void setup() {
 
     if (!SD.exists("/weather_data.csv")) {
       appendFile(SD, "/weather_data.csv",
-                 "timestamp;temperature;humidity;pressure\n");
+                 "timestamp,temperature,humidity,pressure\n");
     }
     appendFile(SD, "/weather_data.csv", dataString);
     Serial.println("Data saved to SD card.");

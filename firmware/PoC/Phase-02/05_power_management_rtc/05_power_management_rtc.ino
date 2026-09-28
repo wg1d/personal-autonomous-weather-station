@@ -134,7 +134,7 @@ void setup() {
   now.toString(timestamp);
 
   char dataString[100];
-  sprintf(dataString, "%s;%.2f;%.2f;%.2f\n", 
+  sprintf(dataString, "%s,%.2f,%.2f,%.2f\n", 
           timestamp, temperature, humidity, pressure);
           
   Serial.print("Data: ");
@@ -150,7 +150,7 @@ void setup() {
     if (!SD.exists("/weather_data.csv")) {
       File file = SD.open("/weather_data.csv", FILE_WRITE);
       if (file) {
-        file.println("timestamp;temperature;humidity;pressure");
+        file.println("timestamp,temperature,humidity,pressure");
         file.close();
       }
     }

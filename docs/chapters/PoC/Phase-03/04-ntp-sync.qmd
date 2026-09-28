@@ -73,7 +73,7 @@ To prove that our self-healing logic actually works, we need to intentionally br
 ```text
 --- Waking up from Deep Sleep ---
 Standard Wakeup (RTC Alarm). Taking reading...
-Data: 2000-01-01T00:00:30;29.41;32.10;990.87
+Data: 2000-01-01T00:00:30,29.41,32.10,990.87
 Data saved to SD card.
 Connecting to WiFi...
 Connected to WiFi network

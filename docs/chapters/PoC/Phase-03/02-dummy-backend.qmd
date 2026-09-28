@@ -41,7 +41,7 @@ If everything works, you should see the following logs on both devices.
 ```text
 --- Waking up from Deep Sleep ---
 Wakeup by external signal using RTC_IO (RTC Alarm)
-Data: 2026-07-23T17:21:00;29.72;29.94;992.06
+Data: 2026-07-23T17:21:00,29.72,29.94,992.06
 Data saved to SD card.
 Connecting to WiFi....
 Connected to WiFi network

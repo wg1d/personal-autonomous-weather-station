@@ -192,7 +192,7 @@ If everything is wired correctly, the Serial Monitor shows the following sequenc
 ```text
 --- Waking up from Deep Sleep ---
 Standard Wakeup (RTC Alarm). Taking reading...
-Data: 2026-07-24T15:58:30;30.15;31.03;991.36
+Data: 2026-07-24T15:58:30,30.15,31.03,991.36
 Data saved to SD card.
 Connecting to WiFi.....
 Connected to WiFi network
@@ -222,7 +222,7 @@ ets Jun  8 2016 00:22:57
 
 --- Waking up from Deep Sleep ---
 Standard Wakeup (RTC Alarm). Taking reading...
-Data: 2026-07-24T16:01:53;30.56;30.51;991.27
+Data: 2026-07-24T16:01:53,30.56,30.51,991.27
 Data saved to SD card.
 Connecting to WiFi....
 Connected to WiFi network
