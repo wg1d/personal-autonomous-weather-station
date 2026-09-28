@@ -40,6 +40,8 @@ book:
           text: "Fallback AP"
         - href: chapters/PoC/Phase-03/04-ntp-sync.qmd
           text: "NTP Sync"
+        - href: chapters/PoC/Phase-03/05-power-budget.qmd
+          text: "Power Budget"
     - part: "Phase 4 – Architecture"
       chapters:
         - href: chapters/Architecture/Phase-04/00-design.qmd
