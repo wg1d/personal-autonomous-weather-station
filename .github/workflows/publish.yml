@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths:
       - 'docs/**'
+      # Code files included in the book
+      - 'firmware/**/*.ino'
+      - 'firmware/**/platformio.ini'
+      - 'backend/**/*.py'
   workflow_dispatch:
 
 permissions:

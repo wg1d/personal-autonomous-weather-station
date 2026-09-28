@@ -4,6 +4,11 @@ on:
   pull_request:
     paths:
       - 'docs/**'
+      # Code files included in the book
+      - 'firmware/**/*.ino'
+      - 'firmware/**/platformio.ini'
+      - 'backend/**/*.py'
+      - '.github/workflows/book-check.yml'
 
 permissions:
   contents: read
@@ -25,7 +30,15 @@ jobs:
 
       - name: Render book
         working-directory: docs
-        run: quarto render --to html --no-execute
+        # The include-code-files filter only warns when a file is missing:
+        # fail explicitly instead of publishing an empty code block
+        run: |
+          set -o pipefail
+          quarto render --to html --no-execute 2>&1 | tee render.log
+          if grep -q 'Cannot open file' render.log; then
+            echo "::error::Some code includes could not be resolved"
+            exit 1
+          fi
 
       - name: Clean up
         if: always()
