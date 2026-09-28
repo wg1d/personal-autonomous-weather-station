@@ -12,30 +12,42 @@ book:
 
   chapters:
     - index.qmd
-    - chapters/01-motivation.qmd
+    - href: chapters/01-motivation.qmd
+      text: "Motivation"
     - chapters/02-roadmap.qmd
-    - part: "PoC - Phase 1: Core Functionality"
+    - part: "Phase 1 – Core"
       chapters:
-        - chapters/PoC/Phase-01/01-components.qmd
+        - href: chapters/PoC/Phase-01/01-components.qmd
+          text: "Components"
         - chapters/PoC/Phase-01/02-data-acquisition.qmd
         - chapters/PoC/Phase-01/03-data-storage.qmd
         - chapters/PoC/Phase-01/04-real-time-clock.qmd
-    - part: "PoC - Phase 2: Power Management"
+    - part: "Phase 2 – Power"
       chapters:
-        - chapters/PoC/Phase-02/01-deep-sleep.qmd
-        - chapters/PoC/Phase-02/02-hardware-modifications.qmd
-        - chapters/PoC/Phase-02/03-software-implementation.qmd
-    - part: "PoC - Phase 3: Wi-Fi & Data Transmission"
+        - href: chapters/PoC/Phase-02/01-deep-sleep.qmd
+          text: "Deep Sleep"
+        - href: chapters/PoC/Phase-02/02-hardware-modifications.qmd
+          text: "Hardware Changes"
+        - href: chapters/PoC/Phase-02/03-software-implementation.qmd
+          text: "Firmware"
+    - part: "Phase 3 – Wi-Fi"
       chapters:
-        - chapters/PoC/Phase-03/01-wifi-station.qmd
-        - chapters/PoC/Phase-03/02-dummy-backend.qmd
-        - chapters/PoC/Phase-03/03-fallback-ap.qmd
-        - chapters/PoC/Phase-03/04-ntp-sync.qmd
-    - part: "Production - Phase 4: Modular Architecture"
+        - href: chapters/PoC/Phase-03/01-wifi-station.qmd
+          text: "Wi-Fi Upload"
+        - href: chapters/PoC/Phase-03/02-dummy-backend.qmd
+          text: "Dummy Server"
+        - href: chapters/PoC/Phase-03/03-fallback-ap.qmd
+          text: "Fallback AP"
+        - href: chapters/PoC/Phase-03/04-ntp-sync.qmd
+          text: "NTP Sync"
+    - part: "Phase 4 – Architecture"
       chapters:
-        - chapters/Architecture/Phase-04/01-fsm-skeleton.qmd
-        - chapters/Architecture/Phase-04/02-sensor-and-storage.qmd
-        - chapters/Architecture/Phase-04/03-network-and-time.qmd
+        - href: chapters/Architecture/Phase-04/01-fsm-skeleton.qmd
+          text: "FSM Skeleton"
+        - href: chapters/Architecture/Phase-04/02-sensor-and-storage.qmd
+          text: "Sensor & Storage"
+        - href: chapters/Architecture/Phase-04/03-network-and-time.qmd
+          text: "Network & Time"
 
 filters:
   - include-code-files
