@@ -10,14 +10,13 @@ Instead, we build a minimal "dummy" backend in Python using **FastAPI**. It take
 
 > **Ready-to-use project:** The complete code for this dummy server is available in the repository here: [`dummy_server`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/backend/Phase-03/dummy_server)
 
-We use [`uv`](https://docs.astral.sh/uv/), a Python package and project manager, to handle dependencies. Since the `pyproject.toml` and `uv.lock` files are already set up, `uv` will automatically download FastAPI the first time you run it.
-
-To start the server, open a terminal and run:
+The project's [pixi](https://pixi.sh) environment already includes Python, FastAPI and uvicorn, with the versions frozen in `pixi.lock` (see the repository README). To start the server, open a terminal at the root of the repository and run:
 
 ```bash
-cd backend/Phase-03/dummy_server
-uv run main.py
+pixi run dummy-server
 ```
+
+Without pixi, any Python 3.12 environment works: install the two dependencies with `pip install fastapi "uvicorn[standard]"`, then run `python main.py` from the `backend/Phase-03/dummy_server` folder.
 
 ## The Server Code
 
@@ -28,7 +27,7 @@ For reference, the entire server is about 25 lines of code:
 
 ## Running the Test
 
-1. Ensure your server is running (`uv run main.py`).
+1. Ensure your server is running (`pixi run dummy-server`).
 2. You will see a message indicating the server is running on `http://0.0.0.0:5000`.
 3. Power on your ESP32.
 4. Watch the Python terminal: at the next wake-up, the server logs the size of the received data, and a `received_data.csv` file appears in the folder. Each upload overwrites this file, which is fine since the ESP32 always sends the whole CSV.
