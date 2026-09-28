@@ -1,8 +1,7 @@
 [project]
 name = "dummy-server"
 version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
+description = "Dummy HTTP server receiving the CSV uploads of the PAWS PoC"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.139.2",
