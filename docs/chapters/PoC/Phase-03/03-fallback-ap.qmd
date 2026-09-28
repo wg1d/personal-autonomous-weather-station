@@ -28,6 +28,36 @@ A pin that is not connected to anything is "floating": it picks up electrical no
 
 In both cases, no current flows through the resistor while the button is released, since both ends are at the same voltage. The consumption during deep sleep is therefore the same.
 
+### The Equations Behind the Diagrams
+The button and the resistor are connected **in series** between 3.3V and GND. An ESP32 input draws almost no current (at most 50 nA according to the ESP32 datasheet), so the same current $I$ flows through the button and the resistor. Two laws are enough to compute everything:
+
+- **Ohm's law** for the resistor: $U_R = R \times I$
+- **The voltages add up** along the series path: $V_{CC} = U_R + U_{button}$
+
+**Button released (open).** No current can flow through an open contact:
+
+$$I = 0 \quad\Rightarrow\quad U_R = R \times 0 = 0\,V$$
+
+- Pull-up: the pin sees $V_{CC}$ through the resistor, $V_{in} = V_{CC} - U_R = 3.3\,V$: logic **HIGH**.
+- Pull-down: the pin sees GND through the resistor, $V_{in} = U_R = 0\,V$: logic **LOW**.
+
+**Button pressed (closed).** The closed contact has almost no resistance, so it connects the pin directly to GND (pull-up) or to $V_{CC}$ (pull-down). All the voltage is then across the resistor:
+
+$$U_R = V_{CC} = 3.3\,V \qquad I = \frac{V_{CC}}{R} = \frac{3.3\,V}{10\,k\Omega} = 0.33\,mA$$
+
+- Pull-up: $V_{in} = 0\,V$: logic **LOW**.
+- Pull-down: $V_{in} = V_{CC} = 3.3\,V$: logic **HIGH**.
+
+**The leakage current sets the maximum resistance.** In reality, the pin draws a tiny current $I_{leak}$ (up to 50 nA). With a pull-up and the button released, this current flows through the resistor and lowers the pin voltage:
+
+$$V_{in} = V_{CC} - R \times I_{leak}$$
+
+With 10kΩ, the drop is only $10\,k\Omega \times 50\,nA = 0.5\,mV$. The pin is read as HIGH as long as $V_{in}$ stays above $V_{IH} = 0.75 \times V_{CC} = 2.475\,V$ (ESP32 datasheet), which gives an upper limit for $R$:
+
+$$R_{max} = \frac{V_{CC} - V_{IH}}{I_{leak}} = \frac{3.3\,V - 2.475\,V}{50\,nA} \approx 16\,M\Omega$$
+
+The same reasoning applies to a pull-down, with the LOW threshold $V_{IL} = 0.25 \times V_{CC}$. This theoretical limit is very high: in practice, a very large resistor also lets electrical noise move the pin voltage, which is why values between 10kΩ and 100kΩ are used. For comparison, the ESP32 internal pull-up and pull-down resistors are about 45kΩ (not available on GPIOs 34 to 39).
+
 ### Which One to Choose?
 Both configurations work electrically. The choice depends on three questions, in this order:
 
@@ -56,7 +86,7 @@ With a single button, both modes would work. But if we later add other wake-up i
 When the button is pressed, a current $I = 3.3V / R$ flows from 3.3V through the resistor to GND:
 
 - **Too small:** with 100Ω, pressing the button draws 33 mA. With no resistor at all (0Ω), pressing the button would short-circuit the 3.3V rail to GND, which can damage the board's voltage regulator.
-- **Too large:** with 10MΩ, the resistor is too weak to hold the pin LOW against leakage currents and noise, which can cause false wake-ups.
+- **Too large:** a 10MΩ resistor is still below the theoretical limit computed above, but it is too weak to hold the pin against electrical noise, which can cause false wake-ups.
 
 A **10kΩ resistor** is a common choice: it draws $0.33\,mA$ only while the button is pressed, and holds the pin firmly LOW the rest of the time.
 
