@@ -28,6 +28,25 @@ A pin that is not connected to anything is "floating": it picks up electrical no
 
 In both cases, no current flows through the resistor while the button is released, since both ends are at the same voltage. The consumption during deep sleep is therefore the same.
 
+### Which One to Choose?
+Both configurations work electrically. The choice depends on three questions, in this order:
+
+1. **What can the other side of the line do?** Many chip outputs are *open-drain*: they can only pull the line LOW, never drive it HIGH. This is the case of the I2C bus and of the DS3231 `SQW` pin. For these signals there is no choice: a **pull-up** is mandatory.
+2. **What must happen when the microcontroller does not drive the pin?** During a reset, while the firmware starts, or in deep sleep, the ESP32 pins are not driven. The resistor then sets the state of the line, and this state must be the safe one. For an enable pin that switches something on (like the SD card `OFF` pin, or the gate of a transistor that powers a module), the safe state is "off": a **pull-down** keeps the module off until the firmware decides otherwise.
+3. **What does the input require?** Some inputs only react to one level. On the ESP32, `EXT1` can wake the chip when *any* pin goes HIGH, but not when *any* pin goes LOW. Internal resistors also matter: most microcontrollers have internal pull-ups, but not all have internal pull-downs, and the ESP32 GPIOs 34 to 39 have neither.
+
+When none of these constraints applies, **pull-up with active-low** is the most common convention for buttons. One reason is safety with long wires: with a pull-up, the wire going to the button carries GND, and touching a grounded metal part is harmless. With a pull-down, that wire carries 3.3V, and touching a grounded part short-circuits the supply.
+
+Here is how these rules apply to our station:
+
+| Signal | Resistor | Deciding rule |
+|--------|----------|---------------|
+| DS3231 `SQW` (GPIO 36) | Pull-up | Open-drain output (rule 1) |
+| SD card `OFF` (GPIO 13) | Pull-down | Module off by default (rule 2) |
+| Fallback button (GPIO 39) | Pull-down | Wake-up with `EXT1` on HIGH (rule 3) |
+
+For the button, we accept the drawback of a 3.3V wire because the button sits on the enclosure, a few centimeters from the board.
+
 ### Why a Pull-Down and a Wake-up on HIGH?
 The RTC alarm already uses the `EXT0` wake-up source, which can only monitor a single pin. The button therefore uses `EXT1`, which can monitor several pins at once. On the ESP32, `EXT1` supports two trigger modes: `ESP_EXT1_WAKEUP_ALL_LOW` (all selected pins are LOW) and `ESP_EXT1_WAKEUP_ANY_HIGH` (at least one selected pin is HIGH).
 
