@@ -37,6 +37,9 @@ book:
         - chapters/Architecture/Phase-04/02-sensor-and-storage.qmd
         - chapters/Architecture/Phase-04/03-network-and-time.qmd
 
+filters:
+  - include-code-files
+
 format:
   html:
     theme:

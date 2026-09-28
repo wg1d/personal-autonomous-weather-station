@@ -23,7 +23,8 @@
 - Comments explain *why* (electrical reason, datasheet constraint), not
   what the line does.
 - The code shown in the book must be identical to the code in the
-  repository.
+  repository: full files are included with the `include-code-files`
+  Quarto filter (`{.cpp include="..."}`), never copied by hand.
 
 ## Book
 
