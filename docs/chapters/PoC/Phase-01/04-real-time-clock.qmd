@@ -118,10 +118,10 @@ Data saved to SD card.
 If you pop the SD card out and put it into your computer, you should find a `weather_data.csv` file containing all the saved measurements and it should look like this:
 
 ```csv
-timestamp;temperature;humidity;pressure
-2026-07-22T15:34:21;28.43;26.37;1000.30
-2026-07-22T15:34:26;28.46;26.14;1000.29
-2026-07-22T15:34:31;28.50;26.09;1000.30
+timestamp,temperature,humidity,pressure
+2026-07-22T15:34:21,28.43,26.37,1000.30
+2026-07-22T15:34:26,28.46,26.14,1000.29
+2026-07-22T15:34:31,28.50,26.09,1000.30
 ```
 
 ## Next Steps

@@ -98,7 +98,7 @@ void setup() {
   if (!SD.exists("/weather_data.csv")) {
     File file = SD.open("/weather_data.csv", FILE_WRITE);
     if (file) {
-      file.println("timestamp;temperature;humidity;pressure");
+      file.println("timestamp,temperature,humidity,pressure");
       file.close();
       Serial.println("Created weather_data.csv with header.");
     }
@@ -129,7 +129,7 @@ void loop() {
 
   // Format the data into a CSV string
   char dataString[100];
-  sprintf(dataString, "%s;%.2f;%.2f;%.2f\n", 
+  sprintf(dataString, "%s,%.2f,%.2f,%.2f\n", 
           timestamp, temperature, humidity, pressure);
 
   // Save to SD Card
