@@ -60,7 +60,7 @@ In typical operation, data transmission would be fully automated. However, a loc
 
 ## Build philosophy
 
-Each phase of this project must be **independently useful** — you can stop at any phase and have a working, valuable system. Hardware and software investments made in one phase are never thrown away.
+Each phase of this project must be **independently useful**: you can stop at any phase and have a working system. The hardware built in one phase is reused in the next ones. The PoC firmware is a learning step: it is deliberately rewritten in Phase 4, once we understand the hardware well enough to design a clean architecture.
 
 ---
 

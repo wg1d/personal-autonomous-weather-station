@@ -21,10 +21,10 @@ It's a learning-oriented project covering several topics, such as:
 > This project focuses on system integration, software architecture, and power management. It is **not** a beginner tutorial on how to install the Arduino IDE, how to solder, or how to write basic ESP32 blink sketches. It assumes you already know how to compile and upload code to an ESP32.
 
 ### Resources for Beginners
-If you are brand new to the ESP32 ecosystem, we highly recommend reading the following tutorials before tackling this weather station:
+If you are new to the ESP32 ecosystem, we recommend reading the following tutorials before starting this weather station:
 
-- **[uPesy Documentation](https://www.upesy.fr/blogs/tutorials/esp32-tutorials-for-arduino-code-and-micropython)**: Incredible, clear, and highly visual tutorials on everything ESP32.
-- **[Random Nerd Tutorials](https://randomnerdtutorials.com/)**: The gold standard for beginner-friendly ESP32 IoT projects and electronics guides.
+- **[uPesy Documentation](https://www.upesy.fr/blogs/tutorials/esp32-tutorials-for-arduino-code-and-micropython)**: clear, well-illustrated tutorials covering most ESP32 topics.
+- **[Random Nerd Tutorials](https://randomnerdtutorials.com/)**: a large collection of beginner-friendly ESP32 projects and electronics guides.
 
 ---
 

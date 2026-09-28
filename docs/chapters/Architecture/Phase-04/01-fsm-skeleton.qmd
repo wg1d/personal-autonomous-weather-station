@@ -1,8 +1,14 @@
 # The FSM Skeleton {.unnumbered}
 
-In previous chapters (The Proof of Concept), our weather station firmware started out as a simple Arduino sketch. As we added features—I2C sensors, SD card logging, Wi-Fi connections, NTP synchronization, and an embedded web server—that single file grew into a tangled 300-line monolith. 
+::: {.callout-warning}
+## Draft
+This chapter is an early draft. The Phase 4 architecture is being redesigned: this content will be rewritten.
+:::
 
-If we ever wanted to add three new sensors to this monolith, the code would collapse under its own weight. It's time to graduate from a basic script to a professional, modular C++ architecture.
+
+In previous chapters (The Proof of Concept), our weather station firmware started out as a simple Arduino sketch. As we added features—I2C sensors, SD card logging, Wi-Fi connections, NTP synchronization, and an embedded web server—that single file grew to almost 300 lines, with every feature mixed into `setup()`.
+
+Adding new sensors to this file would make it even harder to read, test and modify. It's time to move from a single sketch to a modular C++ architecture.
 
 ## The Motivation
 
@@ -24,7 +30,7 @@ Our FSM (`WeatherStationFSM`) has exactly five states:
 
 In standard Arduino tutorials, you put your code in the `loop()` function. In a deep-sleep paradigm, this is an anti-pattern. Our ESP32 should wake up, execute its logic linearly, and immediately go back to sleep to conserve battery.
 
-As a result, our `main.cpp` is beautifully simple, and the `loop()` is completely empty:
+As a result, our `main.cpp` is very short, and the `loop()` is empty:
 
 ```cpp
 #include <Arduino.h>

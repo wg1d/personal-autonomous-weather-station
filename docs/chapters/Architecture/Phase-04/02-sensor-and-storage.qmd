@@ -1,6 +1,12 @@
 # Sensor & Storage Specialists {.unnumbered}
 
-Now that our Finite State Machine (the Orchestrator) is in place, it needs workers. The Specialists are C++ classes dedicated to doing exactly one thing perfectly. 
+::: {.callout-warning}
+## Draft
+This chapter is an early draft. The Phase 4 architecture is being redesigned: this content will be rewritten.
+:::
+
+
+Now that our Finite State Machine (the Orchestrator) is in place, it needs workers. The Specialists are C++ classes, each responsible for a single job.
 
 ## The Sensor Wrapper
 
