@@ -1,0 +1,42 @@
+name: Firmware Build Check
+
+on:
+  pull_request:
+    paths:
+      - 'firmware/**'
+      - '.github/workflows/firmware-check.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firmware-check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build all PlatformIO projects
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
+
+      - name: Install PlatformIO
+        run: pipx install platformio==6.1.16
+
+      - name: Provide placeholder secrets
+        # secrets.h is git-ignored: build with the example values instead
+        run: |
+          find firmware -name secrets.example.h | while read -r f; do
+            cp "$f" "$(dirname "$f")/secrets.h"
+          done
+
+      - name: Build
+        run: |
+          set -e
+          for ini in $(find firmware -name platformio.ini | sort); do
+            dir=$(dirname "$ini")
+            echo "::group::$dir"
+            pio run -d "$dir"
+            echo "::endgroup::"
+          done
