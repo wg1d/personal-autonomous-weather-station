@@ -7,6 +7,7 @@
  * This sketch initializes the BME280 sensor, DS3231 RTC, and the SD Card.
  * It reads temperature, humidity, pressure, and absolute time.
  * The data is appended to a CSV file every 5 seconds.
+ * All timestamps are stored in UTC.
  */
 
 #include <Arduino.h>
@@ -18,6 +19,11 @@
 #include <RTClib.h>
 
 #define SD_CS_PIN 5
+
+// Offset between your computer's local time and UTC, in seconds.
+// Used only to convert the compile time to UTC when setting the RTC.
+// Example: Paris is UTC+1 in winter (3600) and UTC+2 in summer (7200).
+#define COMPILE_TIME_UTC_OFFSET 7200
 
 Adafruit_BME280 bme;
 RTC_DS3231 rtc;
@@ -53,9 +59,10 @@ void setup() {
   
   if (rtc.lostPower()) {
     Serial.println("RTC lost power, let's set the time!");
-    // When time needs to be set on a new device, or after a power loss, the
-    // following line sets the RTC to the date & time this sketch was compiled
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    // Set the RTC to the date & time this sketch was compiled.
+    // __DATE__ and __TIME__ are in local time: convert them to UTC.
+    DateTime compileTime(F(__DATE__), F(__TIME__));
+    rtc.adjust(compileTime - TimeSpan(COMPILE_TIME_UTC_OFFSET));
   }
 
   // 1. Disable the 32K output (we don't need it)

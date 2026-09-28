@@ -32,6 +32,11 @@
 #define SD_OFF_PIN 13
 #define RTC_WAKEUP_PIN 36
 
+// Offset between your computer's local time and UTC, in seconds.
+// Used only to convert the compile time to UTC when setting the RTC.
+// Example: Paris is UTC+1 in winter (3600) and UTC+2 in summer (7200).
+#define COMPILE_TIME_UTC_OFFSET 7200
+
 Adafruit_BME280 bme;
 RTC_DS3231 rtc;
 
@@ -89,7 +94,9 @@ void setup() {
   // to avoid resetting the time on every deep sleep wake-up.
   if (rtc.lostPower()) {
     Serial.println("RTC lost power, setting the time to compile time!");
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    // __DATE__ and __TIME__ are in local time: convert them to UTC.
+    DateTime compileTime(F(__DATE__), F(__TIME__));
+    rtc.adjust(compileTime - TimeSpan(COMPILE_TIME_UTC_OFFSET));
   }
 
   // Read the time immediately after waking up for maximum accuracy!
@@ -106,7 +113,16 @@ void setup() {
   rtc.clearAlarm(2);
 
   // 2. Initialize BME280 and read data
-  if (!bme.begin(0x76)) {
+  if (bme.begin(0x76)) {
+    // Forced mode: the sensor takes one measurement on demand, then goes
+    // back to sleep (the library default, normal mode, measures non-stop).
+    bme.setSampling(Adafruit_BME280::MODE_FORCED,
+                    Adafruit_BME280::SAMPLING_X1,  // temperature
+                    Adafruit_BME280::SAMPLING_X1,  // pressure
+                    Adafruit_BME280::SAMPLING_X1,  // humidity
+                    Adafruit_BME280::FILTER_OFF);
+    bme.takeForcedMeasurement();
+  } else {
     Serial.println("Could not find a valid BME280 sensor!");
   }
   float temperature = bme.readTemperature();
@@ -149,10 +165,12 @@ void setup() {
   digitalWrite(SD_OFF_PIN, LOW);
 
   // 4. Set the next wake-up alarm
-  // To ensure the station wakes up perfectly on the grid (e.g., exactly at 
-  // :00 and :30 seconds) and doesn't drift over time, we calculate the next 
-  // perfect interval using Unix time (seconds since 1970).
-  uint32_t currentUnix = now.unixtime();
+  // To wake up on a fixed grid (e.g., exactly at :00 and :30 seconds),
+  // we calculate the next interval boundary using Unix time (seconds
+  // since 1970).
+  // Read the time again: the work above took some time, and an alarm set
+  // in the past would only fire the next day (it matches H:M:S).
+  uint32_t currentUnix = rtc.now().unixtime();
   uint32_t remainder = currentUnix % WAKEUP_INTERVAL_SECONDS;
   uint32_t nextAlarmUnix = currentUnix - remainder + WAKEUP_INTERVAL_SECONDS;
   DateTime future(nextAlarmUnix);

@@ -4,7 +4,7 @@ docs/_output/
 **/*_files/
 
 # Firmware build (PlatformIO / Arduino)
-firmware/.pio/
+**/.pio/
 firmware/build/
 firmware/.vscode/
 **/compile_commands.json
