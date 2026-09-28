@@ -9,7 +9,7 @@
 
 % Released Push button (open) connected to 3.3V
 \draw (0, 4)
-    to[push button, l=Released Button, i=$I_{sw}{=}0\text{ A}$] (0, 2)
+    to[push button, l=Released Button (open), i=$I_{sw}{=}0\text{ A}$] (0, 2)
     coordinate (junction);
 
 % Pull-Down resistor (released state) connected to GND
@@ -19,7 +19,7 @@
 
 % Connection to the ESP32 pin
 \draw (junction)
-    to[short, i=$I_{in}{\approx}0\text{ A}$, *-o] (2.5, 2) node[right, font=\bfseries\sffamily] {Pin (Logic LOW)};
+    to[short, i_=$I_{in}{\approx}0\text{ A}$, *-o] (2.5, 2) node[right, font=\bfseries\sffamily] {Pin (Logic LOW)};
 
 % Explicit Vin tension
 \draw (2.5, 2) to[open, v^=$V_{in}{\approx}0\text{ V}$] (2.5, 0) node[ground] {};
