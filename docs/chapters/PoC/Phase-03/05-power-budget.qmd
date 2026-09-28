@@ -1,0 +1,76 @@
+# Power Budget {.unnumbered}
+
+The PoC is now complete: the station measures, sleeps, and uploads its data. How long could it run on a battery? This last PoC chapter estimates it, and above all shows **which components matter**. The same method is reused in Phase 4 to evaluate each design choice.
+
+::: {.callout-important}
+The figures in this chapter are **estimates** based on component datasheets and manufacturer documentation. They have **not been measured** on the prototype. They are useful to compare configurations and find the dominant consumers, not to predict the exact battery life.
+:::
+
+## Method
+
+The station alternates between two states: a short **active** phase (awake, measuring) and a long **sleep** phase. Over a cycle of duration $T$, the **average current** weighs each state by the time spent in it:
+
+$$I_{avg} = \frac{I_{active} \times t_{active} + I_{sleep} \times (T - t_{active})}{T}$$
+
+The **battery life** is then the battery capacity $C$ divided by this average current:
+
+$$t_{battery} = \frac{C}{I_{avg}}$$
+
+## Consumption in Deep Sleep
+
+In deep sleep, every component that remains powered keeps drawing a small current:
+
+| Component (deep sleep) | Estimated current | Source |
+|------------------------|-------------------|--------|
+| ESP32 chip | ~10 µA | ESP32 datasheet |
+| DS3231, powered from VCC | ~110 µA | DS3231 datasheet (standby current at 3.3V) |
+| BME280 in sleep mode | ~0.1 µA (+ module regulator, if any) | BME280 datasheet |
+| BME280 left in *normal mode* | several hundred µA | BME280 datasheet (continuous measurements) |
+| SD module, powered off | ~1 µA | uPesy documentation |
+| SD module, powered but idle | ~150 µA | uPesy documentation |
+| DS3231 module power LED | ~1 mA or more | depends on the module |
+| DevKit board (regulator, USB chip) | varies | depends on the board |
+
+With the modifications of Phase 2 (SD card powered off, BME280 in forced mode), the first rows add up to about $I_{sleep} \approx 0.12\,mA$.
+
+## The Station Without Wi-Fi
+
+When the station wakes up to measure, it stays awake for roughly one second at about 50 mA. With a 15-minute cycle ($T = 900\,s$):
+
+$$I_{avg} = \frac{50\,mA \times 1\,s + 0.12\,mA \times 899\,s}{900\,s} \approx 0.06\,mA + 0.12\,mA = 0.18\,mA$$
+
+$$t_{battery} = \frac{2000\,mAh}{0.18\,mA} \approx 11\,000\,h \approx 15 \text{ months}$$
+
+In practice, battery self-discharge and the board's own consumption reduce this figure. Here are the orders of magnitude for a 2000 mAh battery, depending on the configuration:
+
+| Configuration | Average current | Estimated battery life |
+|---------------|-----------------|------------------------|
+| Deep sleep, SD off, BME280 in forced mode, no LED | ~0.2 mA | about a year |
+| Same, with the DS3231 power LED | ~1.2 mA | about 2 months |
+| Same, BME280 left in normal mode | ~0.7 mA | about 4 months |
+
+Three lessons from this table drive the rest of the design:
+
+1. **The biggest consumers in deep sleep are not the ESP32**, but the modules around it: LEDs, the DS3231 powered from VCC, sensors left running.
+2. **The BME280 must be put back to sleep** after each measurement. This is why the firmware uses the sensor's *forced mode* (see the Phase 2 [Firmware](../Phase-02/03-software-implementation.qmd) chapter).
+3. **The SD card must be powered off** between measurements.
+
+## The Cost of Wi-Fi {#cost-of-wi-fi}
+
+The station now also uploads its data over Wi-Fi. Connecting to the router and sending the data takes about 5 seconds at 120 mA, so one upload costs:
+
+$$Q_{upload} = 120\,mA \times 5\,s = 600\,mA \cdot s$$
+
+Spread over a period $T_{upload}$ between two uploads, this adds $Q_{upload} / T_{upload}$ to the average current:
+
+| Upload frequency | Added current | Total (with 0.18 mA) | Estimated battery life (2000 mAh) |
+|------------------|---------------|----------------------|-----------------------------------|
+| Every measurement (15 min) | $600 / 900 \approx 0.67\,mA$ | ~0.85 mA | about 3 months |
+| Every hour | $600 / 3600 \approx 0.17\,mA$ | ~0.35 mA | about 8 months |
+| Once a day | $600 / 86400 \approx 0.007\,mA$ | ~0.19 mA | about a year |
+
+Wi-Fi quickly becomes the largest consumer: uploading at every measurement, as the PoC does, multiplies the average current by almost 5. The upload frequency is therefore a key design decision, made in the [Phase 4 design](../../Architecture/Phase-04/00-design.qmd).
+
+## Next Steps
+
+The PoC showed how each component behaves and what it costs. It also grew, feature after feature, into a long, monolithic sketch that is hard to test and extend. In Phase 4, we stop adding features and rebuild the firmware on a clean, modular architecture, designed on paper first, using these estimates to make its key choices.

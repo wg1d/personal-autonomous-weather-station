@@ -62,50 +62,9 @@ Here is the updated circuit incorporating these two power management modificatio
 *   **ESP32 Pin 13** ➔ **SD Card OFF** (with a 10kΩ pull-down resistor to GND)
 *   **ESP32 Pin 36 (VP)** ➔ **DS3231 SQW** (with a 10kΩ pull-up resistor to 3.3V)
 
-## Power Budget (Estimates)
+## Why These Modifications Matter
 
-::: {.callout-important}
-The figures below are **estimates** based on component datasheets and manufacturer documentation. They have **not been measured** on the prototype. They are useful to understand which components dominate the consumption, not to predict the exact battery life.
-:::
-
-In deep sleep, every component that remains powered keeps drawing a small current:
-
-| Component (deep sleep) | Estimated current | Source |
-|------------------------|-------------------|--------|
-| ESP32 chip | ~10 µA | ESP32 datasheet |
-| DS3231, powered from VCC | ~110 µA | DS3231 datasheet (standby current at 3.3V) |
-| BME280 in sleep mode | ~0.1 µA (+ module regulator, if any) | BME280 datasheet |
-| BME280 left in *normal mode* | several hundred µA | BME280 datasheet (continuous measurements) |
-| SD module, powered off | ~1 µA | uPesy documentation |
-| SD module, powered but idle | ~150 µA | uPesy documentation |
-| DS3231 module power LED | ~1 mA or more | depends on the module |
-| DevKit board (regulator, USB chip) | varies | depends on the board |
-
-When the station wakes up (without Wi-Fi), it stays awake for roughly one second at about 50 mA. Over a cycle of duration $T$, the **average current** weighs each state by the time spent in it:
-
-$$I_{avg} = \frac{I_{active} \times t_{active} + I_{sleep} \times (T - t_{active})}{T}$$
-
-With a 15-minute cycle ($T = 900\,s$), $t_{active} = 1\,s$, $I_{active} = 50\,mA$, and about $I_{sleep} = 0.12\,mA$ in deep sleep (first rows of the table above):
-
-$$I_{avg} = \frac{50\,mA \times 1\,s + 0.12\,mA \times 899\,s}{900\,s} \approx 0.06\,mA + 0.12\,mA = 0.18\,mA$$
-
-The **battery life** is then the battery capacity $C$ divided by this average current:
-
-$$t_{battery} = \frac{C}{I_{avg}} = \frac{2000\,mAh}{0.18\,mA} \approx 11\,000\,h \approx 15 \text{ months}$$
-
-In practice, battery self-discharge and the board's own consumption reduce this figure. This gives a few orders of magnitude for a 2000 mAh battery:
-
-| Configuration | Average current | Estimated battery life |
-|---------------|-----------------|------------------------|
-| Deep sleep, SD off, BME280 in forced mode, no LED | ~0.2 mA | about a year |
-| Same, with the DS3231 power LED | ~1.2 mA | about 2 months |
-| Same, BME280 left in normal mode | ~0.7 mA | about 4 months |
-
-Three lessons from this table drive the rest of the design:
-
-1. **The biggest consumers in deep sleep are not the ESP32**, but the modules around it: LEDs, the DS3231 powered from VCC, sensors left running.
-2. **The BME280 must be put back to sleep** after each measurement. This is why the firmware uses the sensor's *forced mode* (see next chapter).
-3. **The SD card must be powered off** between measurements.
+The SD card power cycling and the careful choice of pull resistors only save microamps, but in deep sleep, microamps are what drains the battery. The [Power Budget](../Phase-03/05-power-budget.qmd) chapter, at the end of the PoC, quantifies each component and shows the impact of these choices.
 
 ::: {.callout-note}
 ## Battery operation and the 5V pin

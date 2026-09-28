@@ -92,6 +92,4 @@ The station now corrects its clock automatically whenever it has Wi-Fi access. N
 
 ## Next Steps
 
-With NTP synchronization, the PoC feature set is complete. However, as we added the sensor, SD card, deep sleep, Wi-Fi and the web server, the sketch has grown into a long, monolithic file that is hard to test and extend.
-
-In Phase 4, we stop adding features and rebuild the firmware on a clean, modular architecture, designed on paper first.
+With NTP synchronization, the PoC feature set is complete. The last PoC chapter, the [Power Budget](05-power-budget.qmd), takes stock of its energy consumption: which components and which choices drain the battery.

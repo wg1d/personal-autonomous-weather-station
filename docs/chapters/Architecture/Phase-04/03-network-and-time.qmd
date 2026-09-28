@@ -21,7 +21,7 @@ During this refactoring, we can introduce a critical optimization.
 
 Wi-Fi is the most power-hungry activity of the station (over 100 mA for several seconds). In the PoC, the station connects to Wi-Fi at every measurement. In this new architecture, the `DATA_LOGGER` state checks the time, and only transitions to the `WIFI_SYNC` state **once a day** (e.g., at 2:00 AM) to upload the day's data and sync the clock.
 
-With a 15-minute interval, the other 95 daily wake-ups only read the sensors, write to the SD card, and go back to sleep after about one second. According to our [power budget](../../PoC/Phase-02/02-hardware-modifications.qmd#power-budget-estimates) assumptions, this divides the energy spent on Wi-Fi by about 100. The trade-off is latency: the dashboard is updated once a day instead of at every measurement.
+With a 15-minute interval, the other 95 daily wake-ups only read the sensors, write to the SD card, and go back to sleep after about one second. According to our [power budget](../../PoC/Phase-03/05-power-budget.qmd#cost-of-wi-fi) assumptions, this divides the energy spent on Wi-Fi by about 100. The trade-off is latency: the dashboard is updated once a day instead of at every measurement.
 
 ## Next Steps
 
