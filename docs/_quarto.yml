@@ -42,6 +42,8 @@ book:
           text: "NTP Sync"
     - part: "Phase 4 – Architecture"
       chapters:
+        - href: chapters/Architecture/Phase-04/00-design.qmd
+          text: "Design"
         - href: chapters/Architecture/Phase-04/01-fsm-skeleton.qmd
           text: "FSM Skeleton"
         - href: chapters/Architecture/Phase-04/02-sensor-and-storage.qmd
