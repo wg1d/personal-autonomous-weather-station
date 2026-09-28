@@ -5,6 +5,10 @@ on:
     paths:
       - 'firmware/**'
       - '.github/workflows/firmware-check.yml'
+      # Development environment
+      - 'pixi.toml'
+      - 'pixi.lock'
+      - 'scripts/**'
 
 permissions:
   contents: read
@@ -21,22 +25,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
 
-      - name: Install PlatformIO
-        run: pipx install platformio==6.1.16
-
-      - name: Provide placeholder secrets
-        # secrets.h is git-ignored: build with the example values instead
-        run: |
-          find firmware -name secrets.example.h | while read -r f; do
-            cp "$f" "$(dirname "$f")/secrets.h"
-          done
+      - name: Set up pixi
+        # Installs the tools frozen in pixi.lock (same versions as locally)
+        uses: prefix-dev/setup-pixi@d3f436a425481402e6a95a1d1fc10331c708cd9e  # v0.10.2
+        with:
+          pixi-version: v0.50.1
+          cache: true
 
       - name: Build
-        run: |
-          set -e
-          for ini in $(find firmware -name platformio.ini | sort); do
-            dir=$(dirname "$ini")
-            echo "::group::$dir"
-            pio run -d "$dir"
-            echo "::endgroup::"
-          done
+        # Creates placeholder secrets.h files, then builds every project
+        run: pixi run build-firmware
