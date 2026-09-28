@@ -4,3 +4,19 @@
 main {
   text-align: justify;
 }
+
+// Justified text leaves large gaps in narrow table cells
+main table td,
+main table th {
+  text-align: left;
+}
+
+// Definition lists (requirements, layers, test levels): indent the
+// description under its term so that each block reads as a unit
+dl dt {
+  margin-top: 1rem;
+}
+
+dl dd {
+  margin-left: 1.5rem;
+}
