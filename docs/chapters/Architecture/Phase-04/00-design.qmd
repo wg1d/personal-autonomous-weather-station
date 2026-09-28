@@ -1,0 +1,238 @@
+# Architecture Design {.unnumbered}
+
+The PoC taught us how the hardware behaves. It also showed the limits of a single sketch: every feature lives in `setup()`, nothing can be tested without the board, and each new feature makes the file harder to change.
+
+Before writing any code, this chapter designs the new firmware on paper: what it must do, how it decides what to do at each wake-up, how it is split into modules, and how it reacts to failures. The following chapters implement this design step by step.
+
+## Requirements
+
+### Functional requirements
+
+| ID | Requirement |
+|----|-------------|
+| F1 | Measure temperature, humidity and pressure **every 15 minutes**, on a fixed UTC grid (`:00`, `:15`, `:30`, `:45`). |
+| F2 | Store every measurement on the SD card **before** doing anything else with it. |
+| F3 | Upload the measurements not yet received by the server **once per hour**, over the home Wi-Fi. |
+| F4 | Synchronize the RTC with NTP **once per day**, using an upload connection. |
+| F5 | On a button press, start a **maintenance mode** for 3 minutes: a Wi-Fi access point with a web page to download or delete the data. |
+| F6 | When the clock is not reliable, keep measuring, but **flag** the measurements. |
+
+### Non-functional requirements
+
+| ID | Requirement |
+|----|-------------|
+| N1 | **No data loss**: a Wi-Fi, server or NTP failure never loses a measurement; a sensor failure never stops the schedule. |
+| N2 | **Always wake up again**: the station never goes to sleep without a way to wake up. |
+| N3 | **Energy**: Wi-Fi is used at most once per hour in normal operation; a measurement-only wake-up lasts about one second. |
+| N4 | **Testability**: all decision logic can be tested on a computer, without hardware. |
+| N5 | **Extensibility**: adding a sensor means writing a driver and adding a column, without changing the state machine. |
+
+## Design Invariants
+
+These rules hold everywhere in the firmware:
+
+| Topic | Rule |
+|-------|------|
+| Time | All times are Unix timestamps in **UTC**. The DS3231 is the only time source used for timestamps. |
+| Source of truth | The **SD card** holds every measurement. The server only receives copies. |
+| Wake-up model | Each wake-up is a fresh boot that runs the state machine once, from `BOOT` to `SLEEP`. |
+| Missing values | A value that could not be measured is stored as an **empty field**, never as a fake number. |
+| Hardware access | Only *adapters* talk to the hardware. The decision logic never calls Arduino or ESP-IDF functions. |
+
+## Data Format (v1)
+
+Measurements are appended to `/measurements_v1.csv`, one row per wake-up:
+
+```csv
+timestamp,time_valid,temperature_c,humidity_pct,pressure_hpa
+2026-10-01T14:15:00Z,1,18.42,62.10,1013.20
+2026-10-01T14:30:00Z,1,18.37,,1013.18
+```
+
+- `timestamp`: ISO 8601 in UTC, with the explicit `Z` suffix.
+- `time_valid`: `1` if the clock was reliable when the row was written, `0` otherwise (requirement F6).
+- The second row shows a missing humidity value (empty field).
+- We switch to the standard **comma** separator, which the backend tools expect by default.
+
+A row is about 50 bytes: 96 rows per day represent about 5 KB per day, less than 2 MB per year.
+
+When new sensors are added, the file format changes: the firmware then writes to a new file (`measurements_v2.csv`) with the new columns. A file never mixes two formats.
+
+## Persistent Context
+
+Deep sleep erases the RAM, but some information must survive between wake-ups. Each piece is stored where its lifetime makes sense:
+
+| Information | Stored in | Lost when | Consequence if lost |
+|-------------|-----------|-----------|---------------------|
+| Current time | DS3231 | Coin cell removed or empty | Clock invalid until the next NTP sync |
+| Clock validity | DS3231 *Oscillator Stop Flag* | Never: this flag *is* the record of a power loss | — |
+| Upload cursor (position of the first row not yet uploaded) | SD card, `/upload.idx` | SD card replaced | Everything is uploaded again (harmless, see [Upload Protocol](#upload-protocol)) |
+| Time of the last NTP sync | RTC memory (`RTC_DATA_ATTR`) | ESP32 power loss or reset | An extra NTP sync at the next upload |
+
+The clock validity needs no extra storage. As seen in Phase 01, the DS3231 sets its *Oscillator Stop Flag* when it loses power, and `rtc.adjust()` clears it. So the clock is reliable if and only if the flag is clear. When it is set, the station keeps running on whatever time the RTC holds, and marks its rows with `time_valid = 0` until NTP succeeds.
+
+## State Machine
+
+At each wake-up, the firmware runs through the following states:
+
+| State | Role |
+|-------|------|
+| `BOOT` | Initialize the buses, read the wake-up cause and the clock status. |
+| `MEASURE` | Read all sensors (missing values stay empty). |
+| `STORE` | Append the row to the SD card. |
+| `UPLOAD` | Connect to Wi-Fi and send the rows after the upload cursor. |
+| `TIME_SYNC` | Correct the RTC with NTP, using the open connection. |
+| `MAINTENANCE` | Run the access point and web page for 3 minutes. |
+| `SCHEDULE` | Program the next RTC alarm on the 15-minute grid. |
+| `SLEEP` | Arm the wake-up sources and enter deep sleep. |
+
+```{mermaid}
+stateDiagram-v2
+    [*] --> BOOT
+    BOOT --> MAINTENANCE : button
+    BOOT --> MEASURE : alarm, timer or power-on
+    MAINTENANCE --> MEASURE : 3-minute timeout
+    MEASURE --> STORE
+    STORE --> UPLOAD : upload due
+    STORE --> SCHEDULE : upload not due
+    UPLOAD --> TIME_SYNC : connected and sync due
+    UPLOAD --> SCHEDULE : otherwise
+    TIME_SYNC --> SCHEDULE
+    SCHEDULE --> SLEEP
+    SLEEP --> [*]
+```
+
+The transitions depend on three conditions, all computed by pure functions that can be tested on a computer:
+
+| Condition | Definition |
+|-----------|------------|
+| upload due | The wake-up is on a full hour (`minute == 0`), **or** the clock is invalid (we then try to reach NTP at every wake-up until it succeeds). |
+| sync due | The clock is invalid, **or** the last NTP sync is more than 24 hours old. |
+| next alarm | The next grid slot strictly after the current time: `now - (now % 900) + 900`. |
+
+Two choices deserve an explanation:
+
+- **`MAINTENANCE` goes to `MEASURE`, not to `SLEEP`.** An alarm may have fired during the 3-minute session. Instead of handling this case separately, we always take a reading after a maintenance session. It costs one extra row, and `SCHEDULE` then realigns the station on the grid.
+- **`SCHEDULE` always recomputes the alarm from the current time.** It never reuses a time read earlier in the wake-up, so an alarm can never be set in the past (the bug fixed in the PoC).
+
+## Modules and Interfaces
+
+The firmware is split into three layers:
+
+```{mermaid}
+flowchart TB
+    main["main.cpp<br/>creates the adapters and runs the state machine"]
+    subgraph core["Core logic (pure C++, tested on the computer)"]
+        fsm[StateMachine]
+        policy["Schedule / upload / sync rules"]
+        csv[CSV row format]
+    end
+    subgraph ports["Interfaces"]
+        iclock[IClock]
+        isensor[ISensor]
+        istorage[IStorage]
+        inet[INetwork]
+        ipower[IPower]
+    end
+    subgraph adapters["Adapters (ESP32 hardware)"]
+        ds[DS3231 clock]
+        bme[BME280 sensor]
+        sd[SD card storage]
+        wifi[Wi-Fi + HTTP + NTP]
+        esp[ESP32 sleep and wake-up]
+    end
+    main --> fsm
+    fsm --> policy
+    fsm --> csv
+    fsm --> ports
+    ds -.implements.-> iclock
+    bme -.implements.-> isensor
+    sd -.implements.-> istorage
+    wifi -.implements.-> inet
+    esp -.implements.-> ipower
+```
+
+- The **core** contains all decisions. It only uses the interfaces, never the hardware.
+- The **interfaces** describe what the core needs, in its own terms. For example, `IClock` offers `now()`, `isValid()`, `setTime()` and `setAlarm()`, without mentioning I2C or registers.
+- The **adapters** implement these interfaces with the real libraries (RTClib, Adafruit BME280, SD, WiFi, HTTPClient).
+
+For the tests on the computer, each interface also gets a **fake** implementation: a clock whose time we set by hand, a sensor that returns chosen values or fails on demand, and so on. This is what makes requirement N4 possible: we can check, in a few milliseconds, what the station does when the Wi-Fi is down at 14:00, or when the RTC has lost power.
+
+The project is a single PlatformIO project with two environments:
+
+```text
+firmware/paws/
+├── platformio.ini      # [env:esp32] for the board, [env:native] for tests
+├── include/
+│   ├── config.h        # pins, intervals, timeouts
+│   └── secrets.example.h
+├── lib/
+│   ├── core/           # state machine, rules, CSV format (no Arduino)
+│   └── ports/          # interfaces
+├── src/
+│   ├── adapters/       # hardware implementations
+│   └── main.cpp
+└── test/               # unit tests, run with `pio test -e native`
+```
+
+## Upload Protocol {#upload-protocol}
+
+This protocol is also the contract with the Phase 5 backend:
+
+1. The station sends `POST /api/v1/measurements` with a CSV body: the header line, then the rows after the upload cursor, at most **500 rows** (about 25 KB) per request.
+2. The server stores the rows and **ignores rows whose timestamp already exists**. Sending the same rows twice is therefore harmless: the upload is *idempotent*.
+3. On a `2xx` response, the station moves the upload cursor to the end of the rows it sent, and continues with the next batch if there is one.
+4. On any other response, or a timeout, the cursor does not move: the same rows will be sent at the next upload.
+
+Rows with `time_valid = 0` are uploaded like the others. The server decides what to do with them.
+
+## Error Handling
+
+| Failure | Behavior |
+|---------|----------|
+| BME280 not responding | The row is stored with empty values; the schedule continues. |
+| SD card missing or full | The measurement is lost (reported on the serial port); the schedule continues. |
+| Wi-Fi not reachable within 10 s | No upload; the cursor does not move; retry at the next full hour. |
+| Server error or timeout | Same as above. |
+| NTP not answering within 5 s | Retry at the next upload. |
+| RTC not responding | Timestamps and alarms are impossible: the rows are flagged invalid, and the ESP32 internal timer wakes the station up (see below). |
+| Firmware stuck | The ESP32 watchdog resets the chip; the next boot takes a reading and goes back to the normal cycle. |
+
+To guarantee requirement N2, `SLEEP` always arms **three** wake-up sources:
+
+1. the DS3231 alarm (`EXT0`, GPIO 36), the normal source;
+2. the button (`EXT1`, GPIO 39);
+3. the ESP32 internal timer, as a safety net: it is set to fire **60 seconds after** the planned alarm (or after 15 minutes if the RTC cannot be read). Even with the timer's drift of a few percent, the RTC alarm always fires first when it works. If the RTC fails, the station keeps waking up roughly every 15 minutes instead of sleeping forever. A wake-up by the timer is handled like an alarm.
+
+## Energy Estimate
+
+With the [PoC power budget](../../PoC/Phase-02/02-hardware-modifications.qmd#power-budget-estimates) assumptions (estimates, not measurements):
+
+| Item | Average current |
+|------|-----------------|
+| Deep sleep (modules, no LED) + 96 measurement wake-ups per day | ~0.18 mA |
+| 24 uploads per day (~5 s at 120 mA each) | ~0.17 mA |
+| **Total** | **~0.35 mA**, i.e. about 8 months on a 2000 mAh battery |
+
+The daily NTP sync is negligible, since it reuses an upload connection.
+
+## Implementation Plan
+
+Each step is a chapter of the book, a tag in the repository, and a working firmware:
+
+| Step | Content | Hardware needed |
+|------|---------|-----------------|
+| A1 | Project skeleton, interfaces, state machine with fakes, first tests | None |
+| A2 | DS3231 clock adapter and scheduling rules (grid, safety timer) | ESP32 + DS3231 |
+| A3 | BME280 and SD card adapters, CSV v1 format | + BME280 + SD |
+| A4 | Wi-Fi, incremental upload with cursor, NTP sync | + Wi-Fi |
+| A5 | Maintenance mode (button, access point, web page) | + button |
+| A6 | Hardening: watchdog, error handling review, updated power estimate | Full station |
+
+## Open Points
+
+These questions do not block the firmware design and will be addressed later:
+
+- **The DS3231 module power LED** (around 1 mA): to remove before running on a battery.
+- **Powering the SD card module on a battery**, since it currently uses the 5V pin, which only works on USB.
+- **What the backend does with rows flagged `time_valid = 0`**: to decide in Phase 5.
