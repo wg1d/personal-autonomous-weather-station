@@ -48,7 +48,7 @@ Here is a quick "Hello Deep Sleep" example using the internal timer:
 > **Ready-to-use project:** The complete code for this deep sleep example is available in the repository here: [`04_deep_sleep_timer`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/PoC/Phase-02/04_deep_sleep_timer)
 
 *   **Pros:** Requires no external hardware or wiring. Extremely easy to program in software as seen above.
-*   **Cons:** By default, the timer runs on the internal 150 kHz RC oscillator, which is not temperature-compensated and can drift by several percent. With a 15-minute interval, a 5 % error means waking up about 45 seconds early or late, every cycle. The wake-ups also say nothing about the absolute time: we would still need the external RTC for timestamps.
+*   **Cons:** By default, the timer runs on the internal 150 kHz RC oscillator, which is not temperature-compensated and can drift by several percent. With a 15-minute interval, a 5 % error means waking up $0.05 \times 900\,s = 45\,s$ early or late, every cycle. The wake-ups also say nothing about the absolute time: we would still need the external RTC for timestamps.
 
 ### 2. Capacitive Touch Pins
 The ESP32 has several pins that act as capacitive touch sensors. You can configure the ESP32 to wake up simply when a user physically touches one of these pins.
@@ -63,7 +63,11 @@ You can configure the ESP32 to wake up when an electrical signal on a specific R
 
 Because weather data relies on accurate timestamps, and because an outdoor station is exposed to large temperature variations, we do not rely on the ESP32's internal timer.
 
-Instead, we use the **DS3231 RTC** installed in Phase 01. The DS3231 contains a Temperature Compensated Crystal Oscillator (TCXO): its datasheet specifies ±2 ppm from 0 °C to 40 °C (about one minute per year), and ±3.5 ppm over the full industrial range. The same chip gives us both the wake-up schedule and the timestamps.
+Instead, we use the **DS3231 RTC** installed in Phase 01. The DS3231 contains a Temperature Compensated Crystal Oscillator (TCXO): its datasheet specifies ±2 ppm from 0 °C to 40 °C, and ±3.5 ppm over the full industrial range. One ppm (*part per million*) is an error of one second every million seconds, so over a year:
+
+$$2 \times 10^{-6} \times \underbrace{365 \times 24 \times 3600\,s}_{\text{one year}} \approx 63\,s$$
+
+That is about one minute per year, compared to 45 seconds every 15 minutes for the internal timer. The same chip gives us both the wake-up schedule and the timestamps.
 
 We will program a hardware **Alarm** inside the DS3231. When the alarm triggers, the DS3231 will pull its **SQW (Square Wave)** pin LOW. By wiring this SQW pin to the ESP32 and configuring an `EXT0` external wake-up, the DS3231 wakes the ESP32 up exactly when a reading is required.
 

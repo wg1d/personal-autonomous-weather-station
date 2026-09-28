@@ -25,7 +25,7 @@ Before cutting the power, the firmware always calls `SD.end()` so that the file 
 Why **10kΩ**? The value is a trade-off:
 
 *   **Too small** (e.g. 100Ω): when the ESP32 drives the pin HIGH, a current $I = 3.3V / R$ flows through the resistor to GND. With 100Ω, that is 33 mA: wasted energy, and close to the maximum current an ESP32 pin can deliver. With 10kΩ, it is only 0.33 mA, and only while the SD card is on.
-*   **Too large** (e.g. 10MΩ): the resistor becomes too weak to hold the pin LOW against leakage currents and noise, and the pin behaves as if it were floating again.
+*   **Too large** (e.g. 10MΩ): the resistor becomes too weak to hold the pin LOW against leakage currents and noise, and the pin behaves as if it were floating again. The exact limit is computed in the [Fallback AP](../Phase-03/03-fallback-ap.qmd#the-equations-behind-the-diagrams) chapter.
 
 Any value between roughly 10kΩ and 100kΩ works well here. 10kΩ is a common, safe default.
 
@@ -81,9 +81,19 @@ In deep sleep, every component that remains powered keeps drawing a small curren
 | DS3231 module power LED | ~1 mA or more | depends on the module |
 | DevKit board (regulator, USB chip) | varies | depends on the board |
 
-When the station wakes up (without Wi-Fi), it stays awake for roughly one second at about 50 mA. With a 15-minute interval, this adds on average $50\,mA \times 1\,s / 900\,s \approx 0.06\,mA$.
+When the station wakes up (without Wi-Fi), it stays awake for roughly one second at about 50 mA. Over a cycle of duration $T$, the **average current** weighs each state by the time spent in it:
 
-This gives a few orders of magnitude for a 2000 mAh battery (ignoring battery self-discharge and the board's own consumption):
+$$I_{avg} = \frac{I_{active} \times t_{active} + I_{sleep} \times (T - t_{active})}{T}$$
+
+With a 15-minute cycle ($T = 900\,s$), $t_{active} = 1\,s$, $I_{active} = 50\,mA$, and about $I_{sleep} = 0.12\,mA$ in deep sleep (first rows of the table above):
+
+$$I_{avg} = \frac{50\,mA \times 1\,s + 0.12\,mA \times 899\,s}{900\,s} \approx 0.06\,mA + 0.12\,mA = 0.18\,mA$$
+
+The **battery life** is then the battery capacity $C$ divided by this average current:
+
+$$t_{battery} = \frac{C}{I_{avg}} = \frac{2000\,mAh}{0.18\,mA} \approx 11\,000\,h \approx 15 \text{ months}$$
+
+In practice, battery self-discharge and the board's own consumption reduce this figure. This gives a few orders of magnitude for a 2000 mAh battery:
 
 | Configuration | Average current | Estimated battery life |
 |---------------|-----------------|------------------------|
