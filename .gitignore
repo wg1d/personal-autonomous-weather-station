@@ -29,3 +29,7 @@ Thumbs.db
 *.swp
 *~
 .aider*
+
+# pixi environment and PlatformIO packages installed by it
+.pixi/
+.pio-core/

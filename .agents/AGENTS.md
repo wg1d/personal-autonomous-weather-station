@@ -12,8 +12,9 @@
 - Every number in the book (current, accuracy, timing...) comes from a
   cited source (datasheet, manufacturer documentation) or is explicitly
   labelled as an estimate. Nothing has been measured on the prototype.
-- Verify before claiming: compile the firmware (`pio run`) and render the
-  book (`quarto render docs`) after any change.
+- Verify before claiming: build the firmware (`pixi run build-firmware`)
+  and render the book (`pixi run book`) after any change, using the pixi
+  environment so that the tool versions match the CI.
 
 ## Code
 

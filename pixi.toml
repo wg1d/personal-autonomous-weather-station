@@ -1,0 +1,44 @@
+# Development environment of the PAWS project.
+#
+# pixi installs the exact same tools locally and in the CI, from the
+# versions frozen in pixi.lock. Usage:
+#   pixi run build-firmware   # build every PlatformIO project
+#   pixi run book             # render the book (fails on missing includes)
+#   pixi run preview          # live preview of the book in the browser
+#   pixi run dummy-server     # start the Phase 3 dummy backend server
+#
+# Not managed here: LaTeX (texlive with circuitikz, latexmk, pdf2svg),
+# only needed to regenerate the wiring diagrams (docs/assets/diagrams-src).
+
+[workspace]
+name = "paws"
+channels = ["conda-forge"]
+platforms = ["linux-64"]
+
+[dependencies]
+platformio = "6.2.*"
+quarto = "1.7.*"
+cxx-compiler = "*"      # g++ for the tests running on the computer
+
+[activation.env]
+# Keep PlatformIO packages (ESP32 toolchain, libraries) inside the
+# project instead of the user's ~/.platformio
+PLATFORMIO_CORE_DIR = "$PIXI_PROJECT_ROOT/.pio-core"
+
+[tasks]
+build-firmware = "bash scripts/build-firmware.sh"
+book = "bash scripts/render-book.sh"
+preview = { cmd = "quarto preview", cwd = "docs" }
+
+# Backend: a separate environment, because PlatformIO requires an old
+# version of uvicorn (for its own web interface) that FastAPI cannot use
+[feature.backend.dependencies]
+python = "3.12.*"
+fastapi = ">=0.139"
+uvicorn-standard = ">=0.51"
+
+[feature.backend.tasks]
+dummy-server = { cmd = "python main.py", cwd = "backend/Phase-03/dummy_server" }
+
+[environments]
+backend = { features = ["backend"], no-default-feature = true }
