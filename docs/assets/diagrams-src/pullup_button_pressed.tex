@@ -14,12 +14,12 @@
 
 % Pressed Push button (closed)
 \draw (junction)
-    to[short, l=Pressed Button, i=$I_{sw}{=}0.33\text{ mA}$] (0, 0)
+    to[short, l_=Pressed Button (closed), i=$I_{sw}{=}0.33\text{ mA}$] (0, 0)
     node[ground] {};
 
 % Connection to the ESP32 pin
 \draw (junction)
-    to[short, i=$I_{in}{\approx}0\text{ A}$, *-o] (2.5, 2) node[right, font=\bfseries\sffamily] {Pin (Logic LOW)};
+    to[short, i_=$I_{in}{\approx}0\text{ A}$, *-o] (2.5, 2) node[right, font=\bfseries\sffamily] {Pin (Logic LOW)};
 
 % Explicit Vin tension
 \draw (2.5, 2) to[open, v^=$V_{in}{=}0\text{ V}$] (2.5, 0) node[ground] {};
