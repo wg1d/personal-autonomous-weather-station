@@ -1,41 +1,55 @@
 # Hardware Modifications {.unnumbered}
 
-To implement deep sleep and power cycle our components, we need to make two crucial additions to the Phase 01 design.
+To implement deep sleep and power cycle our components, we need to make two additions to the Phase 01 design.
 
 ## SD Card OFF Pin (Power Cycling)
 
-As discussed in Phase 01, SD cards can be power-hungry. During active reading or writing, the module draws **< 30mA** (depending on the specific microSD card used). The uPesy Micro SD card reader is quite efficient when idle (SPI communication inactive), dropping to around **150µA**. However, over months of deployment, this continuous 150µA draw still adds up and affects our long-term battery life.
+SD cards are among the most power-hungry parts of a data logger. According to the uPesy documentation, the module draws up to about **30 mA** while reading or writing (depending on the microSD card used), and around **150 µA** when idle (no SPI communication). Over months of deployment, this idle current alone would drain a large part of the battery.
 
-To optimize this, we will connect the SD card reader's **OFF** pin.
+To avoid it, we connect the SD card reader's **OFF** pin:
 
-*   By pulling this pin `HIGH` (3.3V), the module turns on.
-*   By pulling this pin `LOW` (0V), the module cuts power to the SD card, dropping its current consumption from 150µA to approximately **1µA**.
+*   Pulling this pin `HIGH` (3.3V) turns the module on.
+*   Pulling this pin `LOW` (0V) cuts the power to the SD card, dropping the module's consumption to approximately **1 µA**.
 
-We will connect the **OFF** pin to **ESP32 GPIO 13** and place a **10kΩ pull-down resistor** between the OFF pin and GND.
+We connect the **OFF** pin to **ESP32 GPIO 13** and place a **10kΩ pull-down resistor** between the OFF pin and GND.
 
 > **Why do we need a pull-down resistor? (Floating Pins)**
-> When the ESP32 enters deep sleep, its standard GPIO pins lose their state and become "high impedance" (they stop outputting any voltage). If a pin is not connected to a defined voltage, it acts like an antenna and "floats"—meaning ambient electromagnetic noise can cause the voltage to randomly jump between HIGH and LOW. 
-> 
-> If the SD card's `OFF` pin floats, the SD card module could randomly turn itself on and off while the ESP32 is asleep, draining the battery! The 10kΩ pull-down resistor acts as an anchor, firmly tying the `OFF` pin to 0V (LOW) when the ESP32 goes to sleep, ensuring the SD card stays completely off.
+> When the ESP32 enters deep sleep, its standard GPIO pins stop driving their output and become "high impedance". A pin that is not connected to a defined voltage "floats": ambient electrical noise can make its voltage wander between LOW and HIGH.
+>
+> If the SD card's `OFF` pin floats, the module could turn itself on while the ESP32 is asleep and draw current for nothing. The 10kΩ pull-down resistor ties the `OFF` pin to 0V (LOW) whenever the ESP32 is not driving it, so the SD card stays off during sleep.
 
-### Choosing the Resistor Value ($R_{min}$ and $R_{max}$)
+Before cutting the power, the firmware always calls `SD.end()` so that the file system is cleanly unmounted.
 
-Why use a **$10k\Omega$** resistor specifically? The choice is a balance between **signal stability** and **power consumption**:
+### Choosing the Resistor Value
 
-*   **$R_{min}$ (Too small):** Constrained by the ESP32's maximum GPIO output current. You can compute this by checking the **Absolute Maximum Ratings** in the datasheet for the maximum current a pin can source ($I_{max}$), and applying Ohm's Law ($R = V / I_{max}$). If your resistor is smaller than this limit, you will damage the chip. Even if you use a safe but small value (like $1k\Omega$), it will leak $3.3mA$ when driven HIGH, wasting massive battery power.
-*   **$R_{max}$ (Too large):** Constrained by the **Input Leakage Current** of the receiving pin (found in the **DC Characteristics** of the datasheet). No pin is a perfect insulator. To keep the pin safely recognized as a logic `LOW`, the resistor must be strong enough to overcome this leakage without letting the voltage rise above the `LOW` logic threshold (e.g., $0.5V$). If the resistor is too large, the pin will float.
+Why **10kΩ**? The value is a trade-off:
+
+*   **Too small** (e.g. 100Ω): when the ESP32 drives the pin HIGH, a current $I = 3.3V / R$ flows through the resistor to GND. With 100Ω, that is 33 mA: wasted energy, and close to the maximum current an ESP32 pin can deliver. With 10kΩ, it is only 0.33 mA, and only while the SD card is on.
+*   **Too large** (e.g. 10MΩ): the resistor becomes too weak to hold the pin LOW against leakage currents and noise, and the pin behaves as if it were floating again.
+
+Any value between roughly 10kΩ and 100kΩ works well here. 10kΩ is a common, safe default.
 
 ## DS3231 SQW Pin (Wake-up Interrupt)
 
-To wake the ESP32 up from deep sleep, we will use the DS3231's internal hardware alarms. When an alarm triggers, the RTC pulls its **SQW** (Square Wave) pin LOW. 
+To wake the ESP32 up from deep sleep, we use the DS3231's hardware alarms. When an alarm triggers, the RTC pulls its **SQW** pin LOW.
 
-We need to connect this SQW pin to an "RTC GPIO" on the ESP32. Only specific pins (RTC GPIOs) are capable of listening for signals while the rest of the ESP32 is asleep (EXT0 wake-up). 
+We need to connect this SQW pin to an "RTC GPIO" on the ESP32. Only these pins can be monitored while the rest of the chip is asleep (EXT0 wake-up).
 
-We will connect the **SQW** pin to **ESP32 GPIO 36** . 
-Because the SQW pin is an open-drain output, it requires a **pull-up resistor** to keep the voltage HIGH (3.3V) until the alarm actively pulls it LOW. We will connect a **10kΩ pull-up resistor** between the SQW pin and the 3.3V power rail.
+We connect the **SQW** pin to **ESP32 GPIO 36**.
+Because SQW is an open-drain output, it needs a **pull-up resistor** to bring the line back HIGH (3.3V) when the alarm is inactive. GPIO 36 (like GPIOs 34 to 39) is an input-only pin **without any internal pull-up or pull-down resistor**, so the pull-up must be external: we connect a **10kΩ pull-up resistor** between the SQW pin and the 3.3V rail.
 
-> **Note on Pull-up Resistor Value**
-> The logic here is identical to our pull-down resistor. When the RTC alarm triggers, it connects the `SQW` pin to ground (0V). The pull-up resistor sits between 3.3V and 0V during the alarm event. Using a $10k\Omega$ resistor limits the wasted current during the alarm trigger to just $0.33mA$ ($I = \frac{3.3V}{10,000\Omega}$), while being strong enough to keep the pin at a stable 3.3V when the alarm is inactive.
+> **Note on the Pull-up Resistor Value**
+> The reasoning is the same as for the pull-down. While the alarm is active, the RTC connects the `SQW` line to ground, and a current of $I = \frac{3.3V}{10\,k\Omega} = 0.33\,mA$ flows through the resistor. The alarm is cleared a few milliseconds after the ESP32 wakes up, so this has no measurable impact on the battery.
+
+::: {.callout-note}
+## Check your DS3231 module
+The most common DS3231 breakout board (often called "ZS-042", sold among others by AZ-Delivery) can be recognized by its second chip, an AT24C32 EEPROM, and its coin-cell holder on the back. This board already includes pull-up resistors on SDA, SCL and SQW: adding our 10kΩ in parallel is harmless. It also includes:
+
+- a **power LED**, which draws current permanently (around 1 mA or more, depending on its resistor): this is far more than everything else in deep sleep combined;
+- a **charging circuit** for the backup cell (a resistor and a diode next to the holder), designed for a rechargeable LIR2032. Powered at 5V, it would push current into a standard, non-rechargeable CR2032, which must be avoided. Powered at 3.3V, as in this project, the voltage left after the diode stays below the voltage of a CR2032, so a CR2032 can be used safely.
+
+Removing the LED (or its resistor) is a common modification for low-power projects. We will come back to it when the station runs on a battery.
+:::
 
 ## Updated Wiring Diagram
 
@@ -48,4 +62,44 @@ Here is the updated circuit incorporating these two power management modificatio
 *   **ESP32 Pin 13** ➔ **SD Card OFF** (with a 10kΩ pull-down resistor to GND)
 *   **ESP32 Pin 36 (VP)** ➔ **DS3231 SQW** (with a 10kΩ pull-up resistor to 3.3V)
 
-With the hardware ready, let's move on to writing the firmware that actually utilizes these new connections!
+## Power Budget (Estimates)
+
+::: {.callout-important}
+The figures below are **estimates** based on component datasheets and manufacturer documentation. They have **not been measured** on the prototype. They are useful to understand which components dominate the consumption, not to predict the exact battery life.
+:::
+
+In deep sleep, every component that remains powered keeps drawing a small current:
+
+| Component (deep sleep) | Estimated current | Source |
+|------------------------|-------------------|--------|
+| ESP32 chip | ~10 µA | ESP32 datasheet |
+| DS3231, powered from VCC | ~110 µA | DS3231 datasheet (standby current at 3.3V) |
+| BME280 in sleep mode | ~0.1 µA (+ module regulator, if any) | BME280 datasheet |
+| BME280 left in *normal mode* | several hundred µA | BME280 datasheet (continuous measurements) |
+| SD module, powered off | ~1 µA | uPesy documentation |
+| SD module, powered but idle | ~150 µA | uPesy documentation |
+| DS3231 module power LED | ~1 mA or more | depends on the module |
+| DevKit board (regulator, USB chip) | varies | depends on the board |
+
+When the station wakes up (without Wi-Fi), it stays awake for roughly one second at about 50 mA. With a 15-minute interval, this adds on average $50\,mA \times 1\,s / 900\,s \approx 0.06\,mA$.
+
+This gives a few orders of magnitude for a 2000 mAh battery (ignoring battery self-discharge and the board's own consumption):
+
+| Configuration | Average current | Estimated battery life |
+|---------------|-----------------|------------------------|
+| Deep sleep, SD off, BME280 in forced mode, no LED | ~0.2 mA | about a year |
+| Same, with the DS3231 power LED | ~1.2 mA | about 2 months |
+| Same, BME280 left in normal mode | ~0.7 mA | about 4 months |
+
+Three lessons from this table drive the rest of the design:
+
+1. **The biggest consumers in deep sleep are not the ESP32**, but the modules around it: LEDs, the DS3231 powered from VCC, sensors left running.
+2. **The BME280 must be put back to sleep** after each measurement. This is why the firmware uses the sensor's *forced mode* (see next chapter).
+3. **The SD card must be powered off** between measurements.
+
+::: {.callout-note}
+## Battery operation and the 5V pin
+The SD module is powered from the ESP32's **5V** pin, which is only live when the board is powered through USB. Running on a battery (Phase 12) will require revisiting how this module is powered.
+:::
+
+With the hardware ready, let's write the firmware that uses these new connections.

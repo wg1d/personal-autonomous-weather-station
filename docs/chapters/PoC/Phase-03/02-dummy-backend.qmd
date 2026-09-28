@@ -1,16 +1,16 @@
 # Dummy Backend Server {.unnumbered}
 
-To verify that our ESP32 is successfully transmitting its data across the Wi-Fi network, we need something on the other end to receive it! 
+To verify that the ESP32 transmits its data over Wi-Fi, we need something on the other end to receive it.
 
-Eventually, we will build a full-scale professional backend on a Single-Board Computer (SBC), like a Raspberry Pi using an advanced time-series database. But right now, building that complex architecture would distract us from validating the core firmware. 
+Eventually, we will build a real backend on a Single-Board Computer (SBC) such as a Raspberry Pi, with a time-series database. For now, that would distract us from validating the firmware.
 
-Instead, we will build a lightweight "Dummy" backend in Python using **FastAPI**. It takes about 25 lines of code and runs on your local computer to prove the connection works.
+Instead, we build a minimal "dummy" backend in Python using **FastAPI**. It takes about 25 lines of code and runs on your computer to prove that the connection works.
 
 ## The Code
 
 > **Ready-to-use project:** The complete code for this dummy server is available in the repository here: [`dummy_server`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/backend/Phase-03/dummy_server)
 
-We use `uv` (an incredibly fast Python package manager) to keep our dependencies clean. Since the `pyproject.toml` and `uv.lock` files are already set up, `uv` will automatically download FastAPI the first time you run it.
+We use [`uv`](https://docs.astral.sh/uv/), a Python package and project manager, to handle dependencies. Since the `pyproject.toml` and `uv.lock` files are already set up, `uv` will automatically download FastAPI the first time you run it.
 
 To start the server, open a terminal and run:
 
@@ -33,20 +33,20 @@ app = FastAPI()
 async def upload_data(request: Request):
     # Read the raw streaming body (our CSV file sent by the ESP32)
     body = await request.body()
-    
+
     # Save the received data to a local file
     with open("received_data.csv", "wb") as f:
         f.write(body)
-    
+
     print(f"--- Received {len(body)} bytes of CSV data! ---")
-    print(f"Successfully saved to received_data.csv")
+    print("Successfully saved to received_data.csv")
     print("---------------------------------------------")
-    
+
     return {"message": "Data received successfully!"}
 
 def start():
-    # Bind to 0.0.0.0 to listen on ALL network interfaces (Wi-Fi, Ethernet, localhost).
-    # This is required so the ESP32 can reach this server over the local network!
+    # Bind to 0.0.0.0 to listen on all network interfaces (Wi-Fi, Ethernet,
+    # localhost), so that the ESP32 can reach this server over the network.
     uvicorn.run("main:app", host="0.0.0.0", port=5000, reload=True)
 
 if __name__ == "__main__":
@@ -58,11 +58,11 @@ if __name__ == "__main__":
 1. Ensure your server is running (`uv run main.py`).
 2. You will see a message indicating the server is running on `http://0.0.0.0:5000`.
 3. Power on your ESP32.
-4. Watch the Python terminal! Within seconds, you should see the raw CSV data printed to your console, and a new `received_data.csv` file magically appear in your folder.
+4. Watch the Python terminal: at the next wake-up, the server logs the size of the received data, and a `received_data.csv` file appears in the folder. Each upload overwrites this file, which is fine since the ESP32 always sends the whole CSV.
 
 ### Expected Output
 
-If everything is working perfectly, you should see the following logs on both devices.
+If everything works, you should see the following logs on both devices.
 
 **ESP32 Serial Monitor:**
 ```text
@@ -88,6 +88,6 @@ INFO:     192.168.1.35:60951 - "POST /upload HTTP/1.1" 200 OK
 
 ## Next Steps
 
-With your ESP32 now successfully transmitting its readings over the local Wi-Fi, the core telemetry loop is complete! But what happens if you take your weather station into the woods where there is no Wi-Fi? How do you get your data? 
+The ESP32 now transmits its readings over the local Wi-Fi: the end-to-end data path works. But what if the station is out of Wi-Fi range? How do you get the data?
 
-In the next chapter, we will build a brilliant fallback mechanism: a physical push-button that commands the ESP32 to broadcast its *own* Wi-Fi network so you can download the data straight to your phone.
+In the next chapter, we build a fallback mechanism: a push-button that makes the ESP32 broadcast its *own* Wi-Fi network, so you can download the data with your phone.

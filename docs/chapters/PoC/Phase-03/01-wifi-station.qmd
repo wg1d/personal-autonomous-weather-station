@@ -1,17 +1,17 @@
 # Wi-Fi Station Mode & Data Upload {.unnumbered}
 
-With our power management optimized and our ESP32 reliably waking up from deep sleep, it's time to give our weather station a voice! In this chapter, we will introduce Wi-Fi capabilities to the ESP32.
+Our ESP32 now wakes up from deep sleep on schedule. In this chapter, we add Wi-Fi.
 
 Instead of just saving the data to the local SD card, the ESP32 will now connect to a local Wi-Fi network and upload the sensor readings to a server using an HTTP POST request.
 
 ## The Code
 
-> **Ready-to-use project:** The complete code for this firmware is available in the repository here: [`06_wifi_station`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-03/06_wifi_station)
+> **Ready-to-use project:** The complete code for this firmware is available in the repository here: [`06_wifi_station`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/PoC/Phase-03/06_wifi_station)
 
 > **Further Reading:** For a deeper dive into Wi-Fi connectivity on the ESP32, you can refer to this excellent [uPesy tutorial on connecting an ESP32 to Wi-Fi](https://www.upesy.fr/blogs/tutorials/how-to-connect-wifi-acces-point-with-esp32).
 
 ### Code Cleanup Notice
-As our firmware grows more advanced, the `setup()` function is becoming quite long. For this chapter, the code is structurally identical to Phase 02. We have simply inserted the new Wi-Fi logic right after the SD card write operation. In **Phase 04**, we will perform a massive architectural refactoring to split this monolithic code into clean `.cpp` and `.h` files!
+As the firmware grows, the `setup()` function is getting long. In this chapter, the code keeps the structure of Phase 02: we insert the Wi-Fi logic right after the SD card write, so the chapter only shows this new part. In **Phase 04**, we will rebuild the firmware on a proper architecture.
 
 ### Connecting to a Network
 To connect the ESP32 to the internet (or your local network), it needs to act as a **Wi-Fi Station**. Just like your smartphone or laptop, the ESP32 must know two pieces of information to connect to your router:
@@ -20,7 +20,7 @@ To connect the ESP32 to the internet (or your local network), it needs to act as
 2. **Password**
 
 ### Securing Credentials with `secrets.h`
-Hardcoding Wi-Fi passwords directly into your main code is a massive security risk, especially if you plan to share your code or upload it to GitHub. 
+Hardcoding Wi-Fi passwords in the main code is a security risk as soon as you share the code or push it to GitHub.
 
 To solve this, we create a template file called `secrets.example.h` inside our project folder:
 
@@ -29,7 +29,7 @@ To solve this, we create a template file called `secrets.example.h` inside our p
 #define SECRETS_H
 
 // IMPORTANT: Do NOT commit your actual credentials to GitHub!
-// 1. Rename this file to 'secrets.h' (which is ignored by Git)
+// 1. Copy this file to 'secrets.h' (which is ignored by Git)
 // 2. Replace the placeholders below with your actual Wi-Fi credentials
 
 const char* WIFI_SSID = "YOUR_WIFI_SSID";
@@ -38,7 +38,7 @@ const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
 #endif
 ```
 
-We then add `secrets.h` to our `.gitignore` file. Anyone who clones the project simply renames the template to `secrets.h` and adds their credentials. This guarantees that your passwords stay safely on your local computer and never get uploaded to the internet.
+We then add `secrets.h` to the project's `.gitignore` file. Anyone who clones the project copies the template to `secrets.h` and fills in their own credentials. The real passwords stay on your computer and are never committed.
 
 ### The Target Server
 Before we can upload data, the ESP32 needs to know *where* to send it. At the top of your `.ino` file (right below the `WAKEUP_INTERVAL_SECONDS`), we define the IP address of our local computer which will soon host our dummy backend server:
@@ -114,13 +114,14 @@ Here is how the ESP32 handles the connection:
 
 ## How It Works
 
-1.  **Timeouts Save Batteries:** The most battery-intensive action an ESP32 can perform is searching for a Wi-Fi network. If your router goes offline, a standard `while(WiFi.status() != WL_CONNECTED)` loop will get permanently stuck, draining the battery in hours. We implement a hard 10-second timeout. If the network isn't found, we abort the upload and go back to sleep.
-2.  **Robust Offline Capabilities (CSV Streaming):** Instead of uploading a single `JSON` payload representing the live reading, we stream the *entire* `weather_data.csv` file from the SD card directly into the HTTP POST request. Why? Because if the Wi-Fi goes down for 3 days, the ESP32 will continue saving data to the SD card offline. The instant the Wi-Fi comes back online, it uploads the complete CSV file, meaning the server automatically receives all the missed offline data without writing complex queuing algorithms!
+1.  **Timeouts Save Batteries:** Wi-Fi is by far the most power-hungry activity of the ESP32 (over 100 mA while connecting). If the router is offline, a plain `while(WiFi.status() != WL_CONNECTED)` loop would never exit, and the station would drain its battery within a day or two. We use a 10-second timeout: if the network isn't found, we skip the upload and go back to sleep.
+2.  **Offline Tolerance (CSV Streaming):** Instead of uploading only the latest reading, we stream the *entire* `weather_data.csv` file from the SD card into the HTTP POST request. If the Wi-Fi goes down for 3 days, the ESP32 keeps saving data to the SD card; as soon as the Wi-Fi comes back, the next upload contains all the missed data, without any queuing logic.
     
-> **Future Optimization:** You might be wondering: *"If this station runs for a year, won't uploading a massive CSV file every 30 seconds drain the battery?"* Yes, it will! For now, we are keeping the architecture simple to focus purely on Wi-Fi connectivity. We will dedicate an entire future chapter to "Log Rotation and Smart Queuing" to solve this exact problem elegantly!
+> **Known Limitation:** The file grows forever, so each upload takes longer and costs more energy, and the server receives the same rows again and again. Connecting to Wi-Fi at every measurement is also expensive: according to our [power budget](../Phase-02/02-hardware-modifications.qmd#power-budget-estimates) assumptions, about 5 seconds at 120 mA every 15 minutes would roughly quadruple the average consumption. We accept these limitations to keep the PoC simple. The production architecture (Phase 4) uploads only the new rows, and less often.
 
-3.  **Radio Shutdown:** Before calling `esp_deep_sleep_start()`, we explicitly call `WiFi.disconnect(true)` and `WiFi.mode(WIFI_OFF)`. This ensures the Wi-Fi radio is cleanly shut down, preventing any microscopic current leaks while the chip sleeps.
+3.  **Radio Shutdown:** Before sleeping, we call `WiFi.disconnect(true)` and `WiFi.mode(WIFI_OFF)`. Deep sleep powers the radio off anyway, but disconnecting cleanly tells the router that the station has left, and makes the intent explicit in the code.
+4.  **Scheduling After a Long Wake-up:** With Wi-Fi, a wake-up can now last more than 10 seconds. As explained in Phase 02, the next alarm is computed from the time read *after* the upload, so it is never set in the past.
 
 ## Next Steps
 
-Now that our ESP32 is screaming data into the void, we need something to listen to it! In the next chapter, we will build a dummy backend server to receive these POST requests.
+The ESP32 now sends its data, but nothing is listening yet. In the next chapter, we build a dummy backend server to receive these POST requests.

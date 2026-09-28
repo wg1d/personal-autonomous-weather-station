@@ -64,15 +64,15 @@ The `SD` and `SPI` libraries are built into the Arduino core for the ESP32, so y
 src_dir = .
 
 [env:upesy_wrover]
-platform = espressif32
+platform = espressif32 @ 6.5.0
 board = upesy_wrover
 framework = arduino
 monitor_speed = 115200
 lib_deps =
-    adafruit/Adafruit BME280 Library @ ^2.2.4
+    adafruit/Adafruit BME280 Library @ 2.3.0
 ```
 
-> **Ready-to-use project:** The complete code for this data storage phase is available in the repository here: [`02_data_storage`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-01/02_data_storage)
+> **Ready-to-use project:** The complete code for this data storage phase is available in the repository here: [`02_data_storage`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/PoC/Phase-01/02_data_storage)
 
 > **Official uPesy Tutorial:** For a more comprehensive example showcasing the micro SD card reader module, you can refer to the [official uPesy MicroSD Quickstart Guide](https://www.upesy.fr/blogs/tutorials/upesy-microsd-module-quickstart-guide#e1e5dd1f4b6ebf1c1249330e08a6).
 
@@ -210,15 +210,19 @@ Pressure: 1000.86 hPa
 Data saved to SD card.
 ```
 
-If you pop the SD card out and put it into your computer, you should find a `weather_data.csv` file containing all the saved measurements and it should looked like this:
+If you pop the SD card out and put it into your computer, you should find a `weather_data.csv` file containing all the saved measurements and it should look like this:
 
 ```csv
 timestamp;temperature;humidity;pressure
 756;28.70;25.73;1000.83
-5907;28.71;25.75;1000.86.86
+5907;28.71;25.75;1000.86
 ```
-```
+
+### Troubleshooting
+
+- **`Card Mount Failed`**: the SD card must be formatted as **FAT32** (cards larger than 32 GB are usually formatted as exFAT out of the box and must be reformatted). Also check that CS is on pin 5 and that the module is powered from **5V**.
+- **The file is empty or truncated on the computer**: always remove the card while the ESP32 is not writing (e.g. unplug the ESP32 first). The `close()` call at the end of `appendFile()` is what actually writes the data to the card.
 
 ## Next Steps
 
-With data acquisition and persistent storage now implemented, we have a fully functional baseline for our weather station! However, our timestamps are currently just the number of milliseconds since the device booted. In the next step, we will integrate a Real-Time Clock (RTC) to provide accurate, real-world timestamps for our data!
+With data acquisition and persistent storage in place, we have a working baseline. However, our timestamps are only the number of milliseconds since the device booted. In the next step, we add a Real-Time Clock (RTC) to get real date and time timestamps.

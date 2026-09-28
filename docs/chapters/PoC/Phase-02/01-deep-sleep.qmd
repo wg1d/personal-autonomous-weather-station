@@ -1,20 +1,25 @@
 # Introduction to Deep Sleep  {.unnumbered}
 
-The ESP32 is a powerful microcontroller, but with that power comes significant energy consumption. When running normally, the ESP32 draws around 40-70mA of current. If it's constantly awake reading sensors, a standard battery would be drained in just a few days.
+The ESP32 is a powerful microcontroller, but it is not frugal. With the CPU running and the radio off, it draws around 20–70 mA depending on the CPU frequency (ESP32 datasheet), and over 100 mA when Wi-Fi is active. Constantly awake, it would drain a typical 2000 mAh battery in one or two days.
 
-To build an autonomous weather station that can run for months or years in the field, we must utilize **Deep Sleep**.
+To build a station that can run for months on a battery, we use **Deep Sleep**.
 
 ## What is Deep Sleep?
 
 > **Further Reading:** For a comprehensive overview of the ESP32 deep sleep states, you can refer to this [uPesy tutorial on Deep Sleep](https://www.upesy.fr/blogs/tutorials/how-to-use-deep-sleep-on-esp32-to-reduce-power-consumption).
 
-Deep sleep puts the ESP32 into a primitive state where almost everything shuts down:
+Deep sleep puts the ESP32 into a state where almost everything shuts down:
 
-*   The 2 main CPUs stop functioning, and the **ULP (Ultra Low Power) processor** takes over. This tiny processor consumes very little energy but can still perform basic actions.
+*   The two main CPU cores are powered off. Only the **RTC subsystem** stays on: a low-power timer, the RTC memory, the wake-up logic, and optionally the **ULP (Ultra Low Power) coprocessor**, a tiny processor that can run simple programs if you write one for it (we won't).
 *   Wi-Fi and Bluetooth radios are completely disabled.
 *   The Flash and the main system memory (RAM) are no longer powered. Only the special **RTC memory** remains active and usable.
 
-In this state, the ESP32 consumes a mere **10µA to 150µA**! 
+In this state, the ESP32 **chip** draws around **10 µA** (datasheet value, RTC timer and RTC memory on), up to about 150 µA if the ULP coprocessor is running.
+
+::: {.callout-warning}
+## Chip vs. board consumption
+These figures are for the ESP32 chip alone. A development board adds its own consumers: the voltage regulator, the USB-to-serial chip, the power LED. Each module on the breadboard also adds its own (see [Hardware Modifications](02-hardware-modifications.qmd)). The real consumption of the whole station in deep sleep is therefore higher, often by an order of magnitude on a standard DevKit.
+:::
 
 ### RAM Erasure and RTC_DATA_ATTR
 
@@ -26,7 +31,7 @@ Fortunately, the RTC RAM remains powered. If we need to keep track of data acros
 
 In Phase 01, our code relied on the standard Arduino structure: we initialized our sensors in the `setup()` function once, and then continuously took measurements and called `delay()` inside the `loop()` function.
 
-Deep sleep completely changes this paradigm. When the ESP32 wakes up from deep sleep, it resets. The `setup()` function runs from the very beginning, and once it hits the command to go back to sleep, execution stops entirely. Therefore, in a deep sleep application, the `loop()` function is **never called**.
+Deep sleep changes this. When the ESP32 wakes up from deep sleep, it restarts from scratch: `setup()` runs from the beginning, and once it reaches the command to go back to sleep, execution stops. In a deep sleep application, `loop()` is therefore **never called**.
 
 ## Wake-up Sources
 
@@ -66,26 +71,26 @@ void loop(){
 }
 ```
 
-> **Ready-to-use project:** The complete code for this deep sleep example is available in the repository here: [`04_deep_sleep_timer`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-02/04_deep_sleep_timer)
+> **Ready-to-use project:** The complete code for this deep sleep example is available in the repository here: [`04_deep_sleep_timer`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/PoC/Phase-02/04_deep_sleep_timer)
 
 *   **Pros:** Requires no external hardware or wiring. Extremely easy to program in software as seen above.
-*   **Cons:** The internal timer is notorious for drifting, especially when temperature fluctuates (which happens a lot outdoors!). Over a few weeks, your station might wake up minutes or even hours off schedule.
+*   **Cons:** By default, the timer runs on the internal 150 kHz RC oscillator, which is not temperature-compensated and can drift by several percent. With a 15-minute interval, a 5 % error means waking up about 45 seconds early or late, every cycle. The wake-ups also say nothing about the absolute time: we would still need the external RTC for timestamps.
 
 ### 2. Capacitive Touch Pins
 The ESP32 has several pins that act as capacitive touch sensors. You can configure the ESP32 to wake up simply when a user physically touches one of these pins.
 
 ### 3. RTC Pins (External Interrupt EXT0 / EXT1)
-You can configure the ESP32 to wake up when an electrical signal on a specific RTC pin changes state (e.g., goes from 3.3V down to 0V). This is perfect for waking up the ESP32 instantly when a user presses a physical button, when a magnetic hall sensor detects a door opening, or when a PIR motion sensor detects movement.
+You can configure the ESP32 to wake up when an electrical signal on a specific RTC pin changes state (e.g., goes from 3.3V down to 0V). This is useful to wake up the ESP32 immediately when a user presses a physical button, when a magnetic hall sensor detects a door opening, or when a PIR motion sensor detects movement.
 
 *   **Pros:** Allows an external component to dictate the schedule.
-*   **Cons:** Requires additional hardware (like an external RTC module or sensor) and extra wiring.
+*   **Cons:** Requires additional hardware (like an external RTC module or sensor) and extra wiring. Only RTC-capable GPIOs can be used (see the pinout).
 
 ## Why We Use the DS3231 RTC Alarms
 
-Because weather data relies heavily on accurate timestamping, and because our station will be subjected to temperature fluctuations, we will avoid the ESP32's internal timer. 
+Because weather data relies on accurate timestamps, and because an outdoor station is exposed to large temperature variations, we do not rely on the ESP32's internal timer.
 
-Instead, we will use the **DS3231 RTC** we installed in Phase 01. The DS3231 contains a Temperature Compensated Crystal Oscillator (TCXO), meaning it keeps perfect time regardless of the weather. 
+Instead, we use the **DS3231 RTC** installed in Phase 01. The DS3231 contains a Temperature Compensated Crystal Oscillator (TCXO): its datasheet specifies ±2 ppm from 0 °C to 40 °C (about one minute per year), and ±3.5 ppm over the full industrial range. The same chip gives us both the wake-up schedule and the timestamps.
 
-We will program a hardware **Alarm** inside the DS3231. When the alarm triggers, the DS3231 will pull its **SQW (Square Wave)** pin LOW. By wiring this SQW pin to our ESP32 and configuring an `EXT0` external wake-up, the DS3231 will physically "tap the ESP32 on the shoulder" and wake it up exactly when a reading is required!
+We will program a hardware **Alarm** inside the DS3231. When the alarm triggers, the DS3231 will pull its **SQW (Square Wave)** pin LOW. By wiring this SQW pin to the ESP32 and configuring an `EXT0` external wake-up, the DS3231 wakes the ESP32 up exactly when a reading is required.
 
-In the next chapter, we will modify our hardware circuit to connect this wake-up pin and implement an additional hardware trick to save even more power.
+In the next chapter, we modify the circuit to connect this wake-up pin, and we add a way to cut the power of the SD card module during sleep.

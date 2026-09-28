@@ -1,78 +1,75 @@
 # Fallback Access Point & Web Server {.unnumbered}
 
-If you deploy your autonomous weather station in the middle of a forest—or simply change your home Wi-Fi password—the station won't be able to connect to the internet. If it can't connect, how do you retrieve the data saved on the SD card without disassembling the waterproof enclosure?
+If the station is deployed out of Wi-Fi range, or if you simply change your home Wi-Fi password, it can no longer upload its data. How do you then retrieve the data saved on the SD card without opening the enclosure?
 
-We solve this by implementing a **Fallback Access Point**. If we press a physical button on the outside of the enclosure, the ESP32 will wake up and instantly broadcast its own Wi-Fi network (Access Point). We can then connect to it with our phone and download the CSV data directly from a built-in web server!
+We solve this with a **Fallback Access Point**. Pressing a button on the outside of the enclosure wakes the ESP32 up and makes it broadcast its own Wi-Fi network (Access Point). We can then connect to it with a phone and download the CSV file from a small web server running on the ESP32.
 
 ## The Hardware: The Fallback Button
 
 ![Connection between ESP32 and Fallback Button](../../../assets/diagrams/connection_esp32_fallback_ap.svg){width=600}
 
-To trigger this mode, we wire a physical push-button to **Pin 39** (an RTC pin capable of waking the ESP32 from deep sleep). But we can't just wire the button directly to the pin, we must use a **Pull-down Resistor**.
+To trigger this mode, we wire a push-button between **3.3V** and **Pin 39**, an RTC GPIO that can wake the ESP32 from deep sleep. Like GPIO 36, GPIO 39 is input-only and has **no internal pull resistor**, so we add an external **10kΩ pull-down resistor** between Pin 39 and GND.
 
 ### Pull-Up vs. Pull-Down Resistors
-Microcontroller pins are incredibly sensitive. If a pin is not connected to anything (known as "floating"), it will pick up electromagnetic noise from the air and randomly flip between `HIGH` (1) and `LOW` (0). 
+A pin that is not connected to anything is "floating": it picks up electrical noise and randomly reads `HIGH` (1) or `LOW` (0). A resistor gives the pin a defined default state when the button is not pressed:
 
-To give the pin a stable, default state when the button is not pressed, we use a resistor:
+- **Pull-up Resistor:** connects the pin to `3.3V`. The default state is `HIGH`; pressing the button connects the pin to `GND`, driving it `LOW`.
+- **Pull-down Resistor:** connects the pin to `GND`. The default state is `LOW`; pressing the button connects the pin to `3.3V`, driving it `HIGH`.
 
-- **Pull-up Resistor:** Connects the pin to `3.3V`. The default state is `HIGH`. When you press the button, it connects the pin to `GND`, driving it `LOW`.
-- **Pull-down Resistor:** Connects the pin to `GND`. The default state is `LOW`. When you press the button, it connects the pin to `3.3V`, driving it `HIGH`.
+In both cases, no current flows through the resistor while the button is released, since both ends are at the same voltage. The consumption during deep sleep is therefore the same.
 
-### Why Deep Sleep Requires a Pull-Down
-During Deep Sleep, we want the system to draw absolute minimum power.
-We will configure the ESP32 to wake up using `ESP_EXT1_WAKEUP_ANY_HIGH` (wake when the pin goes HIGH). 
-By using a **Pull-down resistor** (connected to GND), the pin defaults to 0V when the button is unpressed. Because there is no voltage difference, **absolutely zero current flows through the resistor** while the station is sleeping!
+### Why a Pull-Down and a Wake-up on HIGH?
+The RTC alarm already uses the `EXT0` wake-up source, which can only monitor a single pin. The button therefore uses `EXT1`, which can monitor several pins at once. On the ESP32, `EXT1` supports two trigger modes: `ESP_EXT1_WAKEUP_ALL_LOW` (all selected pins are LOW) and `ESP_EXT1_WAKEUP_ANY_HIGH` (at least one selected pin is HIGH).
 
-If we used a Pull-up resistor (connected to 3.3V), we would have to configure the ESP32 to wake up when the pin goes LOW. But wait! The DS3231 RTC alarm pin already uses the `EXT0` wakeup (which wakes on LOW). To avoid conflicting wakeup logic and keep things clean, we dedicate `EXT1` to waking up on HIGH for the manual button.
+With a single button, both modes would work. But if we later add other wake-up inputs (e.g. a rain gauge), only `ANY_HIGH` wakes the ESP32 when *any* of them is triggered. We therefore choose active-high inputs: a **pull-down resistor** and `ESP_EXT1_WAKEUP_ANY_HIGH`.
 
-### Sizing the Resistor (Ohm's Law)
-When you *press* the button, electricity flows from `3.3V`, through the button, and splits: some goes into the ESP32 pin, and the rest flows through our Pull-down resistor straight to `GND`.
+### Sizing the Resistor
+When the button is pressed, a current $I = 3.3V / R$ flows from 3.3V through the resistor to GND:
 
-We use **Ohm's Law ($V = I \times R$)** to determine the right resistor size:
+- **Too small:** with 100Ω, pressing the button draws 33 mA. With no resistor at all (0Ω), pressing the button would short-circuit the 3.3V rail to GND, which can damage the board's voltage regulator.
+- **Too large:** with 10MΩ, the resistor is too weak to hold the pin LOW against leakage currents and noise, which can cause false wake-ups.
 
-- **Minimum Resistance:** If you use a very small resistor (e.g., 100Ω), the current would be $I = 3.3V / 100Ω = 33mA$. This is a massive current draw just for pressing a button, and if you accidentally used 0Ω (no resistor), you would create a short-circuit and instantly destroy the ESP32's power regulator!
-- **Maximum Resistance:** If you use a massive resistor (e.g., 10MΩ), it is so resistant that it can't effectively ground the electromagnetic noise from the air, causing the pin to "float" and trigger false wakeups.
-
-**The Sweet Spot:** A **10kΩ resistor** is the industry standard. When you press the button, it draws a microscopic $I = 3.3V / 10kΩ = 0.33mA$. It is perfectly safe, wastes almost no battery, and is strong enough to keep the pin completely stable!
+A **10kΩ resistor** is a common choice: it draws $0.33\,mA$ only while the button is pressed, and holds the pin firmly LOW the rest of the time.
 
 ## The Code
 
-> **Ready-to-use project:** The complete code for this dual-boot firmware is available in the repository here: [`07_wifi_fallback_ap`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-03/07_wifi_fallback_ap)
+> **Ready-to-use project:** The complete code for this dual-boot firmware is available in the repository here: [`07_wifi_fallback_ap`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/PoC/Phase-03/07_wifi_fallback_ap)
 
 > **Further Reading:** For a deeper dive into the specific Wi-Fi methods used below, you can refer to this excellent [uPesy tutorial on creating a Wi-Fi Access Point with an ESP32](https://www.upesy.fr/blogs/tutorials/how-create-a-wifi-acces-point-with-esp32).
 
-When the ESP32 wakes up, we immediately check the reason. If it was woken by our Pin 39 button (`ESP_SLEEP_WAKEUP_EXT1`), we skip the sensor reading and instantly launch an Access Point named **WeatherStation_AP**:
+When the ESP32 wakes up, we immediately check the reason. If it was woken by our Pin 39 button (`ESP_SLEEP_WAKEUP_EXT1`), we skip the sensor reading and start an Access Point named **WeatherStation_AP**:
 
 ```cpp
 esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
-  
+
 if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT1) {
   Serial.println("Wakeup by Fallback Button! Starting AP Mode...");
   
   // Power on SD Card
   pinMode(SD_OFF_PIN, OUTPUT);
-  digitalWrite(SD_OFF_PIN, LOW);
+  digitalWrite(SD_OFF_PIN, HIGH);
   delay(500);
   SD.begin(SD_CS_PIN);
-  
+
   // Start Wi-Fi Access Point
-  WiFi.softAP("WeatherStation_AP", "12345678");
+  WiFi.softAP(AP_SSID, AP_PASSWORD);
 ```
 
-### Hosting the Web Server
-We use the extremely fast and lightweight `ESPAsyncWebServer` library to host a mini-website directly from the ESP32. 
+The Access Point credentials are defined at the top of the sketch (`AP_SSID`, `AP_PASSWORD`). The default password `12345678` is only meant for testing: change it before deploying the station (WPA2 requires at least 8 characters).
 
-> **Library Fork Notice:** Most older tutorials use the original `me-no-dev/ESPAsyncWebServer` library. However, that repository has been abandoned and throws severe compiler errors on modern ESP32 cores. We are using the actively maintained community fork by `mathieucarbou` ([mathieucarbou/ESPAsyncWebServer](https://github.com/mathieucarbou/ESPAsyncWebServer)), which serves as a flawless, modern drop-in replacement.
+### Hosting the Web Server
+We use the `ESPAsyncWebServer` library to host a small website on the ESP32.
+
+> **Library Fork Notice:** Most older tutorials use the original `me-no-dev/ESPAsyncWebServer` library, which is no longer maintained and fails to compile on recent ESP32 cores. We use the community-maintained fork by `mathieucarbou` ([mathieucarbou/ESPAsyncWebServer](https://github.com/mathieucarbou/ESPAsyncWebServer), since moved to the [ESP32Async](https://github.com/ESP32Async/ESPAsyncWebServer) organization), which is a drop-in replacement.
 
 We define three routes:
-1. `GET /` : Serves a beautiful HTML interface with a green "Download" button and a red "Delete" button.
-2. `GET /download` : Immediately downloads `weather_data.csv` from the SD card to the user's phone.
+1. `GET /` : serves a simple HTML page with a green "Download" button and a red "Delete" button.
+2. `GET /download` : downloads `weather_data.csv` from the SD card to the user's phone.
 3. `POST /delete` : Deletes the CSV file from the SD card to free up space.
 
 ```cpp
 server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-  String html = "<html>...<button class='btn-down'>Download CSV</button>...</html>";
-  request->send(200, "text/html", html);
+  request->send(200, "text/html", INDEX_HTML); // HTML page defined above
 });
 
 server.on("/download", HTTP_GET, [](AsyncWebServerRequest *request){
@@ -81,14 +78,14 @@ server.on("/download", HTTP_GET, [](AsyncWebServerRequest *request){
 
 server.on("/delete", HTTP_POST, [](AsyncWebServerRequest *request){
   SD.remove("/weather_data.csv");
-  request->send(200, "text/html", "<html>...<h2>Data Deleted!</h2>...</html>");
+  request->send(200, "text/html", DELETED_HTML);
 });
 
 server.begin();
 ```
 
 ### The 3-Minute Timeout
-If we forget to turn the AP off, it would drain the entire battery in hours. In our `loop()` function, we implement a simple non-blocking 3-minute timer. Once the time expires, we shut down the Wi-Fi radio, power off the SD card, re-arm the wakeups, and go back to deep sleep!
+With the Access Point running, the ESP32 draws over 100 mA: left on, it would drain a battery within a day. In the `loop()` function, we implement a non-blocking 3-minute timer. Once it expires, we shut down the Wi-Fi radio, power off the SD card, re-arm the wake-up sources, and go back to deep sleep.
 
 ```cpp
 void loop() {
@@ -96,14 +93,15 @@ void loop() {
   if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT1) {
     // AP Mode Timeout Logic (3 Minutes)
     static unsigned long apStartTime = millis();
-    if (millis() - apStartTime > 180000) {
+    if (millis() - apStartTime > AP_TIMEOUT_MS) {
       Serial.println("\nAP Timeout reached. Shutting down...");
       WiFi.softAPdisconnect(true);
       WiFi.mode(WIFI_OFF);
-      
-      // Re-arm wakeups and sleep
-      esp_sleep_enable_ext0_wakeup((gpio_num_t)RTC_WAKEUP_PIN, 0);
-      esp_sleep_enable_ext1_wakeup(1ULL << FALLBACK_BUTTON_PIN, ESP_EXT1_WAKEUP_ANY_HIGH);
+      SD.end();
+      digitalWrite(SD_OFF_PIN, LOW); // Power off SD Card
+
+      // Re-arm wakeups (EXT0 for the RTC, EXT1 for the button) and sleep
+      armWakeupSources();
       esp_deep_sleep_start();
     }
   }
@@ -111,30 +109,30 @@ void loop() {
 ```
 
 ### What if a sensor reading is scheduled during AP Mode?
-You might wonder: what happens if the DS3231 RTC triggers an alarm (pulling Pin 36 `LOW`) while you are currently downloading data via the Access Point? Will the ESP32 crash, or will the alarm be missed forever?
+What happens if the DS3231 alarm fires (pulling Pin 36 `LOW`) while you are downloading data through the Access Point?
 
-Because the ESP32 is fully awake serving the web page, it completely ignores the `EXT0` deep-sleep wakeup signal. This allows your web session to continue uninterrupted. However, the DS3231's alarm doesn't just pulse; it **latches**. The DS3231 stubbornly holds Pin 36 at `LOW` indefinitely until the microcontroller explicitly clears the alarm flag over I2C.
+While the ESP32 is awake, the `EXT0` wake-up source is not active, so the web session continues undisturbed. But as seen in Phase 02, the DS3231 alarm is **latched**: SQW stays `LOW` until the alarm flag is cleared over I2C.
 
-The moment your 3-minute AP session expires and the ESP32 enters deep sleep, the hardware instantly detects that Pin 36 is *already* `LOW`. It instantly wakes back up via `EXT0`, executes the standard sensor loop, clears the alarm, takes the missed reading, and uploads it! It is a brilliant, zero-code queuing system built right into the hardware architecture.
+When the 3-minute session ends and the ESP32 enters deep sleep, Pin 36 is already `LOW`, so the ESP32 wakes up immediately through `EXT0`. It then runs the normal path: it clears the alarm, takes the missed reading (with a timestamp slightly off the grid), uploads, and schedules the next alarm back on the grid. No extra code is needed to handle this case.
 
-> **Why don't we reprogram the clock before sleeping?** 
-> Notice that in the AP Mode code, we do *not* tell the RTC to set a new alarm before going back to sleep. This is deliberate! The DS3231 is completely independent. If the alarm hasn't fired yet, leaving it alone ensures the next reading happens perfectly on the original grid schedule. If we reprogrammed it, we would ruin the hourly alignment!
+> **Why don't we reprogram the alarm before sleeping?**
+> In the AP path, we do *not* touch the RTC before going back to sleep. The DS3231 keeps the alarm that was set during the last normal wake-up: if it has not fired yet, the next reading happens on schedule; if it has, the latched SQW line wakes the ESP32 up immediately, as described above.
 
 ## Running the Test
 1. Compile and upload `07_wifi_fallback_ap` to your ESP32.
 2. The ESP32 will go to sleep. **Do not wait for the RTC timer.** Instead, simply **press the physical button** you just wired to Pin 39.
 3. Open your smartphone's Wi-Fi settings and connect to `WeatherStation_AP` (Password: `12345678`).
 4. Open your web browser and navigate to `http://192.168.4.1` (the default ESP32 AP IP address).
-5. You should see our sleek interface! Click **Download** to grab your data, or **Delete** to wipe the SD card!
+5. You should see the web page. Click **Download** to get the data, or **Delete** to remove the file from the SD card.
 6. Wait 3 minutes, and watch the Serial Monitor as the ESP32 automatically shuts down the AP and returns to Deep Sleep.
 
 ### Expected Output
 
-If everything is wired and coded correctly, your Serial Monitor should show a beautiful sequence of events: a standard reading, a fallback AP session, and a "catch-up" reading that perfectly re-aligns to the 30-second grid!
+If everything is wired correctly, the Serial Monitor shows the following sequence: a standard reading, a fallback AP session, and a "catch-up" reading that realigns on the 30-second grid.
 
 ```text
 --- Waking up from Deep Sleep ---
-Standard Wakeup (RTC Timer). Taking reading...
+Standard Wakeup (RTC Alarm). Taking reading...
 Data: 2026-07-24T15:58:30;30.15;31.03;991.36
 Data saved to SD card.
 Connecting to WiFi.....
@@ -161,10 +159,10 @@ AP Timeout reached. Shutting down...
 Entering Deep Sleep...
 ets Jun  8 2016 00:22:57
 
-... [ESP32 instantly wakes up because RTC alarm triggered during AP Mode] ...
+... [ESP32 wakes up immediately: the RTC alarm fired during AP Mode] ...
 
 --- Waking up from Deep Sleep ---
-Standard Wakeup (RTC Timer). Taking reading...
+Standard Wakeup (RTC Alarm). Taking reading...
 Data: 2026-07-24T16:01:53;30.56;30.51;991.27
 Data saved to SD card.
 Connecting to WiFi....
@@ -175,9 +173,9 @@ Next reading scheduled for: 16:02:00
 Entering Deep Sleep...
 ```
 
-And here is what the sleek web interface looks like on your device:
+And here is what the web interface looks like on a phone:
 
 ![Fallback AP Web Interface](../../../assets/images/fallback_ap_interface.png){width=200}
 
 ## Next Steps
-Our weather station is now incredibly robust! We have standard uploads and a foolproof manual fallback mechanism. However, since we're already connecting to Wi-Fi to upload data, we have an amazing opportunity to perform some self-healing. Let's move on to the **Bonus Step: NTP Time Synchronization**, where we'll teach the ESP32 to automatically calibrate the DS3231's atomic clock!
+The station now has automatic uploads and a manual fallback. Since it already connects to Wi-Fi to upload data, it can also correct its clock. The **Bonus Step: NTP Time Synchronization** uses this connection to keep the DS3231 on time automatically.

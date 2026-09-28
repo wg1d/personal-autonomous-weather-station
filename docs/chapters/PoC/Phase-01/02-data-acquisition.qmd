@@ -6,7 +6,7 @@ Let's start working on how to collect data from our environment. In this chapter
 
 ## Connect the BME280 to the ESP32
 
-The BME280 sensor measures temperature, humidity, and atmospheric pressure, it's a perfect match to start building our weather station.
+The BME280 sensor measures temperature, humidity, and atmospheric pressure, which makes it a good first sensor for our weather station.
 
 ### The I2C Interface
 To communicate with the ESP32, the BME280 uses a digital communication protocol called **I2C** (Inter-Integrated Circuit).
@@ -43,9 +43,9 @@ The ESP32 has default pins for I2C communication. We will connect the BME280 as 
 ### Setup
 Now that the sensor is wired, let's write a simple program to read the data and print it to the Serial Monitor. We'll put this in a loop with a small delay so it continuously outputs the readings.
 
-If you are using the standard Arduino IDE, you will need to manually install the **Adafruit BME280 Library** and the **Adafruit Unified Sensor** library using the Library Manager.
+If you are using the standard Arduino IDE, you need to manually install the **Adafruit BME280 Library** and the **Adafruit Unified Sensor** library using the Library Manager.
 
-However, if you are using **PlatformIO** (which we highly recommend), dependency management is fully automated! You simply declare the libraries you need in your `platformio.ini` file, and PlatformIO will download them automatically the first time you compile.
+With **PlatformIO** (which we recommend), dependency management is automated: you declare the libraries in your `platformio.ini` file, and PlatformIO downloads them the first time you compile. We pin exact versions so that the project still builds the same way in a few years.
 
 Here is the `platformio.ini` configuration for this project:
 
@@ -54,15 +54,15 @@ Here is the `platformio.ini` configuration for this project:
 src_dir = .
 
 [env:upesy_wrover]
-platform = espressif32
+platform = espressif32 @ 6.5.0
 board = upesy_wrover
 framework = arduino
 monitor_speed = 115200
 lib_deps =
-    adafruit/Adafruit BME280 Library @ ^2.2.4
+    adafruit/Adafruit BME280 Library @ 2.3.0
 ```
 
-> **Ready-to-use project:** The complete code for this data acquisition phase is available in the repository here: [`01_data_acquisition`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-01/01_data_acquisition)
+> **Ready-to-use project:** The complete code for this data acquisition phase is available in the repository here: [`01_data_acquisition`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/PoC/Phase-01/01_data_acquisition)
 
 > **Library Reference:** We use the official Adafruit library and follow their BME 280 example [Adafruit BME280 Library](https://github.com/adafruit/Adafruit_BME280_Library/blob/master/examples/bme280test/bme280test.ino).
 
@@ -164,8 +164,15 @@ Pressure: 1000.14 hPa
 -------------------------
 ```
 
+### Troubleshooting
+
+- **`Could not find a valid BME280 sensor`**: check the wiring first (SDA and SCL are easy to swap). If the wiring is correct, your module probably uses the other I2C address: replace `0x76` with `0x77`.
+- **Garbage characters in the Serial Monitor**: the monitor speed must match `Serial.begin()`, i.e. `monitor_speed = 115200` in `platformio.ini`.
+- **Upload fails with a permission error on Linux**: add your user to the `dialout` group (`sudo usermod -aG dialout $USER`), then log out and back in.
+- **A BMP280 instead of a BME280**: some cheap modules sold as BME280 are BMP280s, which have no humidity sensor. The library then fails to initialize or humidity stays at 0 %.
+
 ## Next Steps
 
-Now that we are successfully reading the environment, we need a place to store it! In the next chapter, we will learn how to interface with an SD card module so our weather station can preserve its data offline.
+Now that we can read the environment, we need a place to store the measurements. In the next chapter, we connect an SD card module so the station can keep its data offline.
 
 

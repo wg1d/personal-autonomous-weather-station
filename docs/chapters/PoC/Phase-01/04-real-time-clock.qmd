@@ -14,10 +14,10 @@ The DS3231 is a highly accurate real-time clock. It has a dedicated coin-cell ba
 Besides just keeping time, the DS3231 has some powerful built-in features that we will use later in the project to wake up our ESP32 from deep sleep:
 
 *   **Two Hardware Alarms (Alarm 1 & Alarm 2):** You can program these alarms to trigger at a specific time. When they trigger, the RTC changes the state of a specific pin (the SQW pin).
-*   **SQW (Square Wave) Pin:** This pin can either output a continuous oscillating signal, or it can act as an interrupt pin that drops to 0V when an alarm goes off.
-*   **32K Pin:** This pin outputs a continuous 32kHz signal, which is useful for some specific electronics but completely unnecessary for our project.
+*   **SQW (Square Wave) Pin:** This pin can either output a continuous oscillating signal, or act as an interrupt pin that is pulled to 0V when an alarm goes off. It is an *open-drain* output: it can only pull the line LOW, so it needs a pull-up resistor to go back HIGH (we will add one in Phase 2).
+*   **32K Pin:** This pin outputs a continuous 32 kHz signal. It is useful as a clock source for other electronics, but we do not need it.
 
-Because the DS3231 has its own battery, its internal settings (like active alarms or the SQW pin state) are permanently saved. If you don't explicitly turn them off in your code, they will stay active forever, even if you upload brand new code to the ESP32! That is why our code will include a "cleanup" step to reset these features.
+Because the DS3231 has its own battery, its internal settings (like active alarms or the SQW pin mode) are kept as long as the coin cell lasts. If you don't explicitly turn them off in your code, they stay active, even after you upload new code to the ESP32. That is why our code includes a "cleanup" step to reset these features.
 
 ### Pinout
 
@@ -32,7 +32,7 @@ In addition to the 32K and SQW pins described above, the DS3231 uses the followi
 
 ## The Hardware Connection
 
-The DS3231 communicates using the I2C protocol, just like our BME280 sensor. This is incredibly convenient because we can connect it to the exact same I2C pins (SDA and SCL) on the ESP32!
+The DS3231 communicates using the I2C protocol, just like our BME280 sensor. This is convenient: several devices can share the same I2C bus, so we connect it to the same SDA and SCL pins on the ESP32.
 
 ### Wiring the Components
 
@@ -45,7 +45,7 @@ Since the BME280 is already using the I2C bus, you can simply connect the DS3231
 
 ![Connection between ESP32 and DS3231 RTC](../../../assets/diagrams/connection_esp32_ds3231.svg){width=500}
 
-## Program the ESP32 to Save Data
+## Program the ESP32 to Read the Time
 
 ### Setup
 
@@ -58,16 +58,16 @@ Your `platformio.ini` should now look like this:
 src_dir = .
 
 [env:upesy_wrover]
-platform = espressif32
+platform = espressif32 @ 6.5.0
 board = upesy_wrover
 framework = arduino
 monitor_speed = 115200
 lib_deps =
-    adafruit/Adafruit BME280 Library @ ^2.2.4
-    adafruit/RTClib @ ^2.1.4
+    adafruit/Adafruit BME280 Library @ 2.3.0
+    adafruit/RTClib @ 2.1.4
 ```
 
-> **Ready-to-use project:** The complete code for this RTC phase is available in the repository here: [`03_real_time_clock`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-01/03_real_time_clock)
+> **Ready-to-use project:** The complete code for this RTC phase is available in the repository here: [`03_real_time_clock`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/PoC/Phase-01/03_real_time_clock)
 
 > **Library Reference:** We use the [RTClib](https://github.com/adafruit/RTClib) by Adafruit. We have added some initialization logic to properly clear the RTC alarms, based on the [Adafruit RTClib Alarm Example](https://github.com/adafruit/RTClib/blob/master/examples/DS3231_alarm/DS3231_alarm.ino).
 
@@ -83,6 +83,7 @@ lib_deps =
  * This sketch initializes the BME280 sensor, DS3231 RTC, and the SD Card.
  * It reads temperature, humidity, pressure, and absolute time.
  * The data is appended to a CSV file every 5 seconds.
+ * All timestamps are stored in UTC.
  */
 
 #include <Arduino.h>
@@ -94,6 +95,11 @@ lib_deps =
 #include <RTClib.h>
 
 #define SD_CS_PIN 5
+
+// Offset between your computer's local time and UTC, in seconds.
+// Used only to convert the compile time to UTC when setting the RTC.
+// Example: Paris is UTC+1 in winter (3600) and UTC+2 in summer (7200).
+#define COMPILE_TIME_UTC_OFFSET 7200
 
 Adafruit_BME280 bme;
 RTC_DS3231 rtc;
@@ -129,9 +135,10 @@ void setup() {
   
   if (rtc.lostPower()) {
     Serial.println("RTC lost power, let's set the time!");
-    // When time needs to be set on a new device, or after a power loss, the
-    // following line sets the RTC to the date & time this sketch was compiled
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    // Set the RTC to the date & time this sketch was compiled.
+    // __DATE__ and __TIME__ are in local time: convert them to UTC.
+    DateTime compileTime(F(__DATE__), F(__TIME__));
+    rtc.adjust(compileTime - TimeSpan(COMPILE_TIME_UTC_OFFSET));
   }
 
   // 1. Disable the 32K output (we don't need it)
@@ -216,17 +223,24 @@ Here is a breakdown of the new RTC components in the code:
 
 1. **`RTC_DS3231 rtc;`**: Creates an object to interact with the DS3231.
 2. **`rtc.begin()`**: Initializes the I2C communication with the RTC. If this fails, the wiring is likely incorrect.
-3. **`rtc.lostPower()`**: This is a great feature of the DS3231. If the coin-cell battery was removed or depleted, the RTC "forgets" the time. This function detects that state.
-4. **`rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));`**: If power was lost, this sets the RTC to the exact date and time the code was compiled by your computer! Once the time is set, you don't need to run this again unless the battery dies.
+3. **`rtc.lostPower()`**: If the coin-cell battery was removed or depleted, the RTC "forgets" the time. The DS3231 records this in its *Oscillator Stop Flag*, and this function reads it.
+4. **`rtc.adjust(compileTime - TimeSpan(COMPILE_TIME_UTC_OFFSET))`**: If power was lost, this sets the RTC to the date and time the code was compiled by your computer (a few seconds before the upload, which is accurate enough for now; Phase 3 adds NTP synchronization). Once the time is set, you don't need to run this again unless the battery dies.
+
+::: {.callout-important}
+## Store time in UTC
+
+`__DATE__` and `__TIME__` are in your computer's **local time**. We store every timestamp in **UTC** instead: it has no daylight saving jumps (no duplicated or missing hour twice a year), and it is what NTP returns in Phase 3. Set `COMPILE_TIME_UTC_OFFSET` to your offset from UTC, in seconds (e.g. `3600` for Paris in winter, `7200` in summer). Conversion to local time is the job of the dashboard, not of the station.
+
+If your RTC was already set in local time by an earlier sketch, `lostPower()` returns `false` and the time is not updated. Remove the coin cell for a few seconds to reset it, then upload the sketch again.
+:::
 5. **RTC Cleanup (`disable32K`, `writeSqwPinMode`, `disableAlarm`, `clearAlarm`)**: Because the DS3231 runs on its own battery, any alarms or pin settings from previous projects will remain active. We explicitly disable the 32K signal, stop the SQW pin from oscillating, and turn off both alarms to ensure the RTC starts in a clean, predictable state for our weather station.
 6. **`DateTime now = rtc.now();`**: In the `loop()`, this retrieves the current time from the RTC.
-7. **Formatting with `%04d-%02d-%02dT%02d:%02d:%02d`**: This formats the date into the standard ISO 8601 format (e.g., `2026-07-22T14:50:00`), ensuring all timestamps are uniformly zero-padded. The `T` in the middle might look strange, but it acts as a standard separator between the date and the time. We use this format because modern databases and backend servers natively expect it, which will make our data transfer in later phases much easier!
+7. **Formatting with `%04d-%02d-%02dT%02d:%02d:%02d`**: This formats the date in the ISO 8601 format (e.g., `2026-07-22T14:50:00`), with every field zero-padded. The `T` is the standard separator between the date and the time. Databases and backend frameworks parse this format natively, which simplifies data transfer in later phases.
 
 ### Expected Output
-> Before running this code, it is recommended to delete the existing
-> `weather_data.csv` file from your SD card. This prevents mixing the old 
-> `millis()` timestamps from the previous step with our new absolute RTC 
-> timestamps!
+> Before running this code, delete the existing `weather_data.csv` file
+> from your SD card. This prevents mixing the `millis()` timestamps of the
+> previous step with the new absolute RTC timestamps.
 
 Upload the code and open the Serial Monitor.
 
@@ -253,7 +267,7 @@ Pressure: 1000.30 hPa
 Data saved to SD card.
 ```
 
-If you pop the SD card out and put it into your computer, you should find a `weather_data.csv` file containing all the saved measurements and it should looked like this:
+If you pop the SD card out and put it into your computer, you should find a `weather_data.csv` file containing all the saved measurements and it should look like this:
 
 ```csv
 timestamp;temperature;humidity;pressure
@@ -261,8 +275,7 @@ timestamp;temperature;humidity;pressure
 2026-07-22T15:34:26;28.46;26.14;1000.29
 2026-07-22T15:34:31;28.50;26.09;1000.30
 ```
-```
 
 ## Next Steps
 
-Now that we have accurate timestamps and reliable data storage, our basic weather station is complete! However, if you tried to run this on a battery right now, it would drain very quickly. In the next phase, we will introduce Deep Sleep mode and use the RTC alarms we configured earlier to drastically reduce power consumption.
+With accurate timestamps and local storage, the basic data logger is complete. However, it stays awake all the time, so a battery would be drained within a day or two. In the next phase, we introduce deep sleep and use the RTC alarms to reduce power consumption.

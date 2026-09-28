@@ -14,7 +14,7 @@ In order to start building our prototype, we need to gather the following compon
 In addition, we will need a breadboard, some jumper wires, a push button, some resistors, a micro SD card, and a USB cable to program and power the ESP32.
 
 ### Why use an ESP32?
-The main reason is that it is incredibly well-known in the open-source community, meaning there is a wealth of information and libraries available for it. It also has built-in Wi-Fi and Bluetooth, along with excellent deep-sleep capabilities which are essential for a solar-powered weather station. 
+The main reason is that it is very well known in the open-source community, meaning there is a wealth of information and libraries available for it. It also has built-in Wi-Fi and Bluetooth, along with a deep-sleep mode, which is essential for a battery or solar-powered weather station.
 
 However, feel free to use any other microcontroller that you are more familiar with. The code is written using the Arduino framework, which is compatible with many microcontrollers, making it relatively easy to switch to another board. The main hardware requirements are that the microcontroller must have deep-sleep capabilities, I2C and SPI interfaces, and at least two deep-sleep wake-up sources (e.g., a timer and an external pin). It is also assumed that your chosen microcontroller has enough digital and analog GPIO pins to connect all the required sensors.
 
@@ -28,7 +28,7 @@ This specific board was chosen for several practical reasons:
 
 ![uPesy ESP32 Wrover DevKit v2.1](../../../assets/images/components/upesy-esp32-wrover-devkit-3.jpg){width=200}
 
-The full pin configuration is shown here and additionnal information can be found [here](https://www.upesy.com/blogs/tutorials/esp32-quickstart-installation-programming-guide).
+The full pin configuration is shown here and additional information can be found [here](https://www.upesy.com/blogs/tutorials/esp32-quickstart-installation-programming-guide).
 
 ![uPesy ESP32 Wrover DevKit v2.1](../../../assets/images/components/upesy-esp32-wrover-full-pinout.jpg){width=800}
 
@@ -40,12 +40,12 @@ We use this specific module because:
 ![uPesy micro SD card reader](../../../assets/images/components/upesy-micro-sd-module-for-arduino-showcase.jpg){width=200}
 
 ### Why start with the BME280?
-Simply because it is a small, affordable, and highly accurate sensor that measures temperature, humidity, and atmospheric pressure all in one package. It is very easy to use, well-documented, and perfect for getting a basic weather station up and running quickly.
+It is a small, affordable sensor that measures temperature (±1 °C), humidity (±3 %RH) and atmospheric pressure (±1 hPa) in one package, according to its datasheet. It is well documented, supported by mature libraries, and a good fit for a first weather station.
 
 ![Temp/Humidity/Pressure sensor: BME 280](../../../assets/images/components/bme280.jpg){width=200}
 
 ### Why use an external Real-Time Clock (RTC)?
-While the ESP32 has an internal RTC, it is not very accurate and can drift significantly over time. The DS3231 is a highly precise RTC with a built-in battery backup (coin cell). It will keep perfect time even when the ESP32 is completely powered down (or in deep sleep), ensuring all our logged data is accurately timestamped.
+The ESP32 has an internal RTC, but its default clock source (an internal RC oscillator) can drift by several percent, especially with temperature changes. The DS3231 is a temperature-compensated RTC with a coin-cell backup: its datasheet specifies ±2 ppm between 0 °C and 40 °C, which is about one minute per year. It keeps time even when the ESP32 is in deep sleep or completely unpowered, so every logged measurement gets a reliable timestamp.
 
 ![Real-Time Clock sensor: DS3231](../../../assets/images/components/real-time-clock-rtc-ds3231.jpg){width=200}
 
@@ -64,4 +64,4 @@ All the code and PlatformIO projects will be available on [GitHub](https://githu
 Using VS Code with the PlatformIO extension provides a much richer development experience than the standard Arduino IDE. However, feel free to use the Arduino IDE if you prefer, it is purely a personal choice.
 
 
-Now that we have list all the needed materials, let's start by assembling everything on a breadboard.
+Now that we have listed all the needed materials, let's start by assembling everything on a breadboard.

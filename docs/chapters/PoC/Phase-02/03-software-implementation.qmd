@@ -1,18 +1,18 @@
 # Software Implementation {.unnumbered}
  
-Now that our hardware is wired for deep sleep, we need to completely overhaul our firmware structure.
+Now that our hardware is wired for deep sleep, we need to restructure the firmware.
 
-When the ESP32 enters deep sleep, the `loop()` function stops completely. When the RTC alarm wakes the ESP32 up, it doesn't resume where it left off. Instead, the ESP32 effectively reboots, starting back at the very beginning of the `setup()` function. 
+When the RTC alarm wakes the ESP32 up, it doesn't resume where it left off: it restarts from the beginning of `setup()`.
 
-Therefore, in an autonomous deep-sleep architecture, **we do not use the `loop()` function at all!** All of our logic (reading sensors, saving to SD, setting the next alarm, and going back to sleep) happens sequentially inside `setup()`.
+Therefore, in this deep-sleep design, **we do not use the `loop()` function at all**. All the logic (reading sensors, saving to SD, setting the next alarm, and going back to sleep) runs sequentially inside `setup()`.
 
 ## The Code
 
-> **Further Reading:** The core alarm logic used in this phase is heavily adapted from the official [Adafruit RTClib DS3231_alarm example](https://github.com/adafruit/RTClib/blob/master/examples/DS3231_alarm/DS3231_alarm.ino), which provides a fantastic baseline for working with hardware interrupts. For a deeper dive into the specific RTC optimizations we apply here, check out this excellent [EOLab Deep Sleep Wiki](https://wiki.eolab.de/doku.php?id=amc2020:group_n:deepsleep). 
-> 
-> *(Note on Pull-up Resistors: As the EOLab wiki explains, the ESP32's internal pull-up resistors are highly inconsistent (30-80kΩ) and complicated to keep active during deep sleep. This is why an external pull-up resistor is required on the RTC's open-drain `SQW` pin. EOLab uses a 100kΩ resistor to aggressively minimize the microscopic current drawn while the interrupt is actively triggered. We use a standard 10kΩ resistor, which draws slightly more instantaneous current during the trigger, but provides a stronger, more reliable signal against electrical noise).*
+> **Further Reading:** The alarm logic used in this phase is adapted from the official [Adafruit RTClib DS3231_alarm example](https://github.com/adafruit/RTClib/blob/master/examples/DS3231_alarm/DS3231_alarm.ino). The [EOLab Deep Sleep Wiki](https://wiki.eolab.de/doku.php?id=amc2020:group_n:deepsleep) covers the same DS3231 + ESP32 setup in more depth.
+>
+> *(Note on the pull-up resistor: EOLab uses a 100kΩ pull-up on `SQW` to minimize the current drawn while the alarm is active. We use 10kΩ, which draws a bit more during the few milliseconds the alarm is active, but gives a stiffer, less noise-sensitive signal. Both work.)*
 
-> **Ready-to-use project:** The complete code for this power management phase is available in the repository here: [`05_power_management_rtc`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/Phase-02/05_power_management_rtc)
+> **Ready-to-use project:** The complete code for this power management phase is available in the repository here: [`05_power_management_rtc`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/PoC/Phase-02/05_power_management_rtc)
 
 ```cpp
 /*
@@ -48,6 +48,11 @@ Therefore, in an autonomous deep-sleep architecture, **we do not use the `loop()
 #define SD_CS_PIN 5
 #define SD_OFF_PIN 13
 #define RTC_WAKEUP_PIN 36
+
+// Offset between your computer's local time and UTC, in seconds.
+// Used only to convert the compile time to UTC when setting the RTC.
+// Example: Paris is UTC+1 in winter (3600) and UTC+2 in summer (7200).
+#define COMPILE_TIME_UTC_OFFSET 7200
 
 Adafruit_BME280 bme;
 RTC_DS3231 rtc;
@@ -106,7 +111,9 @@ void setup() {
   // to avoid resetting the time on every deep sleep wake-up.
   if (rtc.lostPower()) {
     Serial.println("RTC lost power, setting the time to compile time!");
-    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+    // __DATE__ and __TIME__ are in local time: convert them to UTC.
+    DateTime compileTime(F(__DATE__), F(__TIME__));
+    rtc.adjust(compileTime - TimeSpan(COMPILE_TIME_UTC_OFFSET));
   }
 
   // Read the time immediately after waking up for maximum accuracy!
@@ -123,7 +130,16 @@ void setup() {
   rtc.clearAlarm(2);
 
   // 2. Initialize BME280 and read data
-  if (!bme.begin(0x76)) {
+  if (bme.begin(0x76)) {
+    // Forced mode: the sensor takes one measurement on demand, then goes
+    // back to sleep (the library default, normal mode, measures non-stop).
+    bme.setSampling(Adafruit_BME280::MODE_FORCED,
+                    Adafruit_BME280::SAMPLING_X1,  // temperature
+                    Adafruit_BME280::SAMPLING_X1,  // pressure
+                    Adafruit_BME280::SAMPLING_X1,  // humidity
+                    Adafruit_BME280::FILTER_OFF);
+    bme.takeForcedMeasurement();
+  } else {
     Serial.println("Could not find a valid BME280 sensor!");
   }
   float temperature = bme.readTemperature();
@@ -166,10 +182,12 @@ void setup() {
   digitalWrite(SD_OFF_PIN, LOW);
 
   // 4. Set the next wake-up alarm
-  // To ensure the station wakes up perfectly on the grid (e.g., exactly at 
-  // :00 and :30 seconds) and doesn't drift over time, we calculate the next 
-  // perfect interval using Unix time (seconds since 1970).
-  uint32_t currentUnix = now.unixtime();
+  // To wake up on a fixed grid (e.g., exactly at :00 and :30 seconds),
+  // we calculate the next interval boundary using Unix time (seconds
+  // since 1970).
+  // Read the time again: the work above took some time, and an alarm set
+  // in the past would only fire the next day (it matches H:M:S).
+  uint32_t currentUnix = rtc.now().unixtime();
   uint32_t remainder = currentUnix % WAKEUP_INTERVAL_SECONDS;
   uint32_t nextAlarmUnix = currentUnix - remainder + WAKEUP_INTERVAL_SECONDS;
   DateTime future(nextAlarmUnix);
@@ -202,19 +220,21 @@ void loop() {
 
 ## How It Works
 
-1.  **Print Wake-up Reason:** We created a helper function `print_wakeup_reason()` to verify exactly what triggered the boot. It will explicitly confirm if it was our RTC alarm (`EXT0`) or a standard power-on.
-2.  **Smart Time Adjustments (`lostPower`):** Notice that we do *not* unconditionally set the time (`rtc.adjust()`)! If we did, we would accidentally reset it to the compile time every single time the ESP32 wakes up. Instead, we use `rtc.lostPower()`. This ensures the time is only set if the user completely skipped Phase 01 or if the RTC's coin-cell battery died.
-3.  **RTC Optimizations:** Before doing anything, we explicitly disable the 32kHz output pin (`rtc.disable32K()`) to save power, explicitly stop oscillating signals on the SQW pin (`rtc.writeSqwPinMode(DS3231_OFF)`), and disable the unused Alarm 2 (`rtc.disableAlarm(2)`) to prevent overlapping alarms.
-4.  **Clear Alarms:** We explicitly call `rtc.clearAlarm(1)` and `rtc.clearAlarm(2)` to wipe all alarm flags from the DS3231's memory. When an alarm triggers, the RTC pulls the SQW pin LOW. Even if an alarm is disabled, an uncleared flag can sometimes keep the SQW pin stuck LOW. Wiping both flags ensures the SQW pin perfectly resets back to HIGH, allowing the ESP32 to safely go back to sleep.
-5.  **Sequential Execution:** We read the sensor, turn on the SD card using our `SD_OFF_PIN`, save the data using the clean `now.toString()` method for the timestamp, and immediately turn the SD card back off. 
-6.  **Set the Next Alarm (Grid Snapping):** Instead of simply adding 30 seconds to the *current* time (which causes the alarm to drift forward by a few milliseconds every wake-up cycle), we use **Unix Time Modulo Math**. By calculating the remainder (`currentUnix % interval`) and subtracting it from the current time, we snap the clock perfectly to the nearest 30-second grid interval before adding the next 30 seconds. This guarantees the station will wake up flawlessly at exactly `16:00:00`, `16:00:30`, `16:01:00`, ad infinitum!
-    *   *Flag Explanation (The `DS3231_A1_Second` Gotcha):* If you look at the official [Adafruit RTClib DS3231_alarm example](https://github.com/adafruit/RTClib/blob/master/examples/DS3231_alarm/DS3231_alarm.ino), you will notice they use the `DS3231_A1_Second` flag. This works perfectly for their specific demo because their sleep interval is only 10 seconds. However, `DS3231_A1_Second` actually means **"Match ONLY the Seconds"**. If you deployed this weather station outdoors and changed the interval to 15 minutes, using the seconds-only flag would cause a massive bug: the RTC would ignore the minutes and wake the ESP32 up every single minute! 
-    *   To make our code fully scalable, we use `DS3231_A1_Hour`. This flag is confusingly named, but it translates to **"Match Hours, Minutes, AND Seconds"**. This guarantees our alarm fires exactly once, whether you set the interval for 30 seconds or 15 minutes (or 900 seconds).
-7.  **Go to Sleep:** We tell the ESP32 to listen to `RTC_WAKEUP_PIN` (Pin 36), and immediately execute `esp_deep_sleep_start()`. The ESP32 shuts down, consuming almost zero power, until exactly 30 seconds later when the RTC wakes it back up to repeat the cycle.
+1.  **Print Wake-up Reason:** The helper function `print_wakeup_reason()` shows what triggered the boot: our RTC alarm (`EXT0`) or a standard power-on.
+2.  **Conditional Time Setting (`lostPower`):** We do *not* set the time unconditionally with `rtc.adjust()`: it would reset the clock to the compile time at every wake-up. The time is only set if the RTC reports a power loss (first use, or coin cell removed or depleted). As in Phase 01, the compile time is converted to UTC.
+3.  **RTC Configuration:** We disable the 32 kHz output (`rtc.disable32K()`), which also saves a little power, switch the SQW pin to interrupt mode (`rtc.writeSqwPinMode(DS3231_OFF)`), and disable the unused Alarm 2 (`rtc.disableAlarm(2)`).
+4.  **Clear Alarms:** When an alarm triggers, the DS3231 sets an alarm flag and pulls SQW LOW. This flag is *latched*: SQW stays LOW until the flag is cleared over I2C. `rtc.clearAlarm(1)` and `rtc.clearAlarm(2)` release the SQW line, so that it goes back HIGH and can signal the next alarm.
+5.  **BME280 in Forced Mode:** By default, the Adafruit library configures the BME280 in *normal mode*: the sensor measures continuously, and it keeps doing so while the ESP32 sleeps, since it is still powered. This wastes several hundred µA (see the [power budget](02-hardware-modifications.qmd#power-budget-estimates)) and slightly heats the sensor, which biases the temperature. We switch it to **forced mode** with `setSampling()`: `takeForcedMeasurement()` triggers a single measurement, after which the sensor automatically returns to sleep. The settings we use (1x oversampling, no filter) are the ones recommended by Bosch for weather monitoring.
+6.  **Sequential Execution:** We read the sensor, turn on the SD card using `SD_OFF_PIN`, save the data with `now.toString()` for the timestamp, unmount the card with `SD.end()`, and turn it back off.
+7.  **Set the Next Alarm (Grid Snapping):** We compute the next alarm on a fixed grid: `next = now - (now % interval) + interval`. With a 30-second interval, the station wakes up at `16:00:00`, `16:00:30`, `16:01:00`, and so on. If a wake-up happens off-grid (after a reset, or a manual wake-up in Phase 3), the next one automatically realigns on the grid.
+    *   We read the time **again** right before computing the alarm, instead of reusing the timestamp read at wake-up. If the work done during the wake-up (SD card, and later Wi-Fi) takes longer than the interval, an alarm computed from the wake-up time would already be in the past. Because the alarm matches hours, minutes and seconds (see below), it would then only fire **the next day**.
+    *   *The `DS3231_A1_Second` Gotcha:* The official [Adafruit RTClib DS3231_alarm example](https://github.com/adafruit/RTClib/blob/master/examples/DS3231_alarm/DS3231_alarm.ino) uses the `DS3231_A1_Second` flag, which means **"match only the seconds"**. It works for their 10-second demo, but with a 15-minute interval the alarm would fire every minute, whenever the seconds match.
+    *   We use `DS3231_A1_Hour` instead. The name is misleading, but it means **"match hours, minutes and seconds"**: the alarm fires once, at the exact time we computed, for any interval shorter than a day.
+8.  **Go to Sleep:** We tell the ESP32 to wake up when `RTC_WAKEUP_PIN` (Pin 36) goes LOW, and call `esp_deep_sleep_start()`. If the alarm time is reached between `setAlarm1()` and the start of deep sleep, nothing is lost: the latched SQW line is already LOW, and the ESP32 wakes up immediately.
 
 ## Expected Output
 
-When you run the code, you should see the ESP32 perfectly snap to your 30-second grid, take a reading, and immediately shut down:
+When you run the code, you should see the ESP32 align on the 30-second grid, take a reading, and go back to sleep:
 
 ```text
 --- Waking up from Deep Sleep ---
@@ -232,19 +252,18 @@ Next reading scheduled for: 15:48:00
 Entering Deep Sleep...
 ```
 
-*(Note: You will also see some internal ESP32 bootloader diagnostic logs like `rst:0x5 (DEEPSLEEP_RESET)` printed between cycles. This is completely normal.)*
+*(Note: You will also see some ESP32 bootloader logs like `rst:0x5 (DEEPSLEEP_RESET)` printed between cycles. This is normal.)*
 
-And if you pull the SD card and check `weather_data.csv`, you will see perfectly aligned data points:
+And if you pull the SD card and check `weather_data.csv`, you will see aligned data points:
 
 ```csv
 timestamp;temperature;humidity;pressure
 2026-07-22T15:47:00;29.33;33.06;997.36
 2026-07-22T15:47:30;29.42;32.79;997.32
 ```
-```
 
 ## Next Steps
 
-Your weather station is now ultra-power efficient! The ESP32 consumes virtually no power while waiting for the next RTC trigger, and completely shuts off the SD card module when it's not writing data. 
+The station now spends most of its time in deep sleep, keeps the BME280 asleep between measurements, and powers the SD card only when writing. According to our [estimates](02-hardware-modifications.qmd#power-budget-estimates), the remaining consumption in deep sleep is dominated by the modules around the ESP32, not by the ESP32 itself.
 
-It's time to move on to the next phase: transmitting this data to a server over Wi-Fi.
+Next, we transmit this data to a server over Wi-Fi.
