@@ -5,6 +5,7 @@
 #   pixi run build-firmware   # build every PlatformIO project
 #   pixi run test             # run the firmware tests on the computer
 #   pixi run book             # render the book (fails on missing includes)
+#   pixi run api-docs         # firmware API documentation (after the book)
 #   pixi run preview          # live preview of the book in the browser
 #   pixi run dummy-server     # start the Phase 3 dummy backend server
 #
@@ -20,6 +21,7 @@ platforms = ["linux-64"]
 platformio = "6.2.*"
 quarto = "1.7.*"
 cxx-compiler = "*"      # g++ for the tests running on the computer
+doxygen = "1.18.*"
 
 [activation.env]
 # Keep PlatformIO packages (ESP32 toolchain, libraries) inside the
@@ -30,6 +32,7 @@ PLATFORMIO_CORE_DIR = "$PIXI_PROJECT_ROOT/.pio-core"
 build-firmware = "bash scripts/build-firmware.sh"
 test = "pio test -d firmware/paws -e native"
 book = "bash scripts/render-book.sh"
+api-docs = { cmd = "doxygen Doxyfile", cwd = "firmware/paws" }
 preview = { cmd = "quarto preview", cwd = "docs" }
 
 # Backend: a separate environment, because PlatformIO requires an old
