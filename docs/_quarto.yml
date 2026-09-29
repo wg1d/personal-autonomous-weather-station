@@ -7,6 +7,12 @@ book:
   subtitle: "Personal Autonomous Weather Station"
   repo-url: https://github.com/wg1d/personal-autonomous-weather-station
   repo-branch: main
+  sidebar:
+    tools:
+      # Doxygen documentation of firmware/paws, published with the book
+      - icon: file-earmark-code
+        href: https://wg1d.github.io/personal-autonomous-weather-station/api/
+        text: Firmware API documentation
   date: last-modified
   reader-mode: false
 
