@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build all PlatformIO projects
+    name: Build all PlatformIO projects and run the tests
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -35,3 +35,7 @@ jobs:
       - name: Build
         # Creates placeholder secrets.h files, then builds every project
         run: pixi run build-firmware
+
+      - name: Test
+        # Unit and scenario tests of the core, on the runner (native env)
+        run: pixi run test
