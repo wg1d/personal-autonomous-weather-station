@@ -12,6 +12,7 @@ on:
       - 'firmware/**/platformio.ini'
       # Firmware API documentation, published under api/
       - 'firmware/paws/Doxyfile'
+      - 'firmware/paws/README.md'
       - 'backend/**/*.py'
       - '.github/workflows/publish.yml'
       # Development environment

@@ -8,10 +8,13 @@
 PROJECT_NAME     = "PAWS firmware"
 PROJECT_BRIEF    = "Personal Autonomous Weather Station"
 
-# The core, its interfaces, the adapters, and what the tests share
-INPUT            = lib src test/doubles test/test_scenarios/Station.h
+# The main page, the core, its interfaces, the adapters, and what the
+# tests share
+INPUT            = README.md lib src test/doubles \
+                   test/test_scenarios/Station.h
+USE_MDFILE_AS_MAINPAGE = README.md
 RECURSIVE        = YES
-FILE_PATTERNS    = *.h *.cpp
+FILE_PATTERNS    = *.h *.cpp *.md
 
 # The HTML pages are published with the book, under api/
 OUTPUT_DIRECTORY = ../../docs/_output
