@@ -1,0 +1,86 @@
+# A1 · Tests {.unnumbered}
+
+This chapter checks the core of the [previous chapter](01-1-interfaces-and-state-machine.qmd) on the computer, without the board. It uses the test doubles and the test levels described in the [Verification Strategy](00-design.qmd#verification-strategy).
+
+## Test doubles
+
+The tests replace each interface with a test double (see [Test doubles](00-design.qmd#test-doubles) in the design chapter). The fake clock lets the test set the time, choose whether the clock is valid, and simulate an RTC failure:
+
+```{.cpp include="../../../../firmware/paws/test/doubles/FakeClock.h"}
+```
+
+The mock network records each call in an `EventLog` shared with the fake storage. A test can then check the *order* of the calls, for example that the row was stored before connecting (F2 · Store first):
+
+```{.cpp include="../../../../firmware/paws/test/doubles/MockNetwork.h"}
+```
+
+::: {.callout-note collapse="true"}
+## EventLog, StubSensor, FakeStorage, FakePower and FakeMaintenance
+
+```{.cpp include="../../../../firmware/paws/test/doubles/EventLog.h"}
+```
+
+```{.cpp include="../../../../firmware/paws/test/doubles/StubSensor.h"}
+```
+
+```{.cpp include="../../../../firmware/paws/test/doubles/FakeStorage.h"}
+```
+
+```{.cpp include="../../../../firmware/paws/test/doubles/FakePower.h"}
+```
+
+```{.cpp include="../../../../firmware/paws/test/doubles/FakeMaintenance.h"}
+```
+:::
+
+## Unit tests
+
+Each unit test checks one function with chosen inputs. The first suite checks the rules. A Unity test is a function that ends with assertions such as `TEST_ASSERT_EQUAL_UINT32(expected, actual)`; `main()` runs them one by one with `RUN_TEST`. The times are written with a small helper, `at(14, 7, 23)`, which returns the Unix time of `14:07:23` UTC on 1 October 2026.
+
+```{.cpp include="../../../../firmware/paws/test/test_rules/test_rules.cpp"}
+```
+
+The second suite checks `nextState()`, with one test per row of the transitions table. `assertNext()` compares the state names rather than the values, so that a failure prints `Expected 'SCHEDULE' Was 'TIME_SYNC'` instead of two numbers. The last test checks N2 · Always wake up again for every case at once: with each of the 16 combinations of conditions, the path from BOOT must reach SLEEP in at most 7 steps. A loop in the transitions, introduced by mistake, would otherwise keep the station awake until the battery is empty.
+
+```{.cpp include="../../../../firmware/paws/test/test_transitions/test_transitions.cpp"}
+```
+
+## Scenario tests
+
+The scenario tests build a whole station from test doubles. This common setup is a *fixture*: by default, it is `14:00:03`, just after an alarm, and everything works. Each test changes what it needs, then calls `wake()`.
+
+```{.cpp include="../../../../firmware/paws/test/test_scenarios/Station.h"}
+```
+
+`wakeAtNextAlarm()` simulates a night of sleep in one line: it moves the clock to the alarm programmed by the previous wake-up, plus 3 seconds, and runs the machine again. A simulated day is 96 calls, and runs in a fraction of a second.
+
+```{.cpp include="../../../../firmware/paws/test/test_scenarios/test_scenarios.cpp"}
+```
+
+Each test is named after the requirement it checks. Together, they cover the acceptance criteria of F1, F2, F3, F4, F6, N1, N2 and the simulated part of N3 from the [verification matrix](00-design.qmd#verification-matrix). Some criteria will only be fully checked in later steps: for example, N1 also requires that the upload cursor never moves past a row the server has not acknowledged, which comes with the upload in A4.
+
+## Running the tests
+
+From the root of the repository:
+
+```bash
+pixi run test
+```
+
+This runs `pio test -d firmware/paws -e native`. The first run downloads Unity; the next ones take a few seconds. At step A1, the end of the output looks like this (the number of tests grows at each step):
+
+```text
+=================================== SUMMARY ===================================
+Environment    Test              Status    Duration
+-------------  ----------------  --------  ------------
+native         test_rules        PASSED    00:00:00.441
+native         test_transitions  PASSED    00:00:00.435
+native         test_scenarios    PASSED    00:00:00.447
+================= 38 test cases: 38 succeeded in 00:00:01.324 =================
+```
+
+The same command runs in the CI for every pull request that changes the firmware, which checks N4 · Testability: the core compiles on the computer without any Arduino header.
+
+A test that never fails is useless, so it is worth checking that these tests can fail. In `Rules.cpp`, replace the last line of `isUploadNeeded()` with `return measuredAt % config.uploadPeriodS == 0;`, the version that ignores the slot. Several tests then fail, including `test_f3_n3_one_day_gives_24_uploads` (`Expected 24 Was 0`): with a 3-second wake-up delay, no measurement is ever exactly on the hour. Undo the change before continuing.
+
+The core is now tested. The [next chapter](01-3-walking-skeleton.qmd) runs it on the board.

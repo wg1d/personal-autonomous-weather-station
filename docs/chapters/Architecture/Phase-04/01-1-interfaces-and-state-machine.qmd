@@ -1,0 +1,179 @@
+# A1 · Interfaces and State Machine {.unnumbered}
+
+Step A1 of the [Implementation Plan](00-design.qmd#implementation-plan) builds the frame of the new firmware: the interfaces, the state machine, the test doubles and the first tests. No module is wired yet: the only hardware needed is the ESP32 board and its USB cable.
+
+The step is split into three chapters:
+
+1. **Interfaces and State Machine** (this chapter): the project layout, the interfaces, and the core logic.
+2. [Tests](01-2-tests.qmd): the test doubles, and the automatic tests of the core on the computer.
+3. [Walking Skeleton](01-3-walking-skeleton.qmd): the same state machine running on the board, with *skeleton adapters* that stand in for the modules.
+
+The following steps replace the skeleton adapters one by one with real ones (DS3231 in A2, BME280 and SD card in A3, Wi-Fi in A4, access point in A5), without changing the state machine.
+
+> **Ready-to-use project:** The complete code of step A1 is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/paws)
+
+## Project Layout
+
+The PoC had one folder per sketch. From now on, the firmware is a single PlatformIO project, which grows at each step:
+
+```text
+firmware/paws/
+├── platformio.ini
+├── lib/
+│   ├── ports/            # interfaces and the data they exchange
+│   │   ├── Record.h
+│   │   ├── IClock.h, ISensor.h, IStorage.h
+│   │   └── INetwork.h, IPower.h, IMaintenance.h
+│   └── core/             # decision logic, no Arduino
+│       ├── Config.h
+│       ├── Rules.h, Rules.cpp
+│       ├── Transitions.h, Transitions.cpp
+│       └── StateMachine.h, StateMachine.cpp
+├── src/
+│   ├── adapters/         # skeleton adapters in this step
+│   └── main.cpp
+└── test/
+    ├── doubles/          # test doubles
+    ├── test_rules/       # unit tests of the rules
+    ├── test_transitions/ # unit tests of the transitions
+    └── test_scenarios/   # scenario tests
+```
+
+PlatformIO treats each folder of `lib/` as a library, compiled for any environment that includes one of its headers. `src/` is only compiled for the board, and each `test_*` folder of `test/` is a separate test program.
+
+The project has two environments:
+
+```{.ini include="../../../../firmware/paws/platformio.ini"}
+```
+
+- `esp32` builds the firmware, as in the PoC.
+- `native` builds `lib/` and `test/` with the computer's compiler (`g++`), and runs the tests with [Unity](https://github.com/ThrowTheSwitch/Unity). `-std=gnu++11` selects the same version of C++ as the Arduino core of the board, so that the tests compile the code exactly as the board does. `-Wall -Wextra` enable the compiler warnings, and `-I test/doubles` lets every test include the test doubles.
+
+## The Data
+
+The `lib/ports` folder contains what the core needs from the outside world, in its own terms. It holds two kinds of files, with different roles:
+
+- An **interface** describes a *service*: functions that the core can call, without saying how they work. Each interface has several implementations. For the clock: `SystemClock` on the board in this step, `Ds3231Clock` from step A2, and `FakeClock` in the tests. By convention, the name of an interface starts with `I`.
+- A **data structure** describes *values*: a timestamp, a validity flag, measurements. It has no functions to implement, and a single definition, used as is by the core, the adapters and the tests. It is what travels through the interfaces: the core fills a `Record`, then gives it to `IStorage::append()`. Its name has no `I`.
+
+The data is a single file for now, `Record.h`. It defines a `Measurement` (one reading of all the sensors) and a `Record` (the row created at each wake-up):
+
+```{.cpp include="../../../../firmware/paws/lib/ports/Record.h"}
+```
+
+A value that could not be measured is `NAN` (*Not a Number*), a special floating-point value meaning "no value". It follows the "missing values" rule of the [Design Invariants](00-design.qmd#design-invariants): the storage will write it as an empty field, never as a fake number such as `0` or `-999`.
+
+## The Interfaces
+
+There is one interface per service. As in the [design chapter](00-design.qmd#what-an-interface-looks-like), each one only declares functions (*pure virtual* functions, marked `= 0`).
+
+Each interface only declares what step A1 uses; the next steps add functions when they need them.
+
+### IClock
+
+The clock gives the core the time, and wakes the station up at the right moment. The core uses it to:
+
+- timestamp each row (`now()`), and flag the row when the time is not reliable (`isValid()`, F6 · Flag unreliable time);
+- correct the time after an NTP sync (`setTime()`);
+- program the next measurement on the 15-minute grid (`setAlarm()`).
+
+This is the interface presented in the [design chapter](00-design.qmd#what-an-interface-looks-like), with one detail: `setAlarm()` returns `false` when no alarm could be programmed, for example when the RTC does not answer. The core then knows that the RTC alarm will not wake the station up, and relies on the ESP32 safety timer instead, so that the station never sleeps forever (N2 · Always wake up again).
+
+```{.cpp include="../../../../firmware/paws/lib/ports/IClock.h"}
+```
+
+### ISensor
+
+The sensors give the core the values of a row. A single function reads all of them at once and returns a `Measurement`. Adding a sensor (N5 · Extensibility) adds a field to `Measurement`, not a function here.
+
+```{.cpp include="../../../../firmware/paws/lib/ports/ISensor.h"}
+```
+
+### IStorage
+
+The storage keeps every row on the SD card, the source of truth of the station. In this step, it only appends rows; reading the rows after the upload cursor comes with the upload, in step A4.
+
+```{.cpp include="../../../../firmware/paws/lib/ports/IStorage.h"}
+```
+
+### INetwork
+
+The network lets the core reach the home Wi-Fi, the server and NTP. In this step, it opens and closes the connection, and reads the NTP time. `fetchTime()` is only called while connected: the daily sync reuses the upload connection (F4 · Daily time sync). Sending the rows comes in step A4.
+
+```{.cpp include="../../../../firmware/paws/lib/ports/INetwork.h"}
+```
+
+### IPower
+
+The power management tells the core why the station woke up, and puts it back to deep sleep. It defines the four wake-up causes, and the `SleepPlan`: the list of wake-up sources to arm before sleeping, as decided by the core.
+
+```{.cpp include="../../../../firmware/paws/lib/ports/IPower.h"}
+```
+
+### IMaintenance
+
+The maintenance mode (F5) lets someone download or delete the data from a phone, through an access point and a web page. The core only starts the session and waits for its end: the Wi-Fi and the web server stay hidden behind this interface.
+
+```{.cpp include="../../../../firmware/paws/lib/ports/IMaintenance.h"}
+```
+
+## The Core
+
+### Configuration
+
+All the settings of the core are grouped in one structure. Its default values are those of the design chapter; `main.cpp` and the tests can change them.
+
+```{.cpp include="../../../../firmware/paws/lib/core/Config.h"}
+```
+
+### The rules
+
+The conditions of the transitions are *pure functions*: their result only depends on their arguments, and they have no side effect (no hardware access, no global variable). This is what makes them easy to test.
+
+```{.cpp include="../../../../firmware/paws/lib/core/Rules.h"}
+```
+
+```{.cpp include="../../../../firmware/paws/lib/core/Rules.cpp"}
+```
+
+Two details matter here:
+
+- `isUploadNeeded()` tests the **slot** of the measurement, not its exact time. The firmware reads the clock a few seconds after the alarm, so testing `t % 3600 == 0` would almost never be true. With the slot, a measurement at `14:00:03`, or at `14:01:00` after a wake-up by the safety timer, triggers the hourly upload.
+- `uint32_t` is an *unsigned* integer: it cannot be negative. Subtracting a larger number from a smaller one "wraps around" and gives a very large number. `isSyncNeeded()` relies on it: if the clock went backwards, the age of the last sync looks huge, and a sync is requested.
+
+### The transitions
+
+A state machine does two different things at each step: it does the *work* of the current state (read the sensors, store the row...), then it chooses the *next state*. We keep them apart. The work is done by the state machine (next section), and the choice of the next state is a single pure function, `nextState()`.
+
+This choice depends on **conditions**: the "Condition" column of the [transitions table](00-design.qmd#state-machine) in the design chapter. There are four of them: whether the button woke the station up, whether an upload is needed, whether the Wi-Fi is connected, and whether a sync is needed. They are grouped in a `Conditions` structure. Each one is set by the state that can know it: BOOT reads the wake-up cause, STORE computes whether an upload is needed, and UPLOAD tries to connect and computes whether a sync is needed. `nextState()` only reads them.
+
+```{.cpp include="../../../../firmware/paws/lib/core/Transitions.h"}
+```
+
+```{.cpp include="../../../../firmware/paws/lib/core/Transitions.cpp"}
+```
+
+Each `case` corresponds to one or two rows of the [transitions table](00-design.qmd#state-machine) of the design chapter: all the transitions of the station are in this one function, and can be checked against the table line by line.
+
+### The state machine
+
+The state machine does the work of each state, and asks `nextState()` where to go next. It receives the interfaces it works with in a `Ports` structure, and never knows whether they are hardware adapters or test doubles.
+
+```{.cpp include="../../../../firmware/paws/lib/core/StateMachine.h"}
+```
+
+`RetainedState` holds what must survive deep sleep. For now, it only contains the time of the last NTP sync (see [Persistent Context](00-design.qmd#persistent-context)). The core does not know where it is kept: on the board, `main.cpp` places it in RTC memory.
+
+The machine also records the states it visits, and can call a *listener* function each time it enters a state. The tests use the first to check the path, and `main.cpp` uses the second to print it.
+
+```{.cpp include="../../../../firmware/paws/lib/core/StateMachine.cpp"}
+```
+
+`run()` repeats the usual cycle of a state machine, until `SLEEP`:
+
+1. **Actions of the current state**: `doWork()` calls the matching `on...()` function. These actions also read the inputs of the state (the wake-up cause in BOOT, the result of the connection in UPLOAD...) and set the matching conditions.
+2. **Evolution**: `nextState()` chooses the next state from the conditions.
+3. **Actions on transitions**: there are none in this machine; all the actions belong to the states.
+4. **The next state becomes the current state**, and the cycle starts again.
+
+The core is complete, but nothing has run yet. The [next chapter](01-2-tests.qmd) checks it on the computer.
