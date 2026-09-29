@@ -21,7 +21,7 @@ uint32_t at(uint32_t h, uint32_t m, uint32_t s) {
     return kDayStart + h * 3600 + m * 60 + s;
 }
 
-const Config config;  // default values of the design chapter
+const Config config;  // default values of the Phase 4 design
 
 void setUp() {}
 void tearDown() {}

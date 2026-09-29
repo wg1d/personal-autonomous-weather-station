@@ -4,7 +4,7 @@
  *
  * Description:
  * The states of the machine and its transitions, as one pure function:
- * the code version of the transitions table of the design chapter.
+ * the code version of the transitions table of the Phase 4 design.
  *
  * Dependencies: none (standard C++ only).
  */
@@ -12,7 +12,7 @@
 #pragma once
 
 /**
- * @brief The states of the machine (see the design chapter).
+ * @brief The states of the machine (see the Phase 4 design).
  */
 enum class State {
     Boot,         ///< Read the wake-up cause and the clock status
@@ -29,7 +29,7 @@ enum class State {
  * @brief Name of a state, for the logs.
  *
  * @param[in] state A state.
- * @return Its name in capitals, as in the design chapter ("BOOT"...).
+ * @return Its name in capitals, as in the Phase 4 design ("BOOT"...).
  */
 const char* stateName(State state);
 

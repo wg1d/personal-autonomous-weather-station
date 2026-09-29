@@ -4,7 +4,7 @@
  *
  * Description:
  * The settings used by the core. The defaults are the values of the
- * design chapter; main.cpp and the tests can change them (for example a
+ * Phase 4 design; main.cpp and the tests can change them (for example a
  * short interval for a demo on the bench).
  *
  * Dependencies: none (standard C++ only).
@@ -17,7 +17,7 @@
 /**
  * @brief The settings of the core, in seconds.
  *
- * The default values are those of the design chapter. main.cpp and the
+ * The default values are those of the Phase 4 design. main.cpp and the
  * tests can change them, for example to use a short interval for a demo
  * on the bench.
  */
