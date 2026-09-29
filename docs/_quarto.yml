@@ -46,8 +46,17 @@ book:
       chapters:
         - href: chapters/Architecture/Phase-04/00-design.qmd
           text: "Design"
-        - href: chapters/Architecture/Phase-04/01-fsm-skeleton.qmd
-          text: "FSM Skeleton"
+    - part: "A1 – FSM Skeleton"
+      chapters:
+        - href: chapters/Architecture/Phase-04/01-1-interfaces-and-state-machine.qmd
+          text: "Interfaces & State Machine"
+        - href: chapters/Architecture/Phase-04/01-2-tests.qmd
+          text: "Tests"
+        - href: chapters/Architecture/Phase-04/01-3-walking-skeleton.qmd
+          text: "Walking Skeleton"
+    # Early drafts of the next steps (A3, A4), to be rewritten
+    - part: "Drafts"
+      chapters:
         - href: chapters/Architecture/Phase-04/02-sensor-and-storage.qmd
           text: "Sensor & Storage"
         - href: chapters/Architecture/Phase-04/03-network-and-time.qmd
