@@ -30,6 +30,7 @@ pixi install --all
 
 ```bash
 pixi run build-firmware   # build every PlatformIO project
+pixi run test             # run the firmware tests on the computer
 pixi run book             # generate the book in docs/_output
 pixi run preview          # live preview of the book in the browser
 pixi run dummy-server     # start the Phase 3 dummy backend server
@@ -39,12 +40,14 @@ The first build downloads the ESP32 toolchain into `.pio-core/` (about 1.5 GB), 
 
 ### 3. Flash the ESP32
 
-Every PlatformIO command works through pixi. For example, to flash a sketch and open the serial monitor:
+Every PlatformIO command works through pixi. For example, to flash the current firmware and open the serial monitor:
 
 ```bash
-pixi run pio run -d firmware/PoC/Phase-01/01_data_acquisition -t upload
-pixi run pio device monitor -b 115200
+pixi run pio run -d firmware/paws -t upload
+pixi run pio device monitor -d firmware/paws
 ```
+
+The Proof of Concept sketches (`firmware/PoC/`) are flashed the same way, with their own folder after `-d`.
 
 The Wi-Fi sketches read their credentials from a git-ignored `secrets.h`: copy `secrets.example.h` to `secrets.h` in the sketch folder and fill in your values. If `secrets.h` is missing, `pixi run build-firmware` creates it from the example, with placeholder values that only allow the sketch to compile.
 
