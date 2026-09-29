@@ -3,6 +3,7 @@
 # pixi installs the exact same tools locally and in the CI, from the
 # versions frozen in pixi.lock. Usage:
 #   pixi run build-firmware   # build every PlatformIO project
+#   pixi run test             # run the firmware tests on the computer
 #   pixi run book             # render the book (fails on missing includes)
 #   pixi run preview          # live preview of the book in the browser
 #   pixi run dummy-server     # start the Phase 3 dummy backend server
@@ -27,6 +28,7 @@ PLATFORMIO_CORE_DIR = "$PIXI_PROJECT_ROOT/.pio-core"
 
 [tasks]
 build-firmware = "bash scripts/build-firmware.sh"
+test = "pio test -d firmware/paws -e native"
 book = "bash scripts/render-book.sh"
 preview = { cmd = "quarto preview", cwd = "docs" }
 
