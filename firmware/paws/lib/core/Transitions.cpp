@@ -4,7 +4,7 @@
  *
  * Description:
  * Implementation of the transitions (see Transitions.h). Each case reads
- * like one or two rows of the transitions table of the design chapter.
+ * like one or two rows of the transitions table of the Phase 4 design.
  *
  * Dependencies: none (standard C++ only).
  */

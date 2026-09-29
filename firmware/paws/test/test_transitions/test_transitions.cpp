@@ -4,7 +4,7 @@
  *
  * Description:
  * Unit tests of the transitions (lib/core/Transitions.h): one test per
- * row of the transitions table of the design chapter.
+ * row of the transitions table of the Phase 4 design.
  *
  * Dependencies: lib/core, Unity.
  */
