@@ -120,7 +120,7 @@ stateDiagram-v2
 | `STORE` | `UPLOAD` | **upload needed** is true. |
 | `STORE` | `SCHEDULE` | **upload needed** is false. |
 | `UPLOAD` | `TIME_SYNC` | The Wi-Fi connection succeeded **and** **sync needed** is true. |
-| `UPLOAD` | `SCHEDULE` | The Wi-Fi connection failed, **or** **sync needed** is false. |
+| `UPLOAD` | `SCHEDULE` | The Wi-Fi connection failed, **or** **sync needed** is false: every case except the one above. |
 | `TIME_SYNC` | `SCHEDULE` | Always. |
 | `SCHEDULE` | `SLEEP` | Always. |
 
@@ -128,8 +128,10 @@ The transitions out of `STORE` and `UPLOAD` depend on two conditions, computed b
 
 | Condition | True when… |
 |-----------|------------|
-| **upload needed** | The current measurement is on a full hour (`:00`), **or** the clock is invalid. In the second case, the station tries to reach NTP at every wake-up until the clock is valid again. |
+| **upload needed** | The current measurement belongs to a full-hour slot (`:00`), **or** the clock is invalid. In the second case, the station tries to reach NTP at every wake-up until the clock is valid again. |
 | **sync needed** | The clock is invalid, **or** the last NTP sync is more than 24 hours old. |
+
+The first condition tests the *slot* of the measurement, not its exact time. The firmware reads the clock a few seconds after the alarm (or 60 seconds after it, when woken by the safety timer), so a measurement is never taken at exactly `14:00:00`. The time is first rounded down to the 15-minute grid ($t - (t \bmod T)$, see below): `14:00:03` and `14:01:00` both belong to the `14:00` slot, which is a full hour.
 
 ### Computing the next alarm
 
@@ -137,7 +139,7 @@ The transitions out of `STORE` and `UPLOAD` depend on two conditions, computed b
 
 $$t_{next} = t_{now} - (t_{now} \bmod T) + T \qquad \text{with } T = 15 \times 60 = 900\,s$$
 
-$T$ is the measurement interval of F1 · Periodic measurement, in seconds, since Unix timestamps count seconds. The term $t_{now} \bmod T$ is the time elapsed since the last slot. For example, at `14:07:23`, 443 seconds have elapsed since `14:00:00`, so $t_{next} = $ `14:07:23` $-$ 443 s $+$ 900 s $=$ `14:15:00`. In the code, $T$ is a constant defined in `config.h`, not a hard-coded 900.
+$T$ is the measurement interval of F1 · Periodic measurement, in seconds, since Unix timestamps count seconds. The term $t_{now} \bmod T$ is the time elapsed since the last slot. For example, at `14:07:23`, 443 seconds have elapsed since `14:00:00`, so $t_{next} = $ `14:07:23` $-$ 443 s $+$ 900 s $=$ `14:15:00`. In the code, $T$ is a field of the `Config` structure of the core, not a hard-coded 900.
 
 ### Two design choices
 
@@ -171,8 +173,8 @@ The usual solution is to separate the code into layers that only communicate thr
 ```{mermaid}
 flowchart TD
     core["Core logic<br/>state machine, rules, CSV format"]
-    ports["Interfaces<br/>IClock, ISensor, IStorage, INetwork, IPower"]
-    hw["Hardware adapters<br/>DS3231, BME280, SD card, Wi-Fi, ESP32 sleep"]
+    ports["Interfaces<br/>IClock, ISensor, IStorage, INetwork,<br/>IPower, IMaintenance"]
+    hw["Hardware adapters<br/>DS3231, BME280, SD card, Wi-Fi,<br/>access point, ESP32 sleep"]
     doubles["Test doubles<br/>fake clock, fake sensor, ..."]
     core -- uses --> ports
     hw -. implements .-> ports
@@ -193,7 +195,7 @@ public:
     virtual uint32_t now() = 0;                 // Unix time, UTC
     virtual bool isValid() = 0;                 // false after a power loss
     virtual void setTime(uint32_t unixTime) = 0;
-    virtual void setAlarm(uint32_t unixTime) = 0;
+    virtual bool setAlarm(uint32_t unixTime) = 0; // false if not set
 };
 ```
 
@@ -202,7 +204,9 @@ This interface does not mention I2C, registers or RTClib. It has two implementat
 - `Ds3231Clock`, for the board: `now()` returns `rtc.now().unixtime()`, `isValid()` returns `!rtc.lostPower()`, and so on.
 - `FakeClock`, for the tests: `now()` returns a number that the test sets, and `setAlarm()` just records the requested time so the test can check it.
 
-The state machine receives an `IClock&` and cannot tell which one it is using. The other interfaces follow the same pattern: `ISensor` (read a measurement), `IStorage` (append a row, read rows after the cursor, move the cursor), `INetwork` (connect, send a batch, get the NTP time) and `IPower` (read the wake-up cause, sleep with the given wake-up sources).
+The state machine receives an `IClock&` and cannot tell which one it is using. The other interfaces follow the same pattern: `ISensor` (read a measurement), `IStorage` (append a row, read rows after the cursor, move the cursor), `INetwork` (connect, send a batch, get the NTP time), `IPower` (read the wake-up cause, sleep with the given wake-up sources) and `IMaintenance` (run the access point session).
+
+`IClock` is enough to show the principle here. The complete code of all the interfaces is given in the first chapter of step A1, [Interfaces and State Machine](01-1-interfaces-and-state-machine.qmd#the-interfaces), where it is included directly from the repository.
 
 ### Project layout
 
@@ -212,15 +216,18 @@ The project is a single PlatformIO project with two environments: `esp32` builds
 firmware/paws/
 ├── platformio.ini      # [env:esp32] for the board, [env:native] for tests
 ├── include/
-│   ├── config.h        # pins, intervals, timeouts
-│   └── secrets.example.h
+│   └── secrets.example.h   # Wi-Fi and server settings (step A4)
 ├── lib/
-│   ├── core/           # state machine, rules, CSV format (no Arduino)
-│   └── ports/          # interfaces
+│   ├── core/           # Config, rules, state machine, CSV format
+│   │                   # (no Arduino)
+│   └── ports/          # interfaces and the data they exchange
 ├── src/
-│   ├── adapters/       # hardware implementations
+│   ├── adapters/       # hardware implementations (pins at the top)
 │   └── main.cpp        # creates the adapters and runs the state machine
-└── test/               # test doubles and tests
+└── test/
+    ├── doubles/        # test doubles, shared by all tests
+    ├── test_rules/     # unit tests
+    └── test_scenarios/ # scenario tests
 ```
 
 ## Verification Strategy {#verification-strategy}
@@ -379,7 +386,7 @@ The daily NTP sync is negligible, since it reuses an upload connection.
 
 ## Implementation Plan
 
-Each step is a chapter of the book, a tag in the repository, and a working firmware:
+The implementation is split into six steps, numbered A1 to A6 (A for Architecture). Each step is a chapter of the book, a tag in the repository, and a working firmware:
 
 | Step | Content | Hardware needed |
 |------|---------|-----------------|
@@ -389,3 +396,5 @@ Each step is a chapter of the book, a tag in the repository, and a working firmw
 | A4 | Wi-Fi, incremental upload with cursor, NTP sync | + Wi-Fi |
 | A5 | Maintenance mode (button, access point, web page) | + button |
 | A6 | Hardening: watchdog, error handling review, updated power estimate | Full station |
+
+The next chapter, [Interfaces and State Machine](01-1-interfaces-and-state-machine.qmd), starts step A1.
