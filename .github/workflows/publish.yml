@@ -7,6 +7,8 @@ on:
       - 'docs/**'
       # Code files included in the book
       - 'firmware/**/*.ino'
+      - 'firmware/**/*.h'
+      - 'firmware/**/*.cpp'
       - 'firmware/**/platformio.ini'
       - 'backend/**/*.py'
       - '.github/workflows/publish.yml'
