@@ -12,6 +12,8 @@ The following steps replace the skeleton adapters one by one with real ones (DS3
 
 > **Ready-to-use project:** The complete code of step A1 is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/paws)
 
+> **API reference:** Every class and function of the firmware is documented in the code, with [Doxygen](https://www.doxygen.nl/) comments. The generated documentation is published with this book: [firmware API](../../../api/index.html)
+
 ## Project Layout
 
 The PoC had one folder per sketch. From now on, the firmware is a single PlatformIO project, which grows at each step:

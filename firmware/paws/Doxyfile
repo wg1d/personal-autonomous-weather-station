@@ -1,0 +1,26 @@
+# Doxygen configuration of the PAWS firmware.
+#
+#   pixi run api-docs   # generates docs/_output/api, next to the book
+#
+# Only the settings that differ from the Doxygen defaults are listed.
+# Run it after `pixi run book`: rendering the book empties docs/_output.
+
+PROJECT_NAME     = "PAWS firmware"
+PROJECT_BRIEF    = "Personal Autonomous Weather Station"
+
+# The core, its interfaces, the adapters, and what the tests share
+INPUT            = lib src test/doubles test/test_scenarios/Station.h
+RECURSIVE        = YES
+FILE_PATTERNS    = *.h *.cpp
+
+# The HTML pages are published with the book, under api/
+OUTPUT_DIRECTORY = ../../docs/_output
+HTML_OUTPUT      = api
+GENERATE_LATEX   = NO
+
+# Everything public must be documented: an undocumented function or a
+# missing @param makes the command fail (checked by the CI)
+WARN_IF_UNDOCUMENTED = YES
+WARN_NO_PARAMDOC     = YES
+WARN_AS_ERROR        = FAIL_ON_WARNINGS
+QUIET                = YES

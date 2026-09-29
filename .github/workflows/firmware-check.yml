@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build all PlatformIO projects and run the tests
+    name: Build, test and check the API documentation
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -39,3 +39,7 @@ jobs:
       - name: Test
         # Unit and scenario tests of the core, on the runner (native env)
         run: pixi run test
+
+      - name: Check the API documentation
+        # Fails if a class, function or parameter is not documented
+        run: pixi run api-docs
