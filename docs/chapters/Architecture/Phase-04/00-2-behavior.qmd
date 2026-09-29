@@ -1,0 +1,116 @@
+# Behavior {.unnumbered}
+
+This chapter describes what the station does at each wake-up, what it remembers from one wake-up to the next, and how it reacts when something fails. It relies on the requirements and invariants of the [previous chapter](00-1-requirements.qmd).
+
+## State Machine
+
+At each wake-up, the firmware runs through the following states:
+
+| State | Role |
+|-------|------|
+| `BOOT` | Initialize the buses, read the wake-up cause and the clock status. |
+| `MEASURE` | Read all sensors (missing values stay empty). |
+| `STORE` | Append the row to the SD card. |
+| `UPLOAD` | Connect to Wi-Fi and send the rows after the upload cursor. |
+| `TIME_SYNC` | Correct the RTC with NTP, using the open connection. |
+| `MAINTENANCE` | Run the access point and web page for 3 minutes. |
+| `SCHEDULE` | Program the next RTC alarm on the 15-minute grid. |
+| `SLEEP` | Arm the wake-up sources and enter deep sleep. |
+
+```{mermaid}
+stateDiagram-v2
+    [*] --> BOOT
+    BOOT --> MAINTENANCE : woken by the button
+    BOOT --> MEASURE : woken by the alarm, the timer, or power-on
+    MAINTENANCE --> MEASURE : after 3 minutes
+    MEASURE --> STORE : always
+    STORE --> UPLOAD : upload needed
+    STORE --> SCHEDULE : no upload needed
+    UPLOAD --> TIME_SYNC : Wi-Fi connected and sync needed
+    UPLOAD --> SCHEDULE : no Wi-Fi, or no sync needed
+    TIME_SYNC --> SCHEDULE : always
+    SCHEDULE --> SLEEP : always
+    SLEEP --> [*]
+```
+
+"Always" means that the state moves on once its work is done, whether it succeeded or not: failures are handled inside the state, as described in [Error Handling](#error-handling) below. Here is the complete list of transitions:
+
+| From | To | Condition |
+|------|----|-----------|
+| `BOOT` | `MAINTENANCE` | The wake-up cause is the button (`EXT1`). |
+| `BOOT` | `MEASURE` | Any other cause: RTC alarm (`EXT0`), safety timer, or power-on. |
+| `MAINTENANCE` | `MEASURE` | The 3-minute session is over. |
+| `MEASURE` | `STORE` | Always. |
+| `STORE` | `UPLOAD` | **upload needed** is true. |
+| `STORE` | `SCHEDULE` | **upload needed** is false. |
+| `UPLOAD` | `TIME_SYNC` | The Wi-Fi connection succeeded **and** **sync needed** is true. |
+| `UPLOAD` | `SCHEDULE` | The Wi-Fi connection failed, **or** **sync needed** is false: every case except the one above. |
+| `TIME_SYNC` | `SCHEDULE` | Always. |
+| `SCHEDULE` | `SLEEP` | Always. |
+
+The transitions out of `STORE` and `UPLOAD` depend on two conditions, computed by pure functions that can be tested on a computer:
+
+| Condition | True when… |
+|-----------|------------|
+| **upload needed** | The current measurement belongs to a full-hour slot (`:00`), **or** the clock is invalid. In the second case, the station tries to reach NTP at every wake-up until the clock is valid again. |
+| **sync needed** | The clock is invalid, **or** the last NTP sync is more than 24 hours old. |
+
+The first condition tests the *slot* of the measurement, not its exact time. The firmware reads the clock a few seconds after the alarm (or 60 seconds after it, when woken by the safety timer), so a measurement is never taken at exactly `14:00:00`. The time is first rounded down to the 15-minute grid ($t - (t \bmod T)$, see below): `14:00:03` and `14:01:00` both belong to the `14:00` slot, which is a full hour.
+
+### Computing the next alarm
+
+`SCHEDULE` programs the alarm for the next slot of the 15-minute grid, strictly after the current time:
+
+$$t_{next} = t_{now} - (t_{now} \bmod T) + T \qquad \text{with } T = 15 \times 60 = 900\,s$$
+
+$T$ is the measurement interval of F1 · Periodic measurement, in seconds, since Unix timestamps count seconds. The term $t_{now} \bmod T$ is the time elapsed since the last slot. For example, at `14:07:23`, 443 seconds have elapsed since `14:00:00`, so $t_{next} = $ `14:07:23` $-$ 443 s $+$ 900 s $=$ `14:15:00`. In the code, $T$ is a field of the `Config` structure of the core, not a hard-coded 900.
+
+### Two design choices
+
+- **`MAINTENANCE` goes to `MEASURE`, not to `SLEEP`.** An alarm may have fired during the 3-minute session. Instead of handling this case separately, we always take a reading after a maintenance session. It costs one extra row, and `SCHEDULE` then realigns the station on the grid.
+- **`SCHEDULE` always recomputes the alarm from the current time.** It never reuses a time read earlier in the wake-up, so an alarm can never be set in the past (the bug fixed in the PoC).
+
+## Persistent Context
+
+Deep sleep erases the RAM, but some information must survive between wake-ups. Each piece is stored where its lifetime makes sense:
+
+| Information | Stored in | Lost when | Consequence if lost |
+|-------------|-----------|-----------|---------------------|
+| Current time | DS3231 | Coin cell removed or empty | Clock invalid until the next NTP sync |
+| Clock validity | DS3231 *Oscillator Stop Flag* | Never: this flag *is* the record of a power loss | — |
+| Upload cursor (position of the first row not yet uploaded) | SD card, `/upload.idx` | SD card replaced | Everything is uploaded again (harmless, see the [Upload Protocol](00-3-data-and-upload.qmd#upload-protocol) in a later chapter) |
+| Time of the last NTP sync | RTC memory (`RTC_DATA_ATTR`) | ESP32 power loss or reset | An extra NTP sync at the next upload |
+
+The clock validity needs no extra storage. As seen in Phase 01, the DS3231 sets its *Oscillator Stop Flag* when it loses power, and `rtc.adjust()` clears it. So the clock is reliable if and only if the flag is clear. When it is set, the station keeps running on whatever time the RTC holds, and marks its rows with `time_valid = 0` until NTP succeeds.
+
+## Error Handling {#error-handling}
+
+| Failure | Behavior |
+|---------|----------|
+| BME280 not responding | The row is stored with empty values; the schedule continues. |
+| SD card missing or full | The measurement is lost (reported on the serial port); the schedule continues. |
+| Wi-Fi not reachable within 10 s | No upload; the cursor does not move; retry at the next full hour. |
+| Server error or timeout | Same as above. |
+| NTP not answering within 5 s | Retry at the next upload. |
+| RTC not responding | Timestamps and alarms are impossible: the rows are flagged invalid, and the ESP32 internal timer wakes the station up (see below). |
+| Firmware stuck | The ESP32 watchdog resets the chip; the next boot takes a reading and goes back to the normal cycle. |
+
+To guarantee N2 · Always wake up again, `SLEEP` always arms **three** wake-up sources:
+
+1. the DS3231 alarm (`EXT0`, GPIO 36), the normal source;
+2. the button (`EXT1`, GPIO 39);
+3. the ESP32 internal timer, as a safety net: it is set to fire **60 seconds after** the planned alarm (or after 15 minutes if the RTC cannot be read). Even with the timer's drift of a few percent, the RTC alarm always fires first when it works. If the RTC fails, the station keeps waking up roughly every 15 minutes instead of sleeping forever. A wake-up by the timer is handled like an alarm.
+
+## Energy Estimate
+
+With the method and assumptions of the [Power Budget](../../PoC/Phase-03/05-power-budget.qmd) chapter (estimates, not measurements):
+
+| Item | Average current |
+|------|-----------------|
+| Deep sleep (modules, no LED) + 96 measurement wake-ups per day | ~0.18 mA |
+| 24 uploads per day (~5 s at 120 mA each) | ~0.17 mA |
+| **Total** | **~0.35 mA**, i.e. about 8 months on a 2000 mAh battery |
+
+The daily NTP sync is negligible, since it reuses an upload connection.
+
+The [next chapter](00-3-data-and-upload.qmd) describes the data stored at each wake-up, and how it reaches the server.
