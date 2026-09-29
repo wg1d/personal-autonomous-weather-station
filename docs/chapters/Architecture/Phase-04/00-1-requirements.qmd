@@ -1,0 +1,54 @@
+# Requirements {.unnumbered}
+
+The PoC taught us how the hardware behaves. It also showed the limits of a single sketch: every feature lives in `setup()`, nothing can be tested without the board, and each new feature makes the file harder to change.
+
+Before writing any code, this part designs the new firmware on paper, in four chapters:
+
+1. **Requirements** (this chapter): what the station must do, and the rules that hold everywhere in the firmware.
+2. [Behavior](00-2-behavior.qmd): what the station does at each wake-up, what it remembers between wake-ups, and how it reacts to failures.
+3. [Data and Upload](00-3-data-and-upload.qmd): how the measurements are stored, and how they are sent to the server.
+4. [Structure and Verification](00-4-structure-and-verification.qmd): how the code is split into modules, how we check that it works, and the implementation plan.
+
+The following parts implement this design step by step.
+
+Requirements come in two kinds:
+
+- **Functional requirements** (F) describe *what* the station does: measure, store, upload.
+- **Non-functional requirements** (N) describe *how well* it must do it: without losing data, without running out of battery, while remaining testable and extensible.
+
+Each requirement has an identifier, a short name, and the reason why it exists. Each one also comes with an **acceptance criterion**: a measurable condition that tells us whether the firmware meets it. These criteria are listed in the [verification matrix](00-4-structure-and-verification.qmd#verification-matrix), together with the way each one is checked.
+
+## Functional requirements
+
+| ID | Name | Requirement | Why |
+|----|----------|--------------------------------|--------------------------------|
+| F1 | Periodic measurement | Measure temperature, humidity and pressure every 15 minutes, on a fixed UTC grid (`:00`, `:15`, `:30`, `:45`). | Regular, aligned measurements are what the dashboard and the forecasting model (Phase 6) expect, and they make days easy to compare. |
+| F2 | Store first | Append every measurement to the SD card before any network activity. | The SD card is the source of truth. If the upload fails or the firmware crashes during the Wi-Fi connection, the measurement is already safe. |
+| F3 | Hourly upload | Once per hour, upload the rows that the server has not received yet, over the home Wi-Fi. | The dashboard and the short-term forecast need data less than one hour old, and uploading more often would cost too much energy (see N3). |
+| F4 | Daily time sync | Synchronize the RTC with NTP once every 24 hours, reusing an upload connection. | The DS3231 drifts by about one minute per year. A daily correction is more than enough, and reusing an existing connection costs almost nothing. |
+| F5 | Maintenance mode | When the button is pressed, start a Wi-Fi access point for 3 minutes, with a web page to download or delete the data. | It allows retrieving the data when the home Wi-Fi is out of reach, without opening the enclosure. |
+| F6 | Flag unreliable time | When the clock is not reliable, keep measuring, but flag the rows. | We keep the data (N1) without silently mixing wrong timestamps with correct ones. |
+
+## Non-functional requirements
+
+| ID | Name | Requirement | Why |
+|----|----------|--------------------------------|--------------------------------|
+| N1 | No data loss | A Wi-Fi, server or NTP failure never loses a measurement, and a sensor failure never stops the schedule. | Collecting data is the purpose of the station. An upload can always be retried later, but a missed measurement is lost for good. |
+| N2 | Always wake up again | The station never goes to sleep without a way to wake up. | Outdoors, a station stuck in deep sleep stops collecting silently: nobody notices until someone checks the data, possibly weeks later. |
+| N3 | Energy | Use Wi-Fi at most once per hour in normal operation, and keep a measurement-only wake-up to about one second. | Wi-Fi is by far the largest consumer. According to the [Power Budget](../../PoC/Phase-03/05-power-budget.qmd#cost-of-wi-fi), hourly uploads give about 8 months on a 2000 mAh battery, versus about 3 months when uploading at every measurement. |
+| N4 | Testability | All decision logic can be tested on a computer, without hardware. | Many situations are hard or slow to reproduce on the bench: Wi-Fi down exactly at a full hour, RTC power loss, full SD card. On a computer, each one becomes a repeatable test that runs in milliseconds. |
+| N5 | Extensibility | Adding a sensor means writing a new adapter and adding a column, without changing the state machine. | Phases 7 to 10 add light, UV, soil moisture, rain and wind sensors. Each addition must not risk breaking the logic that already works. |
+
+## Design Invariants
+
+These rules hold everywhere in the firmware:
+
+| Topic | Rule |
+|-------|------|
+| Time | All times are Unix timestamps in **UTC**. The DS3231 is the only time source used for timestamps. |
+| Source of truth | The **SD card** holds every measurement. The server only receives copies. |
+| Wake-up model | Each wake-up is a fresh boot that runs the state machine once, from `BOOT` to `SLEEP`. |
+| Missing values | A value that could not be measured is stored as an **empty field**, never as a fake number. |
+| Hardware access | Only *adapters* talk to the hardware. The decision logic never calls Arduino or ESP-IDF functions. |
+
+The [next chapter](00-2-behavior.qmd) describes what the station does at each wake-up.

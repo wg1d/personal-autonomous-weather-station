@@ -1,6 +1,6 @@
 # A1 · Interfaces and State Machine {.unnumbered}
 
-Step A1 of the [Implementation Plan](00-design.qmd#implementation-plan) builds the frame of the new firmware: the interfaces, the state machine, the test doubles and the first tests. No module is wired yet: the only hardware needed is the ESP32 board and its USB cable.
+Step A1 of the [Implementation Plan](00-4-structure-and-verification.qmd#implementation-plan) builds the frame of the new firmware: the interfaces, the state machine, the test doubles and the first tests. No module is wired yet: the only hardware needed is the ESP32 board and its USB cable.
 
 The step is split into three chapters:
 
@@ -61,11 +61,11 @@ The data is a single file for now, `Record.h`. It defines a `Measurement` (one r
 ```{.cpp include="../../../../firmware/paws/lib/ports/Record.h"}
 ```
 
-A value that could not be measured is `NAN` (*Not a Number*), a special floating-point value meaning "no value". It follows the "missing values" rule of the [Design Invariants](00-design.qmd#design-invariants): the storage will write it as an empty field, never as a fake number such as `0` or `-999`.
+A value that could not be measured is `NAN` (*Not a Number*), a special floating-point value meaning "no value". It follows the "missing values" rule of the [Design Invariants](00-1-requirements.qmd#design-invariants): the storage will write it as an empty field, never as a fake number such as `0` or `-999`.
 
 ## The Interfaces
 
-There is one interface per service. As in the [design chapter](00-design.qmd#what-an-interface-looks-like), each one only declares functions (*pure virtual* functions, marked `= 0`).
+There is one interface per service. As in the [Structure and Verification](00-4-structure-and-verification.qmd#what-an-interface-looks-like) chapter, each one only declares functions (*pure virtual* functions, marked `= 0`).
 
 Each interface only declares what step A1 uses; the next steps add functions when they need them.
 
@@ -77,7 +77,7 @@ The clock gives the core the time, and wakes the station up at the right moment.
 - correct the time after an NTP sync (`setTime()`);
 - program the next measurement on the 15-minute grid (`setAlarm()`).
 
-This is the interface presented in the [design chapter](00-design.qmd#what-an-interface-looks-like), with one detail: `setAlarm()` returns `false` when no alarm could be programmed, for example when the RTC does not answer. The core then knows that the RTC alarm will not wake the station up, and relies on the ESP32 safety timer instead, so that the station never sleeps forever (N2 · Always wake up again).
+This is the interface presented in the [Structure and Verification](00-4-structure-and-verification.qmd#what-an-interface-looks-like) chapter, with one detail: `setAlarm()` returns `false` when no alarm could be programmed, for example when the RTC does not answer. The core then knows that the RTC alarm will not wake the station up, and relies on the ESP32 safety timer instead, so that the station never sleeps forever (N2 · Always wake up again).
 
 ```{.cpp include="../../../../firmware/paws/lib/ports/IClock.h"}
 ```
@@ -121,7 +121,7 @@ The maintenance mode (F5) lets someone download or delete the data from a phone,
 
 ### Configuration
 
-All the settings of the core are grouped in one structure. Its default values are those of the design chapter; `main.cpp` and the tests can change them.
+All the settings of the core are grouped in one structure. Its default values are those of the Phase 4 design; `main.cpp` and the tests can change them.
 
 ```{.cpp include="../../../../firmware/paws/lib/core/Config.h"}
 ```
@@ -145,7 +145,7 @@ Two details matter here:
 
 A state machine does two different things at each step: it does the *work* of the current state (read the sensors, store the row...), then it chooses the *next state*. We keep them apart. The work is done by the state machine (next section), and the choice of the next state is a single pure function, `nextState()`.
 
-This choice depends on **conditions**: the "Condition" column of the [transitions table](00-design.qmd#state-machine) in the design chapter. There are four of them: whether the button woke the station up, whether an upload is needed, whether the Wi-Fi is connected, and whether a sync is needed. They are grouped in a `Conditions` structure. Each one is set by the state that can know it: BOOT reads the wake-up cause, STORE computes whether an upload is needed, and UPLOAD tries to connect and computes whether a sync is needed. `nextState()` only reads them.
+This choice depends on **conditions**: the "Condition" column of the [transitions table](00-2-behavior.qmd#state-machine) in the Behavior chapter. There are four of them: whether the button woke the station up, whether an upload is needed, whether the Wi-Fi is connected, and whether a sync is needed. They are grouped in a `Conditions` structure. Each one is set by the state that can know it: BOOT reads the wake-up cause, STORE computes whether an upload is needed, and UPLOAD tries to connect and computes whether a sync is needed. `nextState()` only reads them.
 
 ```{.cpp include="../../../../firmware/paws/lib/core/Transitions.h"}
 ```
@@ -153,7 +153,7 @@ This choice depends on **conditions**: the "Condition" column of the [transition
 ```{.cpp include="../../../../firmware/paws/lib/core/Transitions.cpp"}
 ```
 
-Each `case` corresponds to one or two rows of the [transitions table](00-design.qmd#state-machine) of the design chapter: all the transitions of the station are in this one function, and can be checked against the table line by line.
+Each `case` corresponds to one or two rows of the [transitions table](00-2-behavior.qmd#state-machine) of the Behavior chapter: all the transitions of the station are in this one function, and can be checked against the table line by line.
 
 ### The state machine
 
@@ -162,7 +162,7 @@ The state machine does the work of each state, and asks `nextState()` where to g
 ```{.cpp include="../../../../firmware/paws/lib/core/StateMachine.h"}
 ```
 
-`RetainedState` holds what must survive deep sleep. For now, it only contains the time of the last NTP sync (see [Persistent Context](00-design.qmd#persistent-context)). The core does not know where it is kept: on the board, `main.cpp` places it in RTC memory.
+`RetainedState` holds what must survive deep sleep. For now, it only contains the time of the last NTP sync (see [Persistent Context](00-2-behavior.qmd#persistent-context)). The core does not know where it is kept: on the board, `main.cpp` places it in RTC memory.
 
 The machine also records the states it visits, and can call a *listener* function each time it enters a state. The tests use the first to check the path, and `main.cpp` uses the second to print it.
 

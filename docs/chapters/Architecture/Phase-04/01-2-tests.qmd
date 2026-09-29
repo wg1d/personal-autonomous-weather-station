@@ -1,10 +1,10 @@
 # A1 · Tests {.unnumbered}
 
-This chapter checks the core of the [previous chapter](01-1-interfaces-and-state-machine.qmd) on the computer, without the board. It uses the test doubles and the test levels described in the [Verification Strategy](00-design.qmd#verification-strategy).
+This chapter checks the core of the [previous chapter](01-1-interfaces-and-state-machine.qmd) on the computer, without the board. It uses the test doubles and the test levels described in the [Verification Strategy](00-4-structure-and-verification.qmd#verification-strategy).
 
 ## Test doubles
 
-The tests replace each interface with a test double (see [Test doubles](00-design.qmd#test-doubles) in the design chapter). The fake clock lets the test set the time, choose whether the clock is valid, and simulate an RTC failure:
+The tests replace each interface with a test double (see [Test doubles](00-4-structure-and-verification.qmd#test-doubles) in the Structure and Verification chapter). The fake clock lets the test set the time, choose whether the clock is valid, and simulate an RTC failure:
 
 ```{.cpp include="../../../../firmware/paws/test/doubles/FakeClock.h"}
 ```
@@ -57,7 +57,7 @@ The scenario tests build a whole station from test doubles. This common setup is
 ```{.cpp include="../../../../firmware/paws/test/test_scenarios/test_scenarios.cpp"}
 ```
 
-Each test is named after the requirement it checks. Together, they cover the acceptance criteria of F1, F2, F3, F4, F6, N1, N2 and the simulated part of N3 from the [verification matrix](00-design.qmd#verification-matrix). Some criteria will only be fully checked in later steps: for example, N1 also requires that the upload cursor never moves past a row the server has not acknowledged, which comes with the upload in A4.
+Each test is named after the requirement it checks. Together, they cover the acceptance criteria of F1, F2, F3, F4, F6, N1, N2 and the simulated part of N3 from the [verification matrix](00-4-structure-and-verification.qmd#verification-matrix). Some criteria will only be fully checked in later steps: for example, N1 also requires that the upload cursor never moves past a row the server has not acknowledged, which comes with the upload in A4.
 
 ## Running the tests
 

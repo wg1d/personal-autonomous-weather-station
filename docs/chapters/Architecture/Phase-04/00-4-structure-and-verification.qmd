@@ -1,0 +1,128 @@
+# Structure and Verification {.unnumbered}
+
+The previous chapters describe what the station does. This one describes how the code is organized to do it, how we check that it meets the [requirements](00-1-requirements.qmd), and in which order it is built.
+
+## Modules and Interfaces
+
+### Why split the firmware?
+
+Two of our requirements cannot be met by a single sketch:
+
+- **N4 · Testability** asks that the decisions be tested on a computer. We want to check most [acceptance criteria](#verification-matrix) (F1 to F4, F6, N1 to N3) *before* flashing the board, and in situations that are hard to reproduce on the bench.
+- **N5 · Extensibility** asks that a sensor can be added without touching the logic.
+
+In the PoC, the same lines of code make decisions ("is it time to upload?") and drive the hardware (`WiFi.begin()`, `SD.open()`). A decision cannot be tested without the whole station, and changing a component means editing the logic.
+
+The usual solution is to separate the code into layers that only communicate through **interfaces**. This approach is known as *ports and adapters* (or *hexagonal architecture*).
+
+### The three layers
+
+**Core**
+:   The state machine, the rules (*upload needed*, *sync needed*, next alarm) and the CSV row format. It never talks to the hardware, and it is tested on the computer.
+
+**Interfaces**
+:   The list of services the core needs, in its own terms: read the time, read the sensors, store a row, send data, go to sleep. They only *declare* functions; they contain no code.
+
+**Adapters**
+:   One implementation of each interface for the real hardware, using the existing libraries (RTClib, Adafruit BME280, SD, WiFi, HTTPClient). They are tested on the board.
+
+```{mermaid}
+flowchart TD
+    core["Core logic<br/>state machine, rules, CSV format"]
+    ports["Interfaces<br/>IClock, ISensor, IStorage, INetwork,<br/>IPower, IMaintenance"]
+    hw["Hardware adapters<br/>DS3231, BME280, SD card, Wi-Fi,<br/>access point, ESP32 sleep"]
+    doubles["Test doubles<br/>fake clock, fake sensor, ..."]
+    core -- uses --> ports
+    hw -. implements .-> ports
+    doubles -. implements .-> ports
+```
+
+The core only knows the interfaces. On the board, `main.cpp` gives it the hardware adapters. In the tests, we give it **test doubles** instead: simple implementations whose behavior the test controls (see [Test doubles](#test-doubles) below).
+
+### What an interface looks like
+
+In C++, an interface is a class that only declares functions, without implementing them (*pure virtual* functions, marked `= 0`). Here is what the core needs from a clock:
+
+```cpp
+// What the core needs from a clock, and nothing more
+class IClock {
+public:
+    virtual ~IClock() = default;
+    virtual uint32_t now() = 0;                 // Unix time, UTC
+    virtual bool isValid() = 0;                 // false after a power loss
+    virtual void setTime(uint32_t unixTime) = 0;
+    virtual bool setAlarm(uint32_t unixTime) = 0; // false if not set
+};
+```
+
+This interface does not mention I2C, registers or RTClib. It has two implementations:
+
+- `Ds3231Clock`, for the board: `now()` returns `rtc.now().unixtime()`, `isValid()` returns `!rtc.lostPower()`, and so on.
+- `FakeClock`, for the tests: `now()` returns a number that the test sets, and `setAlarm()` just records the requested time so the test can check it.
+
+The state machine receives an `IClock&` and cannot tell which one it is using. The other interfaces follow the same pattern: `ISensor` (read a measurement), `IStorage` (append a row, read rows after the cursor, move the cursor), `INetwork` (connect, send a batch, get the NTP time), `IPower` (read the wake-up cause, sleep with the given wake-up sources) and `IMaintenance` (run the access point session).
+
+`IClock` is enough to show the principle here. The complete code of all the interfaces is given in the first chapter of step A1, [Interfaces and State Machine](01-1-interfaces-and-state-machine.qmd#the-interfaces), where it is included directly from the repository.
+
+## Verification Strategy {#verification-strategy}
+
+Each requirement is checked by at least one test. We use three levels of tests:
+
+**Unit tests**
+:   Check **one function in isolation**, with chosen inputs. For example: the next alarm after `14:07:23` is `14:15:00`, and the next alarm after exactly `14:15:00` is `14:30:00` (strictly after). They run on the computer.
+
+**Scenario tests**
+:   Run **the whole state machine** with test doubles, and check an acceptance criterion. For example, for N1 · No data loss: at `14:00:00`, with the Wi-Fi down, the row is stored, the upload cursor does not move, the next alarm is `14:15:00`, and the machine reaches `SLEEP`. A scenario can also simulate a whole day in a loop (96 wake-ups) to check F3 · Hourly upload or N3 · Energy. They run on the computer.
+
+**Board tests**
+:   Check **the adapters** on the real hardware, with a checklist of expected serial output (as in the PoC chapters). They cannot run automatically, since the CI has no ESP32, so they are done by hand at each step.
+
+Unit and scenario tests use [Unity](https://github.com/ThrowTheSwitch/Unity), the C unit-test framework integrated in PlatformIO. They run with `pio test -e native` and are added to the CI, so every pull request is checked automatically. The framework is set up in step A1, with the first tests.
+
+### Verification matrix {#verification-matrix}
+
+This table gives, for each requirement, its acceptance criterion and the level of test that checks it. It links the requirements to the tests: when a test fails, we know which requirement is at risk.
+
+| Requirement | Acceptance criterion | Verified by |
+|----|--------------------------------------------|--------------|
+| F1 · Periodic measurement | Every alarm programmed by the firmware falls on a 15-minute slot, strictly in the future. | Unit + scenario |
+| F2 · Store first | In every scenario, the row is written to storage before any network call. | Scenario (mock) |
+| F3 · Hourly upload | Over a simulated day with Wi-Fi available, exactly 24 uploads take place, and after each one, the server has received every row stored before it. | Scenario (simulated day) |
+| F4 · Daily time sync | Over three simulated days, exactly three synchronizations take place, and none of them opens its own Wi-Fi connection. | Scenario (simulated days) |
+| F5 · Maintenance mode | On the board, the access point appears after a button press, the CSV file can be downloaded, and the station goes back to its normal cycle after 3 minutes. | Board |
+| F6 · Flag unreliable time | Rows written while the clock is invalid have `time_valid = 0`, and rows written after a successful NTP sync have `time_valid = 1`. | Scenario |
+| N1 · No data loss | In every failure scenario (Wi-Fi down, server error, NTP down, sensor missing), the storage contains one row per wake-up, and the upload cursor never moves past a row that the server has not acknowledged. | Scenario (failure cases) |
+| N2 · Always wake up again | In every scenario, including an RTC failure, the station goes to sleep with the safety timer armed, in addition to the RTC alarm when the RTC works. | Scenario |
+| N3 · Energy | Over a simulated day with a valid clock, at most 24 Wi-Fi connections are opened. On the board, the awake time printed by the firmware before sleeping (measured with `millis()`, no instrument needed) stays below 1.5 seconds for a measurement-only wake-up. | Scenario (simulated day) + board |
+| N4 · Testability | The core logic compiles for the computer without any Arduino header, and all tests run automatically on every pull request. | CI |
+| N5 · Extensibility | When the first new sensor is added (Phase 7), no file of the state machine is modified. | Review (Phase 7) |
+
+Most criteria are checked by scenario tests on the computer. Only F5 (which needs the access point and a phone) and part of N3 (the real awake time) require the board, and N5 can only be checked when a new sensor is actually added.
+
+### Test doubles
+
+A *test double* replaces a real component during a test, like a stunt double replaces an actor. There are several kinds, depending on what the test needs:
+
+| Kind | What it does | Example in PAWS |
+|------|--------------|-----------------|
+| **Stub** | Returns fixed answers, and nothing else. | A sensor that always returns 18.4 °C, 62 %, 1013 hPa. |
+| **Fake** | A simplified but working implementation. | A storage that keeps rows in RAM instead of the SD card; a clock whose time the test sets and advances. |
+| **Mock** | Records the calls it receives, so the test can check them (which calls, in which order, with which arguments). | A network that records each `connect()`, to check that the row was stored *before* (F2 · Store first). |
+| **Fixture** | Not a double, but the common setup shared by several tests. | "A station at 14:00, with a valid clock, an empty storage and a working Wi-Fi." |
+
+We write these doubles by hand: each one is a few lines implementing an interface. Mocking libraries exist (such as GoogleMock), but they add a dependency and complexity that our small interfaces do not need.
+
+## Implementation Plan
+
+The implementation is split into six steps, numbered A1 to A6 (A for Architecture). Each step is a part of the book, a tag in the repository, and a working firmware:
+
+| Step | Content | Hardware needed |
+|------|---------|-----------------|
+| A1 | Project skeleton, interfaces, state machine, test doubles, Unity setup and first tests | None |
+| A2 | DS3231 clock adapter and scheduling rules (grid, safety timer) | ESP32 + DS3231 |
+| A3 | BME280 and SD card adapters, CSV v1 format | + BME280 + SD |
+| A4 | Wi-Fi, incremental upload with cursor, NTP sync | + Wi-Fi |
+| A5 | Maintenance mode (button, access point, web page) | + button |
+| A6 | Hardening: watchdog, error handling review, updated power estimate | Full station |
+
+The next part, [Interfaces and State Machine](01-1-interfaces-and-state-machine.qmd), starts step A1.

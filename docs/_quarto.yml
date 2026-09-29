@@ -44,8 +44,14 @@ book:
           text: "Power Budget"
     - part: "Phase 4 – Architecture"
       chapters:
-        - href: chapters/Architecture/Phase-04/00-design.qmd
-          text: "Design"
+        - href: chapters/Architecture/Phase-04/00-1-requirements.qmd
+          text: "Requirements"
+        - href: chapters/Architecture/Phase-04/00-2-behavior.qmd
+          text: "Behavior"
+        - href: chapters/Architecture/Phase-04/00-3-data-and-upload.qmd
+          text: "Data & Upload"
+        - href: chapters/Architecture/Phase-04/00-4-structure-and-verification.qmd
+          text: "Structure & Verification"
     - part: "A1 – FSM Skeleton"
       chapters:
         - href: chapters/Architecture/Phase-04/01-1-interfaces-and-state-machine.qmd

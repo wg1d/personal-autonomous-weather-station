@@ -69,7 +69,7 @@ Spread over a period $T_{upload}$ between two uploads, this adds $Q_{upload} / T
 | Every hour | $600 / 3600 \approx 0.17\,mA$ | ~0.35 mA | about 8 months |
 | Once a day | $600 / 86400 \approx 0.007\,mA$ | ~0.19 mA | about a year |
 
-Wi-Fi quickly becomes the largest consumer: uploading at every measurement, as the PoC does, multiplies the average current by almost 5. The upload frequency is therefore a key design decision, made in the [Phase 4 design](../../Architecture/Phase-04/00-design.qmd).
+Wi-Fi quickly becomes the largest consumer: uploading at every measurement, as the PoC does, multiplies the average current by almost 5. The upload frequency is therefore a key design decision, made in the [Phase 4 requirements](../../Architecture/Phase-04/00-1-requirements.qmd#non-functional-requirements) (N3 · Energy).
 
 ## Next Steps
 
