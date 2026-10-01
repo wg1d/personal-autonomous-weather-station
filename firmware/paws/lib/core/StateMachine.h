@@ -28,9 +28,9 @@
 /**
  * @brief The implementations the state machine works with.
  *
- * A simple bundle of references, so that the constructor of the machine
- * takes one argument instead of seven. On the board, they are the
- * hardware adapters; in the tests, the test doubles.
+ * Groups the references to the seven interfaces, so that the
+ * constructor of the machine takes a single argument. On the board, they
+ * are the hardware adapters; in the tests, the test doubles.
  */
 struct Ports {
     IClock& clock;              ///< Time and alarms

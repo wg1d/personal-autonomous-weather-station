@@ -26,20 +26,16 @@ void StateMachine::run() {
         // Report the state: printed on the board, checked by the tests
         ports_.log.stateEntered(stateName(current));
 
-        // Actions of the current state. They also read the inputs of the
-        // machine (wake-up cause, Wi-Fi connected...) and set the matching
-        // conditions: an input is only known once its state has acted.
+        // Do the work of the state. It also reads the inputs that this
+        // state handles (wake-up cause, Wi-Fi connection...) and sets the
+        // matching conditions.
         doWork(current);
         if (current == State::Sleep) {
             return;  // final state
         }
 
-        // Evolution: choose the next state from the conditions
+        // Choose the next state from the conditions
         State next = nextState(current, conditions_);
-
-        // This machine has no action on transitions: all the actions
-        // belong to the states
-
         current = next;
     }
 }
