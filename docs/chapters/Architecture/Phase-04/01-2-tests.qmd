@@ -9,10 +9,23 @@ The tests replace each interface with a test double (see [Test doubles](00-4-str
 ```{.cpp include="../../../../firmware/paws/test/doubles/FakeClock.h"}
 ```
 
+::: {.callout-tip collapse="true"}
+## C++: `override`
+
+`override` asks the compiler to check that the function really replaces a virtual function of the interface. Without it, a typo or a different parameter type would silently create a *new* function, and the state machine would never call it. With it, the mistake is a compilation error.
+:::
+
 The mock network records each call in an `EventLog` shared with the fake storage. A test can then check the *order* of the calls, for example that the row was stored before connecting (F2 · Store first):
 
 ```{.cpp include="../../../../firmware/paws/test/doubles/MockNetwork.h"}
 ```
+
+::: {.callout-tip collapse="true"}
+## C++: `explicit` and the initializer list
+
+- **`explicit`** prevents the compiler from using this constructor for automatic conversions: an `EventLog` can never silently become a `MockNetwork`. It is a good habit for any constructor with one parameter.
+- **`: log_(log)`** is the *initializer list*: it sets the members before the body of the constructor runs. A reference member such as `log_` must be set there, since a reference cannot be changed after its creation.
+:::
 
 ::: {.callout-note collapse="true"}
 ## EventLog, StubSensor, FakeStorage, FakePower, FakeMaintenance and FakeLog
