@@ -29,7 +29,7 @@ The usual solution is to separate the code into layers that only communicate thr
 ```{mermaid}
 flowchart TD
     core["Core logic<br/>state machine, rules, CSV format"]
-    ports["Interfaces<br/>IClock, ISensor, IStorage, INetwork,<br/>IPower, IMaintenance"]
+    ports["Interfaces<br/>IClock, ISensor, IStorage, INetwork,<br/>IPower, IMaintenance, ILog"]
     hw["Hardware adapters<br/>DS3231, BME280, SD card, Wi-Fi,<br/>access point, ESP32 sleep"]
     doubles["Test doubles<br/>fake clock, fake sensor, ..."]
     core -- uses --> ports
@@ -60,7 +60,7 @@ This interface does not mention I2C, registers or RTClib. It has two implementat
 - `Ds3231Clock`, for the board: `now()` returns `rtc.now().unixtime()`, `isValid()` returns `!rtc.lostPower()`, and so on.
 - `FakeClock`, for the tests: `now()` returns a number that the test sets, and `setAlarm()` just records the requested time so the test can check it.
 
-The state machine receives an `IClock&` and cannot tell which one it is using. The other interfaces follow the same pattern: `ISensor` (read a measurement), `IStorage` (append a row, read rows after the cursor, move the cursor), `INetwork` (connect, send a batch, get the NTP time), `IPower` (read the wake-up cause, sleep with the given wake-up sources) and `IMaintenance` (run the access point session).
+The state machine receives an `IClock&` and cannot tell which one it is using. The other interfaces follow the same pattern: `ISensor` (read a measurement), `IStorage` (append a row, read rows after the cursor, move the cursor), `INetwork` (connect, send a batch, get the NTP time), `IPower` (read the wake-up cause, sleep with the given wake-up sources) `IMaintenance` (run the access point session) and `ILog` (report the states entered).
 
 `IClock` is enough to show the principle here. The complete code of all the interfaces is given in the first chapter of step A1, [Interfaces and State Machine](01-1-interfaces-and-state-machine.qmd#the-interfaces), where it is included directly from the repository.
 

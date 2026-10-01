@@ -15,7 +15,7 @@ The mock network records each call in an `EventLog` shared with the fake storage
 ```
 
 ::: {.callout-note collapse="true"}
-## EventLog, StubSensor, FakeStorage, FakePower and FakeMaintenance
+## EventLog, StubSensor, FakeStorage, FakePower, FakeMaintenance and FakeLog
 
 ```{.cpp include="../../../../firmware/paws/test/doubles/EventLog.h"}
 ```
@@ -30,6 +30,9 @@ The mock network records each call in an `EventLog` shared with the fake storage
 ```
 
 ```{.cpp include="../../../../firmware/paws/test/doubles/FakeMaintenance.h"}
+```
+
+```{.cpp include="../../../../firmware/paws/test/doubles/FakeLog.h"}
 ```
 :::
 
@@ -51,6 +54,8 @@ The scenario tests build a whole station from test doubles. This common setup is
 
 ```{.cpp include="../../../../firmware/paws/test/test_scenarios/Station.h"}
 ```
+
+The fixture uses two logs, for two different checks. `log`, an `EventLog` shared by the storage and the network, keeps the order of their calls ("store" before "connect"). `path`, a `FakeLog`, keeps the states entered by the last wake-up; `visited()` compares it to the expected path.
 
 `wakeAtNextAlarm()` simulates a night of sleep in one line: it moves the clock to the alarm programmed by the previous wake-up, plus 3 seconds, and runs the machine again. A simulated day is 96 calls, and runs in a fraction of a second.
 
