@@ -14,8 +14,9 @@ On the board, each interface needs an implementation. In this step, they are del
 | `INetwork` | `NoNetwork` | The connection always fails | A4 |
 | `IMaintenance` | `NoMaintenance` | Returns at once | A5 |
 | `IPower` | `Esp32Power` | Real deep sleep, safety timer only | A2 (alarm), A5 (button) |
+| `ILog` | `SerialLog` | Prints each state entered on the serial port | Kept |
 
-The clock is the most interesting one. The ESP32 system clock keeps counting during deep sleep, but restarts at `1970-01-01T00:00:00Z` after a power-on. Any time before 2026 therefore means that the clock was never set, which gives a simple `isValid()`:
+The clock is the most interesting one. The ESP32 system clock keeps counting during deep sleep, but restarts at `1970-01-01T00:00:00Z` after a power-on. Any time before 2026 therefore means that the clock was never set, which gives a simple `isValid()`. The time of the last `setTime()` is kept in RTC memory (`RTC_DATA_ATTR`, see [Deep Sleep](../../PoC/Phase-02/01-deep-sleep.qmd)), the only memory that survives deep sleep:
 
 ```{.cpp include="../../../../firmware/paws/src/adapters/SystemClock.h"}
 ```
@@ -28,7 +29,7 @@ The power adapter is the only one that really drives the hardware in this step. 
 `Serial.flush()` waits until every character has left the serial port: without it, the end of the message could be lost when the chip goes to sleep.
 
 ::: {.callout-note collapse="true"}
-## NullSensor, SerialStorage, NoNetwork and NoMaintenance
+## NullSensor, SerialStorage, NoNetwork, NoMaintenance and SerialLog
 
 ```{.cpp include="../../../../firmware/paws/src/adapters/NullSensor.h"}
 ```
@@ -40,6 +41,9 @@ The power adapter is the only one that really drives the hardware in this step. 
 ```
 
 ```{.cpp include="../../../../firmware/paws/src/adapters/NoMaintenance.h"}
+```
+
+```{.cpp include="../../../../firmware/paws/src/adapters/SerialLog.h"}
 ```
 :::
 

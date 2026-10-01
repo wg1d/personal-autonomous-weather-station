@@ -25,7 +25,8 @@ firmware/paws/
 │   ├── ports/            # interfaces and the data they exchange
 │   │   ├── Record.h
 │   │   ├── IClock.h, ISensor.h, IStorage.h
-│   │   └── INetwork.h, IPower.h, IMaintenance.h
+│   │   ├── INetwork.h, IPower.h, IMaintenance.h
+│   │   └── ILog.h
 │   └── core/             # decision logic, no Arduino
 │       ├── Config.h
 │       ├── Rules.h, Rules.cpp
@@ -76,7 +77,7 @@ Each interface only declares what step A1 uses; the next steps add functions whe
 The clock gives the core the time, and wakes the station up at the right moment. The core uses it to:
 
 - timestamp each row (`now()`), and flag the row when the time is not reliable (`isValid()`, F6 · Flag unreliable time);
-- correct the time after an NTP sync (`setTime()`);
+- correct the time after an NTP sync (`setTime()`), and remember when it was done (`lastSetTime()`), to know when the next sync is due (F4 · Daily time sync);
 - program the next measurement on the 15-minute grid (`setAlarm()`).
 
 This is the interface presented in the [Structure and Verification](00-4-structure-and-verification.qmd#what-an-interface-looks-like) chapter, with one detail: `setAlarm()` returns `false` when no alarm could be programmed, for example when the RTC does not answer. The core then knows that the RTC alarm will not wake the station up, and relies on the ESP32 safety timer instead, so that the station never sleeps forever (N2 · Always wake up again).
@@ -119,6 +120,13 @@ The maintenance mode (F5) lets someone download or delete the data from a phone,
 ```{.cpp include="../../../../firmware/paws/lib/ports/IMaintenance.h"}
 ```
 
+### ILog
+
+The log lets someone follow the path of a wake-up: the state machine reports each state it enters. On the board, the names are printed on the serial port; in the tests, they are kept, so that a test can check the path.
+
+```{.cpp include="../../../../firmware/paws/lib/ports/ILog.h"}
+```
+
 ## The Core
 
 ### Configuration
@@ -159,19 +167,24 @@ Each `case` corresponds to one or two rows of the [transitions table](00-2-behav
 
 ### The state machine
 
-The state machine does the work of each state, and asks `nextState()` where to go next. It receives the interfaces it works with in a `Ports` structure, and never knows whether they are hardware adapters or test doubles.
+The state machine does the work of each state, and asks `nextState()` where to go next. Its header declares everything it needs:
 
 ```{.cpp include="../../../../firmware/paws/lib/core/StateMachine.h"}
 ```
 
-`RetainedState` holds what must survive deep sleep. For now, it only contains the time of the last NTP sync (see [Persistent Context](00-2-behavior.qmd#persistent-context)). The core does not know where it is kept: on the board, `main.cpp` places it in RTC memory.
+From top to bottom:
 
-The machine also records the states it visits, and can call a *listener* function each time it enters a state. The tests use the first to check the path, and `main.cpp` uses the second to print it.
+- **`Ports`** groups the seven interfaces the machine works with. It is only a bundle of references, so that the constructor takes one argument instead of seven. On the board, `main.cpp` fills it with the hardware adapters; in the tests, with the test doubles. The machine never knows which ones it uses.
+- **The constructor** receives the settings (`Config`) and the `Ports`, and keeps them.
+- **`run()`** is the only public function: it runs one wake-up, from BOOT to SLEEP.
+- **The private part** contains `doWork()`, which calls the `on...()` function of a state, and the `on...()` functions themselves: the work of each state. It ends with the variables that the states of one wake-up pass to each other: the conditions read by `nextState()`, whether the clock is valid, the row filled by MEASURE and stored by STORE, and the sleep plan prepared by SCHEDULE for SLEEP.
+
+The implementation follows:
 
 ```{.cpp include="../../../../firmware/paws/lib/core/StateMachine.cpp"}
 ```
 
-`run()` repeats the usual cycle of a state machine, until `SLEEP`:
+`run()` repeats the usual cycle of a state machine, until `SLEEP`. Before each cycle, the name of the current state is reported to the log.
 
 1. **Actions of the current state**: `doWork()` calls the matching `on...()` function. These actions also read the inputs of the state (the wake-up cause in BOOT, the result of the connection in UPLOAD...) and set the matching conditions.
 2. **Evolution**: `nextState()` chooses the next state from the conditions.
