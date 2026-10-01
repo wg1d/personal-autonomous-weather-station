@@ -16,7 +16,7 @@ interfaces (*ports and adapters*):
 
 | Layer | Folder | Content |
 |-------|--------|---------|
-| Interfaces | `lib/ports/` | What the core needs from the outside world: IClock, ISensor, IStorage, INetwork, IPower, IMaintenance, and the data they exchange (Record, Measurement). |
+| Interfaces | `lib/ports/` | What the core needs from the outside world: IClock, ISensor, IStorage, INetwork, IPower, IMaintenance, ILog, and the data they exchange (Record, Measurement). |
 | Core | `lib/core/` | The decision logic, without any hardware access: Config, the rules (Rules.h), the transitions (nextState()) and the StateMachine. |
 | Adapters | `src/adapters/` | The implementations of the interfaces for the board. |
 

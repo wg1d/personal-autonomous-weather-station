@@ -123,13 +123,13 @@ void test_n1_wifi_down_at_full_hour() {
 
 void test_n1_ntp_down_keeps_schedule() {
     Station station;
-    station.retained.lastSyncTime = 0;  // sync needed
+    station.clock.lastSet = 0;  // sync needed
     station.network.ntpAvailable = false;
     station.wake();
 
     TEST_ASSERT_EQUAL(1, station.storage.rows.size());
     TEST_ASSERT_EQUAL(0, station.clock.setTimeCount);
-    TEST_ASSERT_EQUAL_UINT32(0, station.retained.lastSyncTime);
+    TEST_ASSERT_EQUAL_UINT32(0, station.clock.lastSet);
     TEST_ASSERT_EQUAL(1, station.log.count("disconnect"));
     TEST_ASSERT_EQUAL(1, station.power.sleepCount);
 }
@@ -183,7 +183,7 @@ void test_n2_rtc_failure_safety_timer_only() {
 void test_f3_n3_one_day_gives_24_uploads() {
     Station station;
     station.clock.time = at(0, 0, kWakeDelayS);
-    station.retained.lastSyncTime = station.clock.time;
+    station.clock.lastSet = station.clock.time;
     station.wake();
     for (int i = 1; i < 96; ++i) {
         station.wakeAtNextAlarm();
@@ -199,7 +199,7 @@ void test_f3_n3_one_day_gives_24_uploads() {
 void test_f4_three_days_give_3_syncs_on_upload_connections() {
     Station station;
     station.clock.time = at(0, 0, kWakeDelayS);
-    station.retained.lastSyncTime = 0;  // e.g. first boot
+    station.clock.lastSet = 0;  // e.g. first boot
     station.wake();
     for (int i = 1; i < 3 * 96; ++i) {
         station.wakeAtNextAlarm();
