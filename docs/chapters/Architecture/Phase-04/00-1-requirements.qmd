@@ -11,6 +11,8 @@ Before writing any code, this part designs the new firmware on paper, in four ch
 
 The following parts implement this design step by step.
 
+One word comes back everywhere in this design: the **row**. At each wake-up, the station records the time and the values it measured as one line of a CSV file on the SD card, as in the PoC: this line is a row. The station never modifies a row once written; it only appends new ones at the end of the file, and sends copies of them to the server. The exact format of a row is described in [Data and Upload](00-3-data-and-upload.qmd#data-format-v1).
+
 Requirements come in two kinds:
 
 - **Functional requirements** (F) describe *what* the station does: measure, store, upload.
