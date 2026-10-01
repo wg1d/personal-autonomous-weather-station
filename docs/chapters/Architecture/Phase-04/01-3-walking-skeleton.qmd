@@ -61,7 +61,7 @@ pixi run pio run -d firmware/paws -t upload
 pixi run pio device monitor -d firmware/paws
 ```
 
-After a power-on, each wake-up should print something like this (the ESP32 boot messages are not shown, and the awake time will differ):
+Here is the output of the first two wake-ups after a power-on, as printed on the board (the awake time may differ slightly on yours):
 
 ```text
 -> BOOT
@@ -73,12 +73,35 @@ After a power-on, each wake-up should print something like this (the ESP32 boot 
 -> SCHEDULE
 -> SLEEP
    RTC alarm: no, button: not wired before A5, timer: 20 s
-   awake for ... ms
+   awake for 495 ms
+ets Jun  8 2016 00:22:57
+
+rst:0x5 (DEEPSLEEP_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+configsip: 0, SPIWP:0xee
+clk_drv:0x00,q_drv:0x00,d_drv:0x00,cs0_drv:0x00,hd_drv:0x00,wp_drv:0x00
+mode:DIO, clock div:1
+load:0x3fff0030,len:1344
+load:0x40078000,len:13964
+load:0x40080400,len:3600
+entry 0x400805f0
+
+-> BOOT
+-> MEASURE
+-> STORE
+   row: 1970-01-01T00:00:21Z time_valid=0 T=nan H=nan P=nan
+-> UPLOAD
+   no network before step A4: connection failed
+-> SCHEDULE
+-> SLEEP
+   RTC alarm: no, button: not wired before A5, timer: 20 s
+   awake for 495 ms
 ```
 
 The path is the one of an invalid clock: the upload is attempted at every wake-up to reach NTP (F6 · Flag unreliable time), and fails without blocking the schedule (N1 · No data loss). With no RTC alarm, the safety timer is the only wake-up source (N2 · Always wake up again).
 
-About 20 seconds later, the next wake-up prints the same states, with a time around `00:00:2x` that keeps increasing: the system clock kept counting during deep sleep.
+Between the two wake-ups, the lines from `ets Jun  8 2016` to `entry` are printed by the boot code of the ESP32 itself, before our firmware starts. `rst:0x5 (DEEPSLEEP_RESET)` confirms that the chip woke up from deep sleep, and not from a reset.
+
+The second row is timestamped `00:00:21`: the 20 seconds of the timer, plus the time to wake up and boot. The system clock kept counting during deep sleep.
 
 ## Troubleshooting
 
