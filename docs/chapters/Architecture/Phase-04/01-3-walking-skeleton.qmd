@@ -21,6 +21,13 @@ The clock is the most interesting one. The ESP32 system clock keeps counting dur
 ```{.cpp include="../../../../firmware/paws/src/adapters/SystemClock.h"}
 ```
 
+::: {.callout-tip collapse="true"}
+## C++: `static_cast` and `static`
+
+- **`static_cast<uint32_t>(...)`** converts a value to another type, here the `time_t` of the system clock into our `uint32_t`. It does the same as the C cast `(uint32_t)`, but it is visible when reading, and the compiler refuses the dangerous conversions that a C cast would accept.
+- **`static`** before a variable outside any function limits it to the current file, so that the name cannot clash with another file.
+:::
+
 The power adapter is the only one that really drives the hardware in this step. It prints the sleep plan and the awake time, then enters deep sleep with the safety timer (see [Deep Sleep](../../PoC/Phase-02/01-deep-sleep.qmd)):
 
 ```{.cpp include="../../../../firmware/paws/src/adapters/Esp32Power.h"}

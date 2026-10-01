@@ -64,6 +64,15 @@ The data is a single file for now, `Record.h`. It defines a `Measurement` (one r
 ```{.cpp include="../../../../firmware/paws/lib/ports/Record.h"}
 ```
 
+::: {.callout-tip collapse="true"}
+## C++: `#pragma once`, `uint32_t`, `struct` and default values
+
+- **`#pragma once`** tells the compiler to read this header only once per source file, even when several headers include it. Without it, the same `struct` would be defined twice, which is an error. The older form, an `#ifndef`/`#define`/`#endif` *include guard*, does the same thing in three lines; `#pragma once` is shorter and supported by every compiler we use.
+- **`uint32_t`** is an unsigned integer of exactly 32 bits, on the ESP32 as on the computer. A plain `int` or `long` can have a different size on each, and the tests must compute exactly what the board computes. 32 bits hold Unix times until the year 2106.
+- **`struct`** and `class` are almost the same in C++; the only difference is that the members of a `struct` are public by default. By convention, we use `struct` for plain data (fields only) and `class` for objects with behavior.
+- **`= NAN`, `= 0`** give each field a default value. A new `Measurement` therefore starts with every value "missing", and a sensor only fills what it could read.
+:::
+
 A value that could not be measured is `NAN` (*Not a Number*), a special floating-point value meaning "no value". It follows the "missing values" rule of the [Design Invariants](00-1-requirements.qmd#design-invariants): the storage will write it as an empty field, never as a fake number such as `0` or `-999`.
 
 ## The Interfaces
@@ -85,6 +94,16 @@ This is the interface presented in the [Structure and Verification](00-4-structu
 ```{.cpp include="../../../../firmware/paws/lib/ports/IClock.h"}
 ```
 
+::: {.callout-tip collapse="true"}
+## C++: `virtual`, `= 0` and the virtual destructor
+
+- **`virtual`** means that the function called is chosen *at run time*, according to the real object: when the state machine calls `clock.now()`, it runs `SystemClock::now()` on the board in this step, and `FakeClock::now()` in the tests.
+- **`= 0`** makes the function *pure virtual*: the interface declares it without writing it, and every class that implements the interface must write it. A class with a pure virtual function cannot be created on its own.
+- **`virtual ~IClock() = default;`** is the destructor, called when an object is destroyed. Making it `virtual` guarantees that destroying an object through its interface also runs the destructor of the real class. We never do it in this firmware, but it is the rule for any class meant to be used through an interface, and it costs nothing. `= default` asks the compiler to write the (empty) destructor.
+
+Another way to swap implementations would be *templates*, resolved at compile time. Virtual functions are simpler to read and to explain, and their cost (one indirect call) is negligible at a few calls per wake-up.
+:::
+
 ### ISensor
 
 The sensors give the core the values of a row. A single function reads all of them at once and returns a `Measurement`. Adding a sensor (N5 · Extensibility) adds a field to `Measurement`, not a function here.
@@ -99,6 +118,12 @@ The storage keeps every row on the SD card, the source of truth of the station. 
 ```{.cpp include="../../../../firmware/paws/lib/ports/IStorage.h"}
 ```
 
+::: {.callout-tip collapse="true"}
+## C++: `const Record&`
+
+`append(const Record& record)` receives the row *by reference* (`&`): the function works on the caller's row instead of a copy, which avoids copying the whole structure. `const` promises that the function will not modify it. This is the usual way to pass a structure that is only read.
+:::
+
 ### INetwork
 
 The network lets the core reach the home Wi-Fi, the server and NTP. In this step, it opens and closes the connection, and reads the NTP time. `fetchTime()` is only called while connected: the daily sync reuses the upload connection (F4 · Daily time sync). Sending the rows comes in step A4.
@@ -106,12 +131,24 @@ The network lets the core reach the home Wi-Fi, the server and NTP. In this step
 ```{.cpp include="../../../../firmware/paws/lib/ports/INetwork.h"}
 ```
 
+::: {.callout-tip collapse="true"}
+## C++: an output parameter, `uint32_t& unixTime`
+
+`fetchTime()` must return two things: whether NTP answered, and the time. It returns the first one (`bool`), and writes the second one into a variable of the caller, passed by reference without `const`. Recent C++ versions offer `std::optional` for this, but it does not exist in C++11, the version of the Arduino core.
+:::
+
 ### IPower
 
 The power management tells the core why the station woke up, and puts it back to deep sleep. It defines the four wake-up causes, and the `SleepPlan`: the list of wake-up sources to arm before sleeping, as decided by the core.
 
 ```{.cpp include="../../../../firmware/paws/lib/ports/IPower.h"}
 ```
+
+::: {.callout-tip collapse="true"}
+## C++: `enum class`
+
+An `enum class` lists named values, here the wake-up causes. Compared to a plain `enum`, the names must be written with their type (`WakeCause::Button`, not just `Button`), so two enumerations can use the same name without conflict, and a value cannot be mixed up with an integer by mistake.
+:::
 
 ### IMaintenance
 
@@ -171,6 +208,12 @@ The state machine does the work of each state, and asks `nextState()` where to g
 
 ```{.cpp include="../../../../firmware/paws/lib/core/StateMachine.h"}
 ```
+
+::: {.callout-tip collapse="true"}
+## C++: references in `Ports`
+
+`Ports` holds *references* (`IClock&`) rather than pointers (`IClock*`). A reference must be given when the object is created, and can never be null: the machine cannot be built with a missing interface, and never has to check for one. The objects themselves are created once, by `main.cpp` or by the test, and live as long as the machine.
+:::
 
 From top to bottom:
 
