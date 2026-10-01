@@ -59,7 +59,7 @@ The `lib/ports` folder contains what the core needs from the outside world, in i
 - An **interface** describes a *service*: functions that the core can call, without saying how they work. Each interface has several implementations. For the clock: `SystemClock` on the board in this step, `Ds3231Clock` from step A2, and `FakeClock` in the tests. By convention, the name of an interface starts with `I`.
 - A **data structure** describes *values*: a timestamp, a validity flag, measurements. It has no functions to implement, and a single definition, used as is by the core, the adapters and the tests. It is what travels through the interfaces: the core fills a `Record`, then gives it to `IStorage::append()`. Its name has no `I`.
 
-The data is a single file for now, `Record.h`. It defines a `Measurement` (one reading of all the sensors) and a `Record` (the row created at each wake-up):
+The data is a single file for now, `Record.h`. It defines a `Measurement` (one reading of all the sensors) and a `Record`: the [row](00-1-requirements.qmd) created at each wake-up, which the storage writes as one line of the CSV file:
 
 ```{.cpp include="../../../../firmware/paws/lib/ports/Record.h"}
 ```
