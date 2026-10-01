@@ -44,11 +44,23 @@ public:
     /**
      * @brief Sets the time, after a successful NTP sync.
      *
-     * After this call, isValid() returns true.
+     * After this call, isValid() returns true, and lastSetTime() returns
+     * unixTime.
      *
      * @param[in] unixTime The new Unix time, UTC.
      */
     virtual void setTime(uint32_t unixTime) = 0;
+
+    /**
+     * @brief Tells when the time was last set.
+     *
+     * The core uses it to decide when the next NTP sync is due (F4). The
+     * implementation must keep it across deep sleep.
+     *
+     * @return The time passed to the last call to setTime(), or 0 if it
+     *         is not known (never set, or forgotten after a power loss).
+     */
+    virtual uint32_t lastSetTime() = 0;
 
     /**
      * @brief Programs the alarm that wakes the station up.

@@ -19,14 +19,12 @@
 #include "adapters/NoMaintenance.h"
 #include "adapters/NoNetwork.h"
 #include "adapters/NullSensor.h"
+#include "adapters/SerialLog.h"
 #include "adapters/SerialStorage.h"
 #include "adapters/SystemClock.h"
 
 /// A short interval for the demo on the bench, instead of 15 minutes
 const uint32_t kDemoIntervalS = 20;
-
-/// Survives deep sleep (RTC memory), but not a power loss or a reset
-RTC_DATA_ATTR RetainedState retained;
 
 SystemClock rtcClock;
 NullSensor sensor;
@@ -34,15 +32,7 @@ SerialStorage storage;
 NoNetwork network;
 Esp32Power power;
 NoMaintenance maintenance;
-
-/**
- * @brief Prints the state entered, as "-> BOOT".
- *
- * @param[in] state The state entered.
- */
-void printState(State state) {
-    Serial.printf("-> %s\n", stateName(state));
-}
+SerialLog serialLog;
 
 /// Runs one wake-up of the state machine, which ends in deep sleep
 void setup() {
@@ -53,9 +43,7 @@ void setup() {
 
     StateMachine machine(config,
                          {rtcClock, sensor, storage, network, power,
-                          maintenance},
-                         retained);
-    machine.setListener(printState);
+                          maintenance, serialLog});
 
     Serial.println();
     // Runs one wake-up and ends in deep sleep: it never returns

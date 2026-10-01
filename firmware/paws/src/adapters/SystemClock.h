@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <Arduino.h>
 #include <sys/time.h>
 #include <time.h>
 
@@ -22,6 +23,9 @@
 /// Any time before this date (2026-01-01T00:00:00Z) means that the
 /// clock restarted from 1970 and was never set
 const uint32_t kClockValidAfter = 1767225600;
+
+/// Time of the last setTime(), kept in RTC memory across deep sleep
+RTC_DATA_ATTR static uint32_t systemClockLastSet = 0;
 
 /**
  * @brief Skeleton clock: the ESP32 system clock, without alarm.
@@ -37,7 +41,10 @@ public:
     void setTime(uint32_t unixTime) override {
         timeval tv = {static_cast<time_t>(unixTime), 0};
         settimeofday(&tv, nullptr);
+        systemClockLastSet = unixTime;
     }
+
+    uint32_t lastSetTime() override { return systemClockLastSet; }
 
     bool setAlarm(uint32_t /*unixTime*/) override {
         return false;  // no alarm hardware before step A2

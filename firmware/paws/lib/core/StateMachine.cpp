@@ -15,20 +15,20 @@
 
 #include "Rules.h"
 
-StateMachine::StateMachine(const Config& config, Ports ports,
-                           RetainedState& retained)
-    : config_(config), ports_(ports), retained_(retained) {}
+StateMachine::StateMachine(const Config& config, Ports ports)
+    : config_(config), ports_(ports) {}
 
 void StateMachine::run() {
-    visitedCount_ = 0;
     conditions_ = Conditions{};
 
     State current = State::Boot;
     while (true) {
+        // Report the state: printed on the board, checked by the tests
+        ports_.log.stateEntered(stateName(current));
+
         // Actions of the current state. They also read the inputs of the
         // machine (wake-up cause, Wi-Fi connected...) and set the matching
         // conditions: an input is only known once its state has acted.
-        enter(current);
         doWork(current);
         if (current == State::Sleep) {
             return;  // final state
@@ -41,15 +41,6 @@ void StateMachine::run() {
         // belong to the states
 
         current = next;
-    }
-}
-
-void StateMachine::enter(State state) {
-    if (visitedCount_ < kMaxVisited) {
-        visited_[visitedCount_++] = state;
-    }
-    if (listener_ != nullptr) {
-        listener_(state);
     }
 }
 
@@ -94,7 +85,7 @@ void StateMachine::onUpload() {
     // next try. Sending the rows after the upload cursor comes in A4.
     conditions_.connected = ports_.network.connect(config_.wifiTimeoutS);
     conditions_.syncNeeded = isSyncNeeded(ports_.clock.now(), clockValid_,
-                                     retained_.lastSyncTime, config_);
+                                     ports_.clock.lastSetTime(), config_);
 }
 
 void StateMachine::onTimeSync() {
@@ -102,7 +93,6 @@ void StateMachine::onTimeSync() {
     if (ports_.network.fetchTime(unixTime, config_.ntpTimeoutS)) {
         ports_.clock.setTime(unixTime);
         clockValid_ = true;
-        retained_.lastSyncTime = unixTime;
     }
     // On failure, the next upload tries again
 }

@@ -24,6 +24,7 @@ public:
     bool valid = true;       ///< Value returned by isValid()
     bool alarmWorks = true;  ///< false simulates an RTC failure (N2)
 
+    uint32_t lastSet = 0;    ///< Value returned by lastSetTime()
     uint32_t lastAlarm = 0;  ///< Last alarm programmed, 0 if none
     int setTimeCount = 0;    ///< Number of calls to setTime()
 
@@ -33,8 +34,11 @@ public:
     void setTime(uint32_t unixTime) override {
         time = unixTime;
         valid = true;
+        lastSet = unixTime;
         ++setTimeCount;
     }
+
+    uint32_t lastSetTime() override { return lastSet; }
 
     bool setAlarm(uint32_t unixTime) override {
         if (!alarmWorks) {
