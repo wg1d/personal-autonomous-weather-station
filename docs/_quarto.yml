@@ -76,11 +76,10 @@ book:
       chapters:
         - href: chapters/Architecture/Phase-04/03-1-sensor-and-storage.qmd
           text: "Sensor & Storage"
-    # Early draft of step A4, to be rewritten
-    - part: "Drafts"
+    - part: "A4 – Wi-Fi and Upload"
       chapters:
-        - href: chapters/Architecture/Phase-04/03-network-and-time.qmd
-          text: "Network & Time"
+        - href: chapters/Architecture/Phase-04/04-1-wifi-and-time-sync.qmd
+          text: "Wi-Fi & Time Sync"
 
 filters:
   - include-code-files
