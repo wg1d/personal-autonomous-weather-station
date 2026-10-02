@@ -125,4 +125,4 @@ The second row is timestamped `00:00:21`: the 20 seconds of the timer, plus the 
 
 ## Next Steps
 
-The skeleton runs, but still measures nothing and has no real clock. In step A2, we write the DS3231 clock adapter: real timestamps, alarms on the 15-minute grid, and the wake-up by the `EXT0` pin.
+The skeleton runs, but still measures nothing and has no real clock. In step A2, [DS3231 Clock](02-1-ds3231-clock.qmd), we write the DS3231 clock adapter: real timestamps, alarms on the 15-minute grid, and the wake-up by the `EXT0` pin.

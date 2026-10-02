@@ -1,0 +1,139 @@
+# A2 · DS3231 Clock {.unnumbered}
+
+Step A2 replaces the skeleton clock of A1 with the DS3231. Two things change on the board:
+
+- the rows are timestamped with the real time, kept by the DS3231 (F1 · Periodic measurement, F6 · Flag unreliable time);
+- the ESP32 is woken by the DS3231 alarm, exactly on the measurement grid, and the internal timer becomes a safety net (N2 · Always wake up again).
+
+The state machine, the rules and the tests do not change: only an adapter is replaced, as planned by the architecture (N5 · Extensibility).
+
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/paws)
+
+## Wiring
+
+The wiring is the one of the PoC, described in [Hardware Changes](../../PoC/Phase-02/02-hardware-modifications.qmd):
+
+| DS3231 | ESP32 | Role |
+|--------|-------|------|
+| VCC | 3.3V | Power, also during the deep sleep of the ESP32 |
+| GND | GND | |
+| SDA | Pin 21 | I2C data |
+| SCL | Pin 22 | I2C clock |
+| SQW | Pin 36 | Alarm output, with a 10 kΩ pull-up resistor to 3.3V |
+
+The DS3231 stays powered while the ESP32 sleeps: deep sleep only stops the ESP32 chip, not the 3.3V regulator of the board. That is what allows the DS3231 to keep counting and to wake the ESP32 up. Its coin cell is only a backup, used when the main power is cut.
+
+## The clock adapter
+
+`Ds3231Clock` implements `IClock` with [RTClib](https://github.com/adafruit/RTClib), the library used in the PoC:
+
+```{.cpp include="../../../../firmware/paws/src/adapters/Ds3231Clock.h"}
+```
+
+Each function of the interface maps to a few calls to RTClib:
+
+- **`now()`** reads the time of the DS3231, as a Unix time.
+- **`isValid()`** reads the *Oscillator Stop Flag* through `lostPower()`. The DS3231 sets this flag when it loses all power, main and coin cell (see [Persistent Context](00-2-behavior.qmd#persistent-context)).
+- **`setTime()`** writes the time with `adjust()`, which also clears the flag: the clock is valid again. It will be called by the NTP sync, in step A4.
+- **`setAlarm()`** programs alarm 1 in `DS3231_A1_Hour` mode, which compares hours, minutes and seconds: the alarm fires once, at the requested time. The PoC explains this mode in [Firmware](../../PoC/Phase-02/03-software-implementation.qmd).
+
+`begin()` is not part of the interface: it is specific to this adapter, and `main.cpp` calls it once at boot. It prepares the SQW pin for the alarms, and clears the alarm flags. This last point matters: when the alarm fires, the DS3231 pulls SQW low **until its flag is cleared**. Without `clearAlarm()`, SQW would stay low, and the ESP32 would wake up again as soon as it goes to sleep.
+
+If the DS3231 does not answer on the I2C bus, the adapter does not stop the station: `now()` returns 0, `isValid()` returns `false` and `setAlarm()` refuses. The state machine then flags the rows (F6) and relies on the safety timer (N2), as described in [Error Handling](00-2-behavior.qmd#error-handling).
+
+## The alarm wake-up
+
+The power adapter now arms the `EXT0` wake-up on pin 36 when the plan contains an RTC alarm:
+
+```{.cpp include="../../../../firmware/paws/src/adapters/Esp32Power.h"}
+```
+
+`esp_sleep_enable_ext0_wakeup(kRtcAlarmPin, 0)` wakes the ESP32 up when pin 36 goes low (level `0`), which is what the DS3231 does when the alarm fires. The safety timer is still armed, 60 seconds after the alarm: if the alarm never comes, the timer wakes the station up anyway.
+
+## main.cpp
+
+`main.cpp` creates a `Ds3231Clock` instead of the `SystemClock` of A1, calls `begin()`, and shortens the interval to one minute for the demo on the bench:
+
+```{.cpp include="../../../../firmware/paws/src/main.cpp"}
+```
+
+## Expected output
+
+Flash the firmware and open the serial monitor, as in [A1](01-3-walking-skeleton.qmd#expected-output).
+
+### Clock not set
+
+If the DS3231 lost its time (an empty or missing coin cell, with the board unplugged), it restarts from `2000-01-01T00:00:00Z`. This output was printed by our board in that situation:
+
+```text
+-> BOOT
+-> MEASURE
+-> STORE
+   row: 2000-01-01T00:01:03Z time_valid=0 T=nan H=nan P=nan
+-> UPLOAD
+   no network before step A4: connection failed
+-> SCHEDULE
+   alarm set for 00:02:00
+-> SLEEP
+   RTC alarm: yes, button: not wired before A5, timer: 117 s
+   awake for 506 ms
+ets Jun  8 2016 00:22:57
+
+rst:0x5 (DEEPSLEEP_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+...
+entry 0x400805f0
+
+-> BOOT
+-> MEASURE
+-> STORE
+   row: 2000-01-01T00:02:00Z time_valid=0 T=nan H=nan P=nan
+-> UPLOAD
+   no network before step A4: connection failed
+-> SCHEDULE
+   alarm set for 00:03:00
+-> SLEEP
+   RTC alarm: yes, button: not wired before A5, timer: 120 s
+   awake for 506 ms
+```
+
+The station flags its rows with `time_valid=0` and tries to reach NTP at every wake-up (F6), until step A4 brings the network.
+
+The second row shows that the **alarm** woke the ESP32 up: it was set for `00:02:00`, and the row is timestamped `00:02:00`. The timer would have woken it up 117 seconds after the first sleep, at about `00:03:00`. The timer duration is the time left until the alarm plus the 60-second margin: 57 + 60 = 117 seconds, then 60 + 60 = 120 seconds.
+
+### Clock set
+
+Until step A4 sets the time with NTP, the PoC sketch [`03_real_time_clock`](../../PoC/Phase-01/04-real-time-clock.qmd) can set it: when the DS3231 has lost its time, it writes the compile time, converted to UTC. Flash it once, then flash `firmware/paws` again, without unplugging the board in between. The output becomes:
+
+```text
+-> BOOT
+-> MEASURE
+-> STORE
+   row: 2026-10-02T13:34:06Z time_valid=1 T=nan H=nan P=nan
+-> SCHEDULE
+   alarm set for 13:35:00
+-> SLEEP
+   RTC alarm: yes, button: not wired before A5, timer: 114 s
+   awake for 505 ms
+...
+-> BOOT
+-> MEASURE
+-> STORE
+   row: 2026-10-02T13:35:00Z time_valid=1 T=nan H=nan P=nan
+-> SCHEDULE
+   alarm set for 13:36:00
+```
+
+This is the normal path of a measurement-only wake-up: the clock is valid, the slot is not a full hour, so there is no `UPLOAD`. The station measures, stores, schedules the next minute and sleeps again. At `hh:00`, the path goes through `UPLOAD`, as tested in the scenarios of A1.
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+|---------|---------------|
+| `DS3231 not responding` | The DS3231 does not answer on the I2C bus: check SDA (pin 21), SCL (pin 22) and the power. The station keeps running with `time_valid=0`, woken by the safety timer. |
+| The time restarts from `2000-01-01` | The DS3231 lost all power: the coin cell is empty or missing, and the board was unplugged. Replace the cell, then set the time with `03_real_time_clock`. |
+| The ESP32 wakes up again immediately, in a loop | SQW stays low: an alarm flag is not cleared, or the pull-up resistor of pin 36 is missing. |
+| One row every two minutes instead of every minute | The alarm does not wake the ESP32 up: only the safety timer does, 60 seconds after each planned alarm. Check the wire between SQW and pin 36. |
+
+## Next Steps
+
+The clock is real, but the station still measures nothing and stores nothing. In step A3, the BME280 and SD card adapters replace the skeleton sensor and storage, and the rows are written to the CSV file.

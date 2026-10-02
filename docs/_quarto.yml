@@ -66,6 +66,10 @@ book:
           text: "Tests"
         - href: chapters/Architecture/Phase-04/01-3-walking-skeleton.qmd
           text: "Walking Skeleton"
+    - part: "A2 – DS3231 Clock"
+      chapters:
+        - href: chapters/Architecture/Phase-04/02-1-ds3231-clock.qmd
+          text: "DS3231 Clock"
     # Early drafts of the next steps (A3, A4), to be rewritten
     - part: "Drafts"
       chapters:
