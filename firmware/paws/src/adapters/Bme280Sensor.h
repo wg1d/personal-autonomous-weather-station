@@ -40,6 +40,9 @@ public:
         // Forced mode: one measurement on demand, then the sensor goes
         // back to sleep. The default, normal mode, measures non-stop and
         // would waste energy between two wake-ups.
+        // These are the "weather monitoring" settings recommended by Bosch
+        // (BME280 datasheet, section 3.5), as in the advancedsettings
+        // example of the Adafruit library.
         bme_.setSampling(Adafruit_BME280::MODE_FORCED,
                          Adafruit_BME280::SAMPLING_X1,  // temperature
                          Adafruit_BME280::SAMPLING_X1,  // pressure
