@@ -33,7 +33,7 @@ build-firmware = "bash scripts/build-firmware.sh"
 test = "pio test -d firmware/paws -e native"
 book = "bash scripts/render-book.sh"
 api-docs = { cmd = "doxygen Doxyfile", cwd = "firmware/paws" }
-preview = { cmd = "bash ../scripts/extract-versions.sh && quarto preview", cwd = "docs" }
+preview = { cmd = "quarto preview", cwd = "docs" }
 
 # Backend: a separate environment, because PlatformIO requires an old
 # version of uvicorn (for its own web interface) that FastAPI cannot use
