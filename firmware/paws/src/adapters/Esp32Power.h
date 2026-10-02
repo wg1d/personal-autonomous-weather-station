@@ -3,11 +3,12 @@
  * File: src/adapters/Esp32Power.h
  *
  * Description:
- * ESP32 power adapter: reads the wake-up cause and enters deep sleep.
- * In step A1 only the safety timer is armed; the RTC alarm (EXT0) is
- * added in A2 and the button (EXT1) in A5.
+ * ESP32 power adapter: reads the wake-up cause and enters deep sleep,
+ * woken by the DS3231 alarm (EXT0) and the safety timer. The button
+ * (EXT1) is added in step A5.
  *
- * Wiring: none in A1.
+ * Wiring:
+ * - DS3231 SQW -> Pin 36 (10k pull-up resistor to 3.3V)
  * Dependencies: ESP32 Arduino core (ESP-IDF sleep functions).
  */
 
@@ -18,10 +19,14 @@
 
 #include "IPower.h"
 
+/// DS3231 SQW output: pulled low when the alarm fires
+const gpio_num_t kRtcAlarmPin = GPIO_NUM_36;
+
 /**
  * @brief ESP32 power management: wake-up cause and deep sleep.
  *
- * In step A1, only the safety timer of the plan is armed.
+ * The RTC alarm and the safety timer of the plan are armed; the button
+ * is not wired before step A5.
  */
 class Esp32Power : public IPower {
 public:
@@ -45,6 +50,10 @@ public:
         // Send the whole message before the UART is powered down
         Serial.flush();
 
+        if (plan.rtcAlarm) {
+            // Wake up when the DS3231 pulls SQW low (level 0)
+            esp_sleep_enable_ext0_wakeup(kRtcAlarmPin, 0);
+        }
         esp_sleep_enable_timer_wakeup(
             static_cast<uint64_t>(plan.timerSeconds) * 1000000ULL);
         esp_deep_sleep_start();
