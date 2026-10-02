@@ -1,6 +1,8 @@
 project:
   type: book
   output-dir: _output
+  # The chapters of earlier steps include the code of their own version
+  pre-render: bash ../scripts/extract-versions.sh
 
 book:
   title: "PAWS"
