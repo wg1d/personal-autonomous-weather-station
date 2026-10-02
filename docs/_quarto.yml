@@ -72,11 +72,13 @@ book:
       chapters:
         - href: chapters/Architecture/Phase-04/02-1-ds3231-clock.qmd
           text: "DS3231 Clock"
-    # Early drafts of the next steps (A3, A4), to be rewritten
+    - part: "A3 – Sensor and Storage"
+      chapters:
+        - href: chapters/Architecture/Phase-04/03-1-sensor-and-storage.qmd
+          text: "Sensor & Storage"
+    # Early draft of step A4, to be rewritten
     - part: "Drafts"
       chapters:
-        - href: chapters/Architecture/Phase-04/02-sensor-and-storage.qmd
-          text: "Sensor & Storage"
         - href: chapters/Architecture/Phase-04/03-network-and-time.qmd
           text: "Network & Time"
 
