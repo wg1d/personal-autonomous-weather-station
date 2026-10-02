@@ -4,7 +4,7 @@ Step A3 replaces the two remaining skeleton adapters that touch the data: the BM
 
 As in A2, the state machine does not change. One new piece of the core appears: the CSV format of the rows, written as a pure function so that it can be tested on the computer.
 
-> **Ready-to-use project:** The complete code of this step is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/paws)
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v0.4.0/firmware/paws)
 
 ## Wiring
 
@@ -20,10 +20,10 @@ The wiring is the one of the PoC ([Data Acquisition](../../PoC/Phase-01/02-data-
 
 The format of a row is the one of the [Data and Upload](00-3-data-and-upload.qmd#data-format-v1) chapter: timestamp, validity flag, then the three values with their unit in the column name. It belongs to the core, since the server will rely on it, and it must be tested:
 
-```{.cpp include="../../../../firmware/paws/lib/core/CsvFormat.h"}
+```{.cpp include="../../../_versions/v0.4.0/firmware/paws/lib/core/CsvFormat.h"}
 ```
 
-```{.cpp include="../../../../firmware/paws/lib/core/CsvFormat.cpp"}
+```{.cpp include="../../../_versions/v0.4.0/firmware/paws/lib/core/CsvFormat.cpp"}
 ```
 
 Each value is first written into its own small text, empty if the value is missing (NaN), then a single `snprintf()` assembles the row. `snprintf()` never writes past the end of the buffer: it returns the length that the complete row needs, which tells whether the row fitted.
@@ -39,12 +39,12 @@ Each value is first written into its own small text, empty if the value is missi
 
 The tests use the examples of the design chapter, plus the edge cases: a missing value, a sensor that does not answer at all, an invalid clock, a negative temperature, and a buffer that is too small.
 
-```{.cpp include="../../../../firmware/paws/test/test_csv/test_csv.cpp"}
+```{.cpp include="../../../_versions/v0.4.0/firmware/paws/test/test_csv/test_csv.cpp"}
 ```
 
 ## The sensor adapter
 
-```{.cpp include="../../../../firmware/paws/src/adapters/Bme280Sensor.h"}
+```{.cpp include="../../../_versions/v0.4.0/firmware/paws/src/adapters/Bme280Sensor.h"}
 ```
 
 The sensor is initialized at every wake-up, since deep sleep erases the RAM of the ESP32. It is used in *forced mode*, as in the PoC (see [Firmware](../../PoC/Phase-02/03-software-implementation.qmd), point 5): it takes one measurement on demand, then goes back to sleep. In the default *normal mode*, it would keep measuring while the ESP32 sleeps, and waste energy.
@@ -58,7 +58,7 @@ These settings (forced mode, 1x oversampling, no filter) are the "weather monito
 
 ## The storage adapter
 
-```{.cpp include="../../../../firmware/paws/src/adapters/SdStorage.h"}
+```{.cpp include="../../../_versions/v0.4.0/firmware/paws/src/adapters/SdStorage.h"}
 ```
 
 `append()` formats the row with the core function, powers the card module on through pin 13, writes the row (after the header line when the file is new), then powers the module off. Between two wake-ups, the module is not powered.
@@ -69,7 +69,7 @@ If the card is missing or cannot be written, the adapter prints the reason and r
 
 `main.cpp` now creates a `Bme280Sensor` and an `SdStorage`, instead of the skeleton adapters of A1:
 
-```{.cpp include="../../../../firmware/paws/src/main.cpp"}
+```{.cpp include="../../../_versions/v0.4.0/firmware/paws/src/main.cpp"}
 ```
 
 ## Expected output
@@ -118,4 +118,4 @@ The awake time is now about 1.4 seconds, against 0.5 seconds in A2. Most of the 
 
 ## Next Steps
 
-The station measures and keeps its data, but it does not share it yet. In step A4, the Wi-Fi adapter uploads the new rows to the server once per hour, with the upload cursor, and sets the clock with NTP.
+The station measures and keeps its data, but it does not share it yet. In step A4, [Wi-Fi and Time Sync](04-1-wifi-and-time-sync.qmd), the Wi-Fi adapter uploads the new rows to the server once per hour, with the upload cursor, and sets the clock with NTP.
