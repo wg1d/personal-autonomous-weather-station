@@ -28,7 +28,10 @@ const uint8_t kSdCsPin = 5;
 /// Power switch of the SD card module: HIGH turns it on
 const uint8_t kSdPowerPin = 13;
 
-/// Time for the card to power up before it can be used
+/// Time for the card to power up before it can be used. The SD
+/// specification allows up to 35 ms of supply ramp-up, then 1 ms of
+/// stable supply; the module adds a regulator and capacitors, with no
+/// datasheet. 100 ms is a margin, kept from the PoC, not a measured value.
 const uint32_t kSdPowerUpMs = 100;
 
 /**
