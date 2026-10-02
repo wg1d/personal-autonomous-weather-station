@@ -3,33 +3,39 @@
  * File: src/main.cpp
  *
  * Description:
- * Firmware of the station (step A2): the state machine runs with the
- * DS3231 clock, which timestamps the rows and wakes the ESP32 up on the
- * measurement grid. The other modules are still skeleton adapters.
+ * Firmware of the station (step A3): at each wake-up, the BME280 is read
+ * and the row is appended to the CSV file of the SD card, timestamped by
+ * the DS3231, whose alarm wakes the ESP32 up on the measurement grid.
+ * The network and the maintenance mode are still skeleton adapters.
  *
  * Wiring:
+ * - BME280: 3.3V -> VIN, GND -> GND, Pin 21 -> SDA, Pin 22 -> SCL
  * - DS3231: 3.3V -> VCC, GND -> GND, Pin 21 -> SDA, Pin 22 -> SCL,
  *           Pin 36 -> SQW (10k pull-up resistor to 3.3V)
- * Dependencies: ESP32 Arduino core, RTClib, lib/core, lib/ports.
+ * - SD card: 5V -> VCC, GND -> GND, Pin 19 -> MISO, Pin 23 -> MOSI,
+ *            Pin 18 -> SCLK, Pin 5 -> CS,
+ *            Pin 13 -> OFF (10k pull-down resistor to GND)
+ * Dependencies: ESP32 Arduino core, RTClib, Adafruit BME280 Library,
+ * lib/core, lib/ports.
  */
 
 #include <Arduino.h>
 
 #include "StateMachine.h"
+#include "adapters/Bme280Sensor.h"
 #include "adapters/Ds3231Clock.h"
 #include "adapters/Esp32Power.h"
 #include "adapters/NoMaintenance.h"
 #include "adapters/NoNetwork.h"
-#include "adapters/NullSensor.h"
+#include "adapters/SdStorage.h"
 #include "adapters/SerialLog.h"
-#include "adapters/SerialStorage.h"
 
 /// A short interval for the demo on the bench, instead of 15 minutes
 const uint32_t kDemoIntervalS = 60;
 
 Ds3231Clock rtcClock;
-NullSensor sensor;
-SerialStorage storage;
+Bme280Sensor sensor;
+SdStorage storage;
 NoNetwork network;
 Esp32Power power;
 NoMaintenance maintenance;
