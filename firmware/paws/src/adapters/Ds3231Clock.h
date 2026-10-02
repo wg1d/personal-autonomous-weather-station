@@ -72,8 +72,11 @@ public:
             return;
         }
         // adjust() also clears the Oscillator Stop Flag
-        rtc_.adjust(DateTime(unixTime));
+        DateTime time(unixTime);
+        rtc_.adjust(time);
         ds3231LastSet = unixTime;
+        Serial.printf("   clock set to %02d:%02d:%02d\n", time.hour(),
+                      time.minute(), time.second());
     }
 
     uint32_t lastSetTime() override { return ds3231LastSet; }

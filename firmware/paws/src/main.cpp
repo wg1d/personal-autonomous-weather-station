@@ -3,10 +3,12 @@
  * File: src/main.cpp
  *
  * Description:
- * Firmware of the station (step A3): at each wake-up, the BME280 is read
- * and the row is appended to the CSV file of the SD card, timestamped by
- * the DS3231, whose alarm wakes the ESP32 up on the measurement grid.
- * The network and the maintenance mode are still skeleton adapters.
+ * Firmware of the station (step A4, part 1): at each wake-up, the BME280
+ * is read and the row is appended to the CSV file of the SD card,
+ * timestamped by the DS3231, whose alarm wakes the ESP32 up on the
+ * measurement grid. Once per hour, the station connects to the home
+ * Wi-Fi, and sets the DS3231 with NTP once per day. The rows are not sent
+ * yet, and the maintenance mode is still a skeleton adapter.
  *
  * Wiring:
  * - BME280: 3.3V -> VIN, GND -> GND, Pin 21 -> SDA, Pin 22 -> SCL
@@ -16,7 +18,7 @@
  *            Pin 18 -> SCLK, Pin 5 -> CS,
  *            Pin 13 -> OFF (10k pull-down resistor to GND)
  * Dependencies: ESP32 Arduino core, RTClib, Adafruit BME280 Library,
- * lib/core, lib/ports.
+ * lib/core, lib/ports, include/secrets.h (Wi-Fi settings).
  */
 
 #include <Arduino.h>
@@ -26,9 +28,10 @@
 #include "adapters/Ds3231Clock.h"
 #include "adapters/Esp32Power.h"
 #include "adapters/NoMaintenance.h"
-#include "adapters/NoNetwork.h"
 #include "adapters/SdStorage.h"
 #include "adapters/SerialLog.h"
+#include "adapters/WifiNetwork.h"
+#include "secrets.h"
 
 /// A short interval for the demo on the bench, instead of 15 minutes
 const uint32_t kDemoIntervalS = 60;
@@ -36,7 +39,7 @@ const uint32_t kDemoIntervalS = 60;
 Ds3231Clock rtcClock;
 Bme280Sensor sensor;
 SdStorage storage;
-NoNetwork network;
+WifiNetwork network(kWifiSsid, kWifiPassword);
 Esp32Power power;
 NoMaintenance maintenance;
 SerialLog serialLog;
