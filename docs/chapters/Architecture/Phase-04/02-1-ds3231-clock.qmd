@@ -46,7 +46,7 @@ The power adapter now arms the `EXT0` wake-up on pin 36 when the plan contains a
 ```{.cpp include="../../../../firmware/paws/src/adapters/Esp32Power.h"}
 ```
 
-`esp_sleep_enable_ext0_wakeup(kRtcAlarmPin, 0)` wakes the ESP32 up when pin 36 goes low (level `0`), which is what the DS3231 does when the alarm fires. The safety timer is still armed, 60 seconds after the alarm: if the alarm never comes, the timer wakes the station up anyway.
+`esp_sleep_enable_ext0_wakeup(kRtcAlarmPin, 0)` wakes the ESP32 up when pin 36 goes low (level `0`), which is what the DS3231 does when the alarm fires. The safety timer is still armed, 60 seconds after the alarm: if the alarm never comes, the timer wakes the station up anyway. Its duration is computed by the core (`safetyTimerSeconds()`, called in SCHEDULE) and passed in the sleep plan; the adapter only arms it.
 
 ## main.cpp
 
