@@ -47,7 +47,14 @@ The tests use the examples of the design chapter, plus the edge cases: a missing
 ```{.cpp include="../../../../firmware/paws/src/adapters/Bme280Sensor.h"}
 ```
 
-The sensor is initialized at every wake-up, since deep sleep erases the RAM of the ESP32. It is used in *forced mode*, as in the PoC: it takes one measurement on demand, then goes back to sleep. If it does not answer, the measurement keeps its missing values, and the row is stored with empty fields.
+The sensor is initialized at every wake-up, since deep sleep erases the RAM of the ESP32. It is used in *forced mode*, as in the PoC (see [Firmware](../../PoC/Phase-02/03-software-implementation.qmd), point 5): it takes one measurement on demand, then goes back to sleep. In the default *normal mode*, it would keep measuring while the ESP32 sleeps, and waste energy.
+
+The two other settings control the quality of each measurement:
+
+- **Oversampling**: the sensor can average several internal readings to reduce the noise, at the cost of a longer and more expensive measurement. `SAMPLING_X1` takes a single reading.
+- **The IIR filter** smooths quick variations across successive measurements, for example a door slamming in a room. With one measurement every 15 minutes, there is nothing to smooth: `FILTER_OFF`.
+
+These settings (forced mode, 1x oversampling, no filter) are the "weather monitoring" scenario recommended by Bosch in section 3.5 of the [BME280 datasheet](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bme280-ds002.pdf), also used by the [`advancedsettings`](https://github.com/adafruit/Adafruit_BME280_Library/blob/master/examples/advancedsettings/advancedsettings.ino) example of the Adafruit library. If it does not answer, the measurement keeps its missing values, and the row is stored with empty fields.
 
 ## The storage adapter
 
