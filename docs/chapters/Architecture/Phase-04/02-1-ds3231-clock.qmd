@@ -21,8 +21,6 @@ The wiring is the one of the PoC, described in [Hardware Changes](../../PoC/Phas
 | SCL | Pin 22 | I2C clock |
 | SQW | Pin 36 | Alarm output, with a 10 kΩ pull-up resistor to 3.3V |
 
-The DS3231 stays powered while the ESP32 sleeps: deep sleep only stops the ESP32 chip, not the 3.3V regulator of the board. That is what allows the DS3231 to keep counting and to wake the ESP32 up. Its coin cell is only a backup, used when the main power is cut.
-
 ## The clock adapter
 
 `Ds3231Clock` implements `IClock` with [RTClib](https://github.com/adafruit/RTClib), the library used in the PoC:
@@ -63,7 +61,7 @@ Flash the firmware and open the serial monitor, as in [A1](01-3-walking-skeleton
 
 ### Clock not set
 
-If the DS3231 lost its time (an empty or missing coin cell, with the board unplugged), it restarts from `2000-01-01T00:00:00Z`. This output was printed by our board in that situation:
+If the DS3231 has lost its time, it restarts from `2000-01-01T00:00:00Z`. This output was printed by our board in that situation:
 
 ```text
 -> BOOT
@@ -102,7 +100,7 @@ The second row shows that the **alarm** woke the ESP32 up: it was set for `00:02
 
 ### Clock set
 
-Until step A4 sets the time with NTP, the PoC sketch [`03_real_time_clock`](../../PoC/Phase-01/04-real-time-clock.qmd) can set it: when the DS3231 has lost its time, it writes the compile time, converted to UTC. Flash it once, then flash `firmware/paws` again, without unplugging the board in between. The output becomes:
+When the DS3231 holds a valid time, the output becomes:
 
 ```text
 -> BOOT
@@ -130,7 +128,7 @@ This is the normal path of a measurement-only wake-up: the clock is valid, the s
 | Symptom | Cause and fix |
 |---------|---------------|
 | `DS3231 not responding` | The DS3231 does not answer on the I2C bus: check SDA (pin 21), SCL (pin 22) and the power. The station keeps running with `time_valid=0`, woken by the safety timer. |
-| The time restarts from `2000-01-01` | The DS3231 lost all power: the coin cell is empty or missing, and the board was unplugged. Replace the cell, then set the time with `03_real_time_clock`. |
+| The time restarts from `2000-01-01` | The DS3231 lost all power: its coin cell is empty or missing. Replace it; from step A4, NTP sets the time again automatically. |
 | The ESP32 wakes up again immediately, in a loop | SQW stays low: an alarm flag is not cleared, or the pull-up resistor of pin 36 is missing. |
 | One row every two minutes instead of every minute | The alarm does not wake the ESP32 up: only the safety timer does, 60 seconds after each planned alarm. Check the wire between SQW and pin 36. |
 
