@@ -50,12 +50,22 @@ public:
         // Send the whole message before the UART is powered down
         Serial.flush();
 
+        // Arm the alarm wake-up only if the core could program the alarm:
+        // a DS3231 that does not answer may hold SQW low, which would wake
+        // the station up again as soon as it sleeps
         if (plan.rtcAlarm) {
-            // Wake up when the DS3231 pulls SQW low (level 0)
+            // The DS3231 pulls SQW low (level 0) when the alarm fires
             esp_sleep_enable_ext0_wakeup(kRtcAlarmPin, 0);
         }
+
+        // Safety timer (N2), always armed: if the alarm never comes, the
+        // station still wakes up. Its duration is computed by the core
+        // (safetyTimerSeconds(), in SCHEDULE); the ESP32 counts in
+        // microseconds
         esp_sleep_enable_timer_wakeup(
             static_cast<uint64_t>(plan.timerSeconds) * 1000000ULL);
+
+        // The chip stops here: the next wake-up restarts from setup()
         esp_deep_sleep_start();
     }
 };

@@ -46,9 +46,13 @@ public:
         rtc_.disable32K();
         // SQW is used as the alarm output, not as a square wave
         rtc_.writeSqwPinMode(DS3231_OFF);
+        // Only alarm 1 is used, reprogrammed at every wake-up. Alarm 2 is
+        // disabled: its registers keep the settings left by a previous
+        // firmware, which could otherwise fire at any time
         rtc_.disableAlarm(2);
-        // An alarm that fired keeps SQW low until its flag is cleared:
-        // clear both flags, or the station would wake up again at once
+        // An alarm that fired keeps SQW low until its flag is cleared,
+        // whichever alarm it was: clear both flags, or the station would
+        // wake up again at once
         rtc_.clearAlarm(1);
         rtc_.clearAlarm(2);
         return true;
