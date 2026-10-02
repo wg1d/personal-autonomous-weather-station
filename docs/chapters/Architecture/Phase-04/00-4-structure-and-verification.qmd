@@ -119,7 +119,7 @@ The implementation is split into six steps, numbered A1 to A6 (A for Architectur
 | Step | Content | Hardware needed |
 |------|---------|-----------------|
 | A1 | Project skeleton, interfaces, state machine, test doubles, Unity setup and first tests | None |
-| A2 | DS3231 clock adapter and scheduling rules (grid, safety timer) | ESP32 + DS3231 |
+| A2 | DS3231 clock adapter and RTC alarm wake-up | ESP32 + DS3231 |
 | A3 | BME280 and SD card adapters, CSV v1 format | + BME280 + SD |
 | A4 | Wi-Fi, incremental upload with cursor, NTP sync | + Wi-Fi |
 | A5 | Maintenance mode (button, access point, web page) | + button |
