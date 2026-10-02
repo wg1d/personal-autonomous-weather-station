@@ -34,3 +34,8 @@
 - One concept per chapter, in small steps: wiring, code, explanation,
   expected output, troubleshooting.
 - Timestamps are always in UTC.
+- Never answer a question from the chat inside the book or in code
+  comments. Questions, debugging steps, bench workarounds and the reasons
+  for a change belong to the conversation (or the commit message). The
+  book and the comments describe the project for a reader who never saw
+  the conversation: explain how things work, not how we got there.
