@@ -7,7 +7,7 @@ Step A2 replaces the skeleton clock of A1 with the DS3231. Two things change on 
 
 The state machine, the rules and the tests do not change: only an adapter is replaced, as planned by the architecture (N5 · Extensibility).
 
-> **Ready-to-use project:** The complete code of this step is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/paws)
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v0.3.0/firmware/paws)
 
 ## Wiring
 
@@ -25,7 +25,7 @@ The wiring is the one of the PoC, described in [Hardware Changes](../../PoC/Phas
 
 `Ds3231Clock` implements `IClock` with [RTClib](https://github.com/adafruit/RTClib), the library used in the PoC:
 
-```{.cpp include="../../../../firmware/paws/src/adapters/Ds3231Clock.h"}
+```{.cpp include="../../../_versions/v0.3.0/firmware/paws/src/adapters/Ds3231Clock.h"}
 ```
 
 Each function of the interface maps to a few calls to RTClib:
@@ -43,7 +43,7 @@ If the DS3231 does not answer on the I2C bus, the adapter does not stop the stat
 
 The power adapter now arms the `EXT0` wake-up on pin 36 when the plan contains an RTC alarm:
 
-```{.cpp include="../../../../firmware/paws/src/adapters/Esp32Power.h"}
+```{.cpp include="../../../_versions/v0.3.0/firmware/paws/src/adapters/Esp32Power.h"}
 ```
 
 `esp_sleep_enable_ext0_wakeup(kRtcAlarmPin, 0)` wakes the ESP32 up when pin 36 goes low (level `0`), which is what the DS3231 does when the alarm fires. The safety timer is still armed, 60 seconds after the alarm: if the alarm never comes, the timer wakes the station up anyway. Its duration is computed by the core (`safetyTimerSeconds()`, called in SCHEDULE) and passed in the sleep plan; the adapter only arms it.
@@ -52,7 +52,7 @@ The power adapter now arms the `EXT0` wake-up on pin 36 when the plan contains a
 
 `main.cpp` creates a `Ds3231Clock` instead of the `SystemClock` of A1, calls `begin()`, and shortens the interval to one minute for the demo on the bench:
 
-```{.cpp include="../../../../firmware/paws/src/main.cpp"}
+```{.cpp include="../../../_versions/v0.3.0/firmware/paws/src/main.cpp"}
 ```
 
 ## Expected output
@@ -134,4 +134,4 @@ This is the normal path of a measurement-only wake-up: the clock is valid, the s
 
 ## Next Steps
 
-The clock is real, but the station still measures nothing and stores nothing. In step A3, the BME280 and SD card adapters replace the skeleton sensor and storage, and the rows are written to the CSV file.
+The clock is real, but the station still measures nothing and stores nothing. In step A3, [Sensor and Storage](03-1-sensor-and-storage.qmd), the BME280 and SD card adapters replace the skeleton sensor and storage, and the rows are written to the CSV file.
