@@ -1,0 +1,112 @@
+# A4 · Wi-Fi and Time Sync {.unnumbered}
+
+Step A4 connects the station to the home Wi-Fi. It comes in two chapters:
+
+1. **Wi-Fi and Time Sync** (this chapter): the Wi-Fi adapter connects once per hour, and sets the DS3231 with NTP once per day (F4 · Daily time sync). After a power loss, the clock becomes valid again at the first connection (F6 · Flag unreliable time).
+2. The upload of the rows to the server, with the upload cursor (F3 · Hourly upload), in the next chapter.
+
+As in the previous steps, only an adapter changes: the decisions (when to connect, when to sync) were written and tested in A1.
+
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/paws)
+
+## Wi-Fi settings
+
+The name and the password of the Wi-Fi network must not be published with the code. As in the PoC, they live in a file ignored by Git, `include/secrets.h`, created from an example:
+
+```{.cpp include="../../../../firmware/paws/include/secrets.example.h"}
+```
+
+Copy `secrets.example.h` to `secrets.h` in the same folder, and replace the two values. The ESP32 only supports 2.4 GHz Wi-Fi networks. If `secrets.h` is missing, `pixi run build-firmware` creates it from the example, so that the firmware still builds (but cannot connect).
+
+## The Wi-Fi adapter
+
+```{.cpp include="../../../../firmware/paws/src/adapters/WifiNetwork.h"}
+```
+
+- **`connect()`** starts the Wi-Fi in *station* mode (a client of the home network) and waits for the connection, checking every 100 ms. After the timeout of the settings (10 seconds), it gives up and turns the Wi-Fi off: the station keeps its schedule and tries again at the next full hour (N1 · No data loss).
+- **`disconnect()`** turns the radio off. The Wi-Fi is by far the largest consumer of the station (N3 · Energy), so it is on only between `UPLOAD` and `SCHEDULE`.
+- **`fetchTime()`** asks an NTP server for the time, in UTC. The servers of `pool.ntp.org` are run by volunteers, and the pool answers with servers close to the station.
+
+One detail of `fetchTime()` matters. `getLocalTime()` waits until the system clock of the ESP32 holds a plausible date (after 2016), which is how it detects the NTP answer. But that system clock keeps running during deep sleep: after a first sync, it would already hold a plausible date, and `getLocalTime()` would return it at once, without waiting for NTP. Resetting the system clock to zero first guarantees that the time returned really comes from the server.
+
+The clock adapter also prints the new time when `setTime()` is called, to see the correction on the serial port.
+
+## main.cpp
+
+`main.cpp` creates a `WifiNetwork` with the settings of `secrets.h`, instead of the skeleton network of A1:
+
+```{.cpp include="../../../../firmware/paws/src/main.cpp"}
+```
+
+## Expected output
+
+This output was printed by our board around a full hour, with a valid clock, after the board had been unplugged (so the ESP32 had forgotten the time of the last sync):
+
+```text
+-> BOOT
+-> MEASURE
+-> STORE
+   stored: 2026-10-02T14:59:00Z,1,25.17,47.20,1008.15
+-> SCHEDULE
+   alarm set for 15:00:00
+-> SLEEP
+   RTC alarm: yes, button: not wired before A5, timer: 119 s
+   awake for 1398 ms
+...
+-> BOOT
+-> MEASURE
+-> STORE
+   stored: 2026-10-02T15:00:00Z,1,25.17,47.08,1008.16
+-> UPLOAD
+   Wi-Fi connected in 7200 ms
+-> TIME_SYNC
+   NTP time received
+   clock set to 15:00:53
+-> SCHEDULE
+   alarm set for 15:01:00
+-> SLEEP
+   RTC alarm: yes, button: not wired before A5, timer: 67 s
+   awake for 13307 ms
+...
+-> BOOT
+-> MEASURE
+-> STORE
+   stored: 2026-10-02T15:01:00Z,1,25.16,46.98,1008.13
+-> SCHEDULE
+   alarm set for 15:02:00
+-> SLEEP
+   RTC alarm: yes, button: not wired before A5, timer: 119 s
+   awake for 1398 ms
+```
+
+- At `14:59`, the slot is not a full hour: no Wi-Fi.
+- At `15:00`, the slot is a full hour: `UPLOAD` connects. In this chapter, it does nothing else: the rows stay on the SD card until the next chapter. Since no sync is known, `TIME_SYNC` reuses the connection to set the clock (F4).
+- At `15:01`, the clock was synchronized one minute ago: no Wi-Fi until the next full hour.
+
+The correction shows why the sync matters. The wake-up happened when the DS3231 read `15:00:00`, and NTP gave `15:00:53` about 13 seconds later: the DS3231 was about 40 seconds late, because its time had been set imprecisely. After the sync, the alarm of `15:01:00` is on the real grid again.
+
+With a clock that lost its time (`2000-01-01`, `time_valid=0`), the path is the same, but at every wake-up instead of every full hour, until NTP answers (F6).
+
+## Measured durations
+
+This is the first measurement of a wake-up with Wi-Fi:
+
+| Measurement | Value |
+|-------------|-------|
+| Wi-Fi connection | 7.2 s (timeout: 10 s) |
+| Awake time, measurement only | 1.4 s |
+| Awake time, with Wi-Fi and NTP | 13.3 s |
+
+The energy estimate of the [design](00-2-behavior.qmd#energy-estimate) assumed about 5 seconds of Wi-Fi per upload. The connection alone takes 7.2 seconds here: it includes joining the network and obtaining an IP address from the router, and we did not measure each part. Step A6 will look at it again with the updated energy estimate.
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+|---------|---------------|
+| `Wi-Fi not reachable` at every full hour | Check the name and password in `include/secrets.h`, and that the network is a 2.4 GHz one. Move the station closer to the router to check the range. |
+| `Wi-Fi connected`, then `NTP not answering` | The network gives no access to the internet, or blocks NTP (UDP port 123). The station tries again at the next upload. |
+| The connection takes almost 10 seconds, and sometimes fails | The connection is slow on this network. The timeout can be raised in `Config` (`wifiTimeoutS`), at the cost of more energy when the Wi-Fi is out of reach. |
+
+## Next Steps
+
+The station now connects to the Wi-Fi and keeps an exact clock, but the rows stay on the SD card. The next chapter sends them to the server, with the upload cursor that remembers which rows the server already has.
