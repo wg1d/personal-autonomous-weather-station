@@ -18,7 +18,7 @@ On the board, each interface needs an implementation. In this step, they are del
 
 The clock is the most interesting one. The ESP32 system clock keeps counting during deep sleep, but restarts at `1970-01-01T00:00:00Z` after a power-on. Any time before 2026 therefore means that the clock was never set, which gives a simple `isValid()`. The time of the last `setTime()` is kept in RTC memory (`RTC_DATA_ATTR`, see [Deep Sleep](../../PoC/Phase-02/01-deep-sleep.qmd)), the only memory that survives deep sleep:
 
-```{.cpp include="../../../../firmware/paws/src/adapters/SystemClock.h"}
+```{.cpp include="../../../_versions/v0.2.0/firmware/paws/src/adapters/SystemClock.h"}
 ```
 
 ::: {.callout-tip collapse="true"}
@@ -30,7 +30,7 @@ The clock is the most interesting one. The ESP32 system clock keeps counting dur
 
 The power adapter is the only one that really drives the hardware in this step. It prints the sleep plan and the awake time, then enters deep sleep with the safety timer (see [Deep Sleep](../../PoC/Phase-02/01-deep-sleep.qmd)):
 
-```{.cpp include="../../../../firmware/paws/src/adapters/Esp32Power.h"}
+```{.cpp include="../../../_versions/v0.2.0/firmware/paws/src/adapters/Esp32Power.h"}
 ```
 
 `Serial.flush()` waits until every character has left the serial port: without it, the end of the message could be lost when the chip goes to sleep.
@@ -38,19 +38,19 @@ The power adapter is the only one that really drives the hardware in this step. 
 ::: {.callout-note collapse="true"}
 ## NullSensor, SerialStorage, NoNetwork, NoMaintenance and SerialLog
 
-```{.cpp include="../../../../firmware/paws/src/adapters/NullSensor.h"}
+```{.cpp include="../../../_versions/v0.2.0/firmware/paws/src/adapters/NullSensor.h"}
 ```
 
-```{.cpp include="../../../../firmware/paws/src/adapters/SerialStorage.h"}
+```{.cpp include="../../../_versions/v0.2.0/firmware/paws/src/adapters/SerialStorage.h"}
 ```
 
-```{.cpp include="../../../../firmware/paws/src/adapters/NoNetwork.h"}
+```{.cpp include="../../../_versions/v0.2.0/firmware/paws/src/adapters/NoNetwork.h"}
 ```
 
-```{.cpp include="../../../../firmware/paws/src/adapters/NoMaintenance.h"}
+```{.cpp include="../../../_versions/v0.2.0/firmware/paws/src/adapters/NoMaintenance.h"}
 ```
 
-```{.cpp include="../../../../firmware/paws/src/adapters/SerialLog.h"}
+```{.cpp include="../../../_versions/v0.2.0/firmware/paws/src/adapters/SerialLog.h"}
 ```
 :::
 
@@ -58,14 +58,14 @@ The power adapter is the only one that really drives the hardware in this step. 
 
 `main.cpp` only creates the adapters, gives them to the state machine, and runs it. For the demo on the bench, the interval is shortened to 20 seconds.
 
-```{.cpp include="../../../../firmware/paws/src/main.cpp"}
+```{.cpp include="../../../_versions/v0.2.0/firmware/paws/src/main.cpp"}
 ```
 
 The clock object is named `rtcClock`, not `clock`: `clock()` is already a function of the C standard library.
 
 ## Expected output
 
-Build and flash the firmware, then open the serial monitor:
+Build and flash the firmware, then open the serial monitor. The repository has moved on since this step: to flash exactly the version of this chapter, first run `git checkout v0.2.0`, and `git checkout main` to come back afterwards.
 
 ```bash
 pixi run pio run -d firmware/paws -t upload

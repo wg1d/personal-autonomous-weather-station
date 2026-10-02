@@ -1,6 +1,8 @@
 # Quarto build artifacts
 docs/.quarto/
 docs/_output/
+# Code of the published versions, extracted before rendering the book
+docs/_versions/
 **/*_files/
 
 # Firmware build (PlatformIO / Arduino)

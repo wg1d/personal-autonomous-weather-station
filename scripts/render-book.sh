@@ -4,6 +4,9 @@
 set -euo pipefail
 cd "$(dirname "$0")/../docs"
 
+# The chapters of earlier steps include the code of their own version
+bash ../scripts/extract-versions.sh
+
 # The include-code-files filter only warns when a file is missing:
 # fail explicitly instead of publishing an empty code block
 log=$(mktemp)

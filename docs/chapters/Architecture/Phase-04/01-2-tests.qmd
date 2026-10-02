@@ -6,7 +6,7 @@ This chapter checks the core of the [previous chapter](01-1-interfaces-and-state
 
 The tests replace each interface with a test double (see [Test doubles](00-4-structure-and-verification.qmd#test-doubles) in the Structure and Verification chapter). The fake clock lets the test set the time, choose whether the clock is valid, and simulate an RTC failure:
 
-```{.cpp include="../../../../firmware/paws/test/doubles/FakeClock.h"}
+```{.cpp include="../../../_versions/v0.2.0/firmware/paws/test/doubles/FakeClock.h"}
 ```
 
 ::: {.callout-tip collapse="true"}
@@ -17,7 +17,7 @@ The tests replace each interface with a test double (see [Test doubles](00-4-str
 
 The mock network records each call in an `EventLog` shared with the fake storage. A test can then check the *order* of the calls, for example that the row was stored before connecting (F2 · Store first):
 
-```{.cpp include="../../../../firmware/paws/test/doubles/MockNetwork.h"}
+```{.cpp include="../../../_versions/v0.2.0/firmware/paws/test/doubles/MockNetwork.h"}
 ```
 
 ::: {.callout-tip collapse="true"}
@@ -30,22 +30,22 @@ The mock network records each call in an `EventLog` shared with the fake storage
 ::: {.callout-note collapse="true"}
 ## EventLog, StubSensor, FakeStorage, FakePower, FakeMaintenance and FakeLog
 
-```{.cpp include="../../../../firmware/paws/test/doubles/EventLog.h"}
+```{.cpp include="../../../_versions/v0.2.0/firmware/paws/test/doubles/EventLog.h"}
 ```
 
-```{.cpp include="../../../../firmware/paws/test/doubles/StubSensor.h"}
+```{.cpp include="../../../_versions/v0.2.0/firmware/paws/test/doubles/StubSensor.h"}
 ```
 
-```{.cpp include="../../../../firmware/paws/test/doubles/FakeStorage.h"}
+```{.cpp include="../../../_versions/v0.2.0/firmware/paws/test/doubles/FakeStorage.h"}
 ```
 
-```{.cpp include="../../../../firmware/paws/test/doubles/FakePower.h"}
+```{.cpp include="../../../_versions/v0.2.0/firmware/paws/test/doubles/FakePower.h"}
 ```
 
-```{.cpp include="../../../../firmware/paws/test/doubles/FakeMaintenance.h"}
+```{.cpp include="../../../_versions/v0.2.0/firmware/paws/test/doubles/FakeMaintenance.h"}
 ```
 
-```{.cpp include="../../../../firmware/paws/test/doubles/FakeLog.h"}
+```{.cpp include="../../../_versions/v0.2.0/firmware/paws/test/doubles/FakeLog.h"}
 ```
 :::
 
@@ -53,26 +53,26 @@ The mock network records each call in an `EventLog` shared with the fake storage
 
 Each unit test checks one function with chosen inputs. The first suite checks the rules. A Unity test is a function that ends with assertions such as `TEST_ASSERT_EQUAL_UINT32(expected, actual)`; `main()` runs them one by one with `RUN_TEST`. The times are written with a small helper, `at(14, 7, 23)`, which returns the Unix time of `14:07:23` UTC on 1 October 2026.
 
-```{.cpp include="../../../../firmware/paws/test/test_rules/test_rules.cpp"}
+```{.cpp include="../../../_versions/v0.2.0/firmware/paws/test/test_rules/test_rules.cpp"}
 ```
 
 The second suite checks `nextState()`, with one test per row of the transitions table. `assertNext()` compares the state names rather than the values, so that a failure prints `Expected 'SCHEDULE' Was 'TIME_SYNC'` instead of two numbers. The last test checks N2 · Always wake up again for every case at once: with each of the 16 combinations of conditions, the path from BOOT must reach SLEEP in at most 7 steps. A loop in the transitions, introduced by mistake, would otherwise keep the station awake until the battery is empty.
 
-```{.cpp include="../../../../firmware/paws/test/test_transitions/test_transitions.cpp"}
+```{.cpp include="../../../_versions/v0.2.0/firmware/paws/test/test_transitions/test_transitions.cpp"}
 ```
 
 ## Scenario tests
 
 The scenario tests build a whole station from test doubles. This common setup is a *fixture*: by default, it is `14:00:03`, just after an alarm, and everything works. Each test changes what it needs, then calls `wake()`.
 
-```{.cpp include="../../../../firmware/paws/test/test_scenarios/Station.h"}
+```{.cpp include="../../../_versions/v0.2.0/firmware/paws/test/test_scenarios/Station.h"}
 ```
 
 The fixture uses two logs, for two different checks. `log`, an `EventLog` shared by the storage and the network, keeps the order of their calls ("store" before "connect"). `path`, a `FakeLog`, keeps the states entered by the last wake-up; `visited()` compares it to the expected path.
 
 `wakeAtNextAlarm()` simulates a night of sleep in one line: it moves the clock to the alarm programmed by the previous wake-up, plus 3 seconds, and runs the machine again. A simulated day is 96 calls, and runs in a fraction of a second.
 
-```{.cpp include="../../../../firmware/paws/test/test_scenarios/test_scenarios.cpp"}
+```{.cpp include="../../../_versions/v0.2.0/firmware/paws/test/test_scenarios/test_scenarios.cpp"}
 ```
 
 Each test is named after the requirement it checks. Together, they cover the acceptance criteria of F1, F2, F3, F4, F6, N1, N2 and the simulated part of N3 from the [verification matrix](00-4-structure-and-verification.qmd#verification-matrix). Some criteria will only be fully checked in later steps: for example, N1 also requires that the upload cursor never moves past a row the server has not acknowledged, which comes with the upload in A4.
