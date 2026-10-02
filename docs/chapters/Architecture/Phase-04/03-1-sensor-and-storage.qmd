@@ -1,0 +1,114 @@
+# A3 · Sensor and Storage {.unnumbered}
+
+Step A3 replaces the two remaining skeleton adapters that touch the data: the BME280 provides real values, and each row is appended to the CSV file of the SD card. After this step, the station does its main job: measure and keep every measurement (F1 · Periodic measurement, F2 · Store first, N1 · No data loss).
+
+As in A2, the state machine does not change. One new piece of the core appears: the CSV format of the rows, written as a pure function so that it can be tested on the computer.
+
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/paws)
+
+## Wiring
+
+The wiring is the one of the PoC ([Data Acquisition](../../PoC/Phase-01/02-data-acquisition.qmd), [Data Storage](../../PoC/Phase-01/03-data-storage.qmd) and [Hardware Changes](../../PoC/Phase-02/02-hardware-modifications.qmd)):
+
+| Module | Pins | Notes |
+|--------|------|-------|
+| BME280 | SDA → 21, SCL → 22 | Same I2C bus as the DS3231, address `0x76` |
+| SD card | MISO → 19, MOSI → 23, SCLK → 18, CS → 5 | SPI bus |
+| SD card power | OFF → 13 | 10 kΩ pull-down: the module is off unless pin 13 is high |
+
+## The CSV format
+
+The format of a row is the one of the [Data and Upload](00-3-data-and-upload.qmd#data-format-v1) chapter: timestamp, validity flag, then the three values with their unit in the column name. It belongs to the core, since the server will rely on it, and it must be tested:
+
+```{.cpp include="../../../../firmware/paws/lib/core/CsvFormat.h"}
+```
+
+```{.cpp include="../../../../firmware/paws/lib/core/CsvFormat.cpp"}
+```
+
+Each value is first written into its own small text, empty if the value is missing (NaN), then a single `snprintf()` assembles the row. `snprintf()` never writes past the end of the buffer: it returns the length that the complete row needs, which tells whether the row fitted.
+
+::: {.callout-tip collapse="true"}
+## C++: text in fixed-size buffers
+
+- **`char row[kCsvRowSize]`** is a buffer of fixed size, reserved on the stack when the function starts. We could use `std::string`, which grows as needed, but it takes its memory from the *heap* while the program runs. On a device that runs for months, a fragmented heap can make an allocation fail at an unpredictable moment, so embedded code avoids dynamic allocation. A fixed buffer always has the same cost, known at compile time.
+- **`snprintf(buffer, size, format, ...)`** is the safe form of `sprintf()`: the size tells it where the buffer ends. `sprintf()`, used in the PoC, writes as much as the format produces, possibly past the end of the buffer.
+- **`const char kCsvHeader[] = "..."`** stores the text once, in the program memory, as an array of characters.
+- **`static`** in front of `formatValue()` limits the function to `CsvFormat.cpp`: it is a helper, not part of the interface of the module.
+:::
+
+The tests use the examples of the design chapter, plus the edge cases: a missing value, a sensor that does not answer at all, an invalid clock, a negative temperature, and a buffer that is too small.
+
+```{.cpp include="../../../../firmware/paws/test/test_csv/test_csv.cpp"}
+```
+
+## The sensor adapter
+
+```{.cpp include="../../../../firmware/paws/src/adapters/Bme280Sensor.h"}
+```
+
+The sensor is initialized at every wake-up, since deep sleep erases the RAM of the ESP32. It is used in *forced mode*, as in the PoC: it takes one measurement on demand, then goes back to sleep. If it does not answer, the measurement keeps its missing values, and the row is stored with empty fields.
+
+## The storage adapter
+
+```{.cpp include="../../../../firmware/paws/src/adapters/SdStorage.h"}
+```
+
+`append()` formats the row with the core function, powers the card module on through pin 13, writes the row (after the header line when the file is new), then powers the module off. Between two wake-ups, the module is not powered.
+
+If the card is missing or cannot be written, the adapter prints the reason and returns `false`. The state machine does not stop: the row of this wake-up is lost, but the next ones will be stored as soon as the card is back (see [Error Handling](00-2-behavior.qmd#error-handling)).
+
+## main.cpp
+
+`main.cpp` now creates a `Bme280Sensor` and an `SdStorage`, instead of the skeleton adapters of A1:
+
+```{.cpp include="../../../../firmware/paws/src/main.cpp"}
+```
+
+## Expected output
+
+This output was printed by our board, with a valid clock:
+
+```text
+-> BOOT
+-> MEASURE
+-> STORE
+   stored: 2026-10-02T14:22:46Z,1,25.44,45.98,1008.52
+-> SCHEDULE
+   alarm set for 14:23:00
+-> SLEEP
+   RTC alarm: yes, button: not wired before A5, timer: 73 s
+   awake for 1403 ms
+...
+-> BOOT
+-> MEASURE
+-> STORE
+   stored: 2026-10-02T14:23:00Z,1,25.21,46.50,1008.52
+-> SCHEDULE
+   alarm set for 14:24:00
+-> SLEEP
+   RTC alarm: yes, button: not wired before A5, timer: 119 s
+   awake for 1395 ms
+```
+
+The `stored:` lines are the rows written to `/measurements_v1.csv`. Read on a computer, the file starts with the header line, followed by one row per wake-up:
+
+```csv
+timestamp,time_valid,temperature_c,humidity_pct,pressure_hpa
+2026-10-02T14:22:46Z,1,25.44,45.98,1008.52
+2026-10-02T14:23:00Z,1,25.21,46.50,1008.52
+```
+
+The awake time is now about 1.4 seconds, against 0.5 seconds in A2. Most of the difference comes from the SD card: the module is powered on, then initialized, at every wake-up. It stays below the 1.5 seconds of N3 · Energy, but with a small margin; step A6 will look at it again, with the updated energy estimate.
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+|---------|---------------|
+| `BME280 not responding`, empty values | Check SDA, SCL and the power of the BME280. If the DS3231 answers, the I2C bus works: the address of the module may be `0x77` instead of `0x76` (SDO tied to 3.3V). |
+| `SD card not found` | Check that the card is inserted and formatted in FAT32, the SPI wiring, and the power switch on pin 13. |
+| `cannot open the CSV file` | The card is found but cannot be written: it may be full or write-protected. |
+
+## Next Steps
+
+The station measures and keeps its data, but it does not share it yet. In step A4, the Wi-Fi adapter uploads the new rows to the server once per hour, with the upload cursor, and sets the clock with NTP.
