@@ -3,12 +3,12 @@
  * File: src/main.cpp
  *
  * Description:
- * Firmware of the station (step A4, part 1): at each wake-up, the BME280
- * is read and the row is appended to the CSV file of the SD card,
- * timestamped by the DS3231, whose alarm wakes the ESP32 up on the
- * measurement grid. Once per hour, the station connects to the home
- * Wi-Fi, and sets the DS3231 with NTP once per day. The rows are not sent
- * yet, and the maintenance mode is still a skeleton adapter.
+ * Firmware of the station (step A4): at each wake-up, the BME280 is read
+ * and the row is appended to the CSV file of the SD card, timestamped by
+ * the DS3231, whose alarm wakes the ESP32 up on the measurement grid.
+ * Once per hour, the station connects to the home Wi-Fi and sends the new
+ * rows to the server; once per day, it sets the DS3231 with NTP. The
+ * maintenance mode is still a skeleton adapter.
  *
  * Wiring:
  * - BME280: 3.3V -> VIN, GND -> GND, Pin 21 -> SDA, Pin 22 -> SCL
@@ -18,7 +18,7 @@
  *            Pin 18 -> SCLK, Pin 5 -> CS,
  *            Pin 13 -> OFF (10k pull-down resistor to GND)
  * Dependencies: ESP32 Arduino core, RTClib, Adafruit BME280 Library,
- * lib/core, lib/ports, include/secrets.h (Wi-Fi settings).
+ * lib/core, lib/ports, include/secrets.h (Wi-Fi and server settings).
  */
 
 #include <Arduino.h>
@@ -33,13 +33,15 @@
 #include "adapters/WifiNetwork.h"
 #include "secrets.h"
 
-/// A short interval for the demo on the bench, instead of 15 minutes
+/// Short periods for the demo on the bench, instead of 15 minutes and
+/// one hour
 const uint32_t kDemoIntervalS = 60;
+const uint32_t kDemoUploadPeriodS = 5 * 60;
 
 Ds3231Clock rtcClock;
 Bme280Sensor sensor;
 SdStorage storage;
-WifiNetwork network(kWifiSsid, kWifiPassword);
+WifiNetwork network(kWifiSsid, kWifiPassword, kServerUrl);
 Esp32Power power;
 NoMaintenance maintenance;
 SerialLog serialLog;
@@ -55,6 +57,7 @@ void setup() {
 
     Config config;
     config.measurementIntervalS = kDemoIntervalS;
+    config.uploadPeriodS = kDemoUploadPeriodS;
 
     StateMachine machine(config,
                          {rtcClock, sensor, storage, network, power,

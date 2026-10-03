@@ -3,14 +3,15 @@
  * File: lib/ports/INetwork.h
  *
  * Description:
- * What the core needs from the network. Step A1 only opens and closes
- * the connection and reads the NTP time; sending rows comes in A4.
+ * What the core needs from the network: connect to the home Wi-Fi, send
+ * rows to the server, and read the NTP time.
  *
  * Dependencies: none (standard C++ only).
  */
 
 #pragma once
 
+#include <cstddef>
 #include <cstdint>
 
 /**
@@ -41,6 +42,19 @@ public:
      * longer needed.
      */
     virtual void disconnect() = 0;
+
+    /**
+     * @brief Sends rows to the server (see the Upload Protocol).
+     *
+     * Only called while connected.
+     *
+     * @param[in] data The CSV text of the request: the header line, then
+     *            the rows (not a C string).
+     * @param[in] length The length of the text, in bytes.
+     * @return true if the server answered with a 2xx status: it stored
+     *         the rows, or already had them.
+     */
+    virtual bool send(const char* data, size_t length) = 0;
 
     /**
      * @brief Reads the current time from an NTP server.
