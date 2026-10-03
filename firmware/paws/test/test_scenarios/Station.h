@@ -92,6 +92,25 @@ struct Station {
     }
 
     /**
+     * @brief The rows received by the server, in order.
+     *
+     * @return One text per row, without the header line of each request
+     *         and without the line break.
+     */
+    std::vector<std::string> receivedRows() const {
+        std::vector<std::string> rows;
+        for (const std::string& request : network.requests) {
+            size_t start = request.find('\n') + 1;  // after the header
+            while (start < request.size()) {
+                size_t end = request.find("\r\n", start);
+                rows.push_back(request.substr(start, end - start));
+                start = end + 2;
+            }
+        }
+        return rows;
+    }
+
+    /**
      * @brief Checks the path of the last run.
      *
      * @param[in] expected The expected states, in order.

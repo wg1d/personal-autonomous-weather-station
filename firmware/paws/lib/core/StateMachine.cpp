@@ -13,7 +13,16 @@
 
 #include "StateMachine.h"
 
+#include <cstdio>
+
+#include "CsvFormat.h"
 #include "Rules.h"
+
+// Text of one upload request: the header line, then at most about 500
+// rows of 45 bytes (see the Upload Protocol). It is static: reserved once
+// when the firmware is built, instead of on the stack of the ESP32, which
+// is only 8 KB.
+static char batch[24 * 1024];
 
 StateMachine::StateMachine(const Config& config, Ports ports)
     : config_(config), ports_(ports) {}
@@ -78,10 +87,35 @@ void StateMachine::onStore() {
 
 void StateMachine::onUpload() {
     // On failure, nothing is sent: the rows stay on the SD card for the
-    // next try. Sending the rows after the upload cursor comes in A4.
+    // next try
     conditions_.connected = ports_.network.connect(config_.wifiTimeoutS);
+    if (conditions_.connected) {
+        sendUnsentRows();
+    }
     conditions_.syncNeeded = isSyncNeeded(ports_.clock.now(), clockValid_,
                                      ports_.clock.lastSetTime(), config_);
+}
+
+void StateMachine::sendUnsentRows() {
+    // Each request starts with the header line, so that it describes
+    // itself (see the Upload Protocol)
+    size_t headerLength =
+        snprintf(batch, sizeof(batch), "%s\r\n", kCsvHeader);
+
+    while (true) {
+        size_t rowsLength = ports_.storage.readUnsent(
+            batch + headerLength, sizeof(batch) - headerLength);
+        if (rowsLength == 0) {
+            return;  // every row was sent, or the storage cannot be read
+        }
+        if (!ports_.network.send(batch, headerLength + rowsLength)) {
+            return;  // the same rows will be sent at the next upload
+        }
+        // The cursor only moves once the server confirmed (N1)
+        if (!ports_.storage.markSent(rowsLength)) {
+            return;
+        }
+    }
 }
 
 void StateMachine::onTimeSync() {

@@ -192,6 +192,70 @@ void test_f3_n3_one_day_gives_24_uploads() {
     TEST_ASSERT_EQUAL(96, station.storage.rows.size());
     TEST_ASSERT_EQUAL(24, station.log.count("connect"));
     TEST_ASSERT_EQUAL(96, station.power.sleepCount);
+    // The last upload, at 23:00, sent every row stored before it, once:
+    // 00:00 to 23:00 is 93 rows
+    TEST_ASSERT_EQUAL(93, station.receivedRows().size());
+}
+
+// --- F3 · Hourly upload: content of the requests ---
+
+void test_f3_upload_sends_the_new_rows_once() {
+    Station station;
+    station.clock.time = at(13, 45, kWakeDelayS);
+    station.wake();  // no upload at 13:45
+    station.wakeAtNextAlarm();  // 14:00:03: upload
+
+    TEST_ASSERT_EQUAL(1, station.network.requests.size());
+    const std::string& request = station.network.requests[0];
+    TEST_ASSERT_EQUAL(0, request.find(std::string(kCsvHeader) + "\r\n"));
+
+    std::vector<std::string> rows = station.receivedRows();
+    TEST_ASSERT_EQUAL(2, rows.size());
+    TEST_ASSERT_EQUAL_STRING("2026-10-01T13:45:03Z,1,18.40,62.00,1013.20",
+                             rows[0].c_str());
+    TEST_ASSERT_EQUAL_STRING("2026-10-01T14:00:03Z,1,18.40,62.00,1013.20",
+                             rows[1].c_str());
+    // Everything was acknowledged: the cursor is at the end
+    TEST_ASSERT_EQUAL(station.storage.csv.size(), station.storage.cursor);
+}
+
+void test_n1_server_error_keeps_rows_for_next_upload() {
+    Station station;
+    station.network.serverWorks = false;
+    station.wake();  // 14:00:03: the server refuses
+
+    TEST_ASSERT_EQUAL(1, station.log.count("send"));
+    TEST_ASSERT_EQUAL(0, station.storage.cursor);
+
+    station.network.serverWorks = true;
+    for (int i = 0; i < 4; ++i) {
+        station.wakeAtNextAlarm();  // 14:15, 14:30, 14:45, 15:00
+    }
+    // The row of 14:00 was sent at 15:00, with the four new ones
+    std::vector<std::string> rows = station.receivedRows();
+    TEST_ASSERT_EQUAL(5, rows.size());
+    TEST_ASSERT_EQUAL_STRING("2026-10-01T14:00:03Z,1,18.40,62.00,1013.20",
+                             rows[0].c_str());
+}
+
+void test_large_backlog_is_sent_in_several_requests() {
+    Station station;
+    // 600 rows of about 45 bytes waiting, as after a week without Wi-Fi
+    Record record;
+    record.timeValid = true;
+    record.values = station.sensor.read();
+    for (int i = 0; i < 600; ++i) {
+        record.timestamp = at(0, 0, 0) - 600 * 900 + i * 900;
+        station.storage.append(record);
+    }
+    station.wake();  // 14:00:03: upload
+
+    TEST_ASSERT_GREATER_THAN(1, station.network.requests.size());
+    for (const std::string& request : station.network.requests) {
+        TEST_ASSERT_LESS_OR_EQUAL(24 * 1024, request.size());
+    }
+    TEST_ASSERT_EQUAL(601, station.receivedRows().size());
+    TEST_ASSERT_EQUAL(station.storage.csv.size(), station.storage.cursor);
 }
 
 // --- F4 · Daily time sync (three simulated days) ---
@@ -227,5 +291,8 @@ int main() {
     RUN_TEST(test_n2_rtc_failure_safety_timer_only);
     RUN_TEST(test_f3_n3_one_day_gives_24_uploads);
     RUN_TEST(test_f4_three_days_give_3_syncs_on_upload_connections);
+    RUN_TEST(test_f3_upload_sends_the_new_rows_once);
+    RUN_TEST(test_n1_server_error_keeps_rows_for_next_upload);
+    RUN_TEST(test_large_backlog_is_sent_in_several_requests);
     return UNITY_END();
 }
