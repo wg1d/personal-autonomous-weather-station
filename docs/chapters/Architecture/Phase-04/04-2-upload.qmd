@@ -170,4 +170,4 @@ This wake-up lasted about 4 seconds. The Wi-Fi connection took 0.1 second here, 
 
 ## Next Steps
 
-The station now measures, stores and uploads its data on its own. Step A5 adds the maintenance mode: a button press starts an access point and a web page, to download or delete the data from a phone when the home Wi-Fi is out of reach.
+The station now measures, stores and uploads its data on its own. Step A5, [Maintenance Mode](05-1-maintenance-mode.qmd), adds the maintenance mode: a button press starts an access point and a web page, to download or delete the data from a phone when the home Wi-Fi is out of reach.
