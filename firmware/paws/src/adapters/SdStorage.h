@@ -11,7 +11,8 @@
  * - SD card: 5V -> VCC, GND -> GND, Pin 19 -> MISO, Pin 23 -> MOSI,
  *            Pin 18 -> SCLK, Pin 5 -> CS,
  *            Pin 13 -> OFF (10k pull-down resistor to GND)
- * Dependencies: ESP32 Arduino core (SD, FS), lib/core (CSV format).
+ * Dependencies: ESP32 Arduino core (SD, FS), lib/core (CSV format),
+ * SdCard.h.
  */
 
 #pragma once
@@ -21,22 +22,7 @@
 
 #include "CsvFormat.h"
 #include "IStorage.h"
-
-/// Chip select of the SD card module (SPI)
-const uint8_t kSdCsPin = 5;
-
-/// Power switch of the SD card module: HIGH turns it on
-const uint8_t kSdPowerPin = 13;
-
-/// File holding the upload cursor: the position, in bytes, of the first
-/// row of the CSV file that the server has not acknowledged
-const char kCursorFileName[] = "/upload.idx";
-
-/// Time for the card to power up before it can be used. The SD
-/// specification allows up to 35 ms of supply ramp-up, then 1 ms of
-/// stable supply; the module adds a regulator and capacitors, with no
-/// datasheet. 100 ms is a margin, kept from the PoC, not a measured value.
-const uint32_t kSdPowerUpMs = 100;
+#include "SdCard.h"
 
 /**
  * @brief Storage adapter for the SD card.
@@ -52,43 +38,25 @@ public:
             Serial.println("   row too long for the buffer");
             return false;
         }
-        bool stored = mount() && write(row);
-        unmount();
+        bool stored = sdMount() && write(row);
+        sdUnmount();
         Serial.printf("   %s: %s\n", stored ? "stored" : "NOT stored", row);
         return stored;
     }
 
     size_t readUnsent(char* buffer, size_t size) override {
-        size_t length = mount() ? read(buffer, size) : 0;
-        unmount();
+        size_t length = sdMount() ? read(buffer, size) : 0;
+        sdUnmount();
         return length;
     }
 
     bool markSent(size_t length) override {
-        bool saved = mount() && saveCursor(unsentStart_ + length);
-        unmount();
+        bool saved = sdMount() && saveCursor(unsentStart_ + length);
+        sdUnmount();
         return saved;
     }
 
 private:
-    // Powers the card module on and mounts the card. The module stays off
-    // during deep sleep, to save the battery.
-    bool mount() {
-        pinMode(kSdPowerPin, OUTPUT);
-        digitalWrite(kSdPowerPin, HIGH);
-        delay(kSdPowerUpMs);
-        if (!SD.begin(kSdCsPin)) {
-            Serial.println("   SD card not found");
-            return false;
-        }
-        return true;
-    }
-
-    void unmount() {
-        SD.end();
-        digitalWrite(kSdPowerPin, LOW);
-    }
-
     // Appends the row, after the header if the file is new
     bool write(const char* row) {
         bool newFile = !SD.exists(kCsvFileName);
@@ -117,7 +85,7 @@ private:
         if (!file) {
             return 0;
         }
-        uint32_t cursor = loadCursor();
+        uint32_t cursor = sdLoadCursor();
         if (cursor == 0) {
             // Start of the file: skip the header line, which the core
             // adds to each request itself
@@ -138,22 +106,8 @@ private:
         return length;
     }
 
-    // The cursor is stored as text, for example "1234". A missing file
-    // means that nothing was sent yet: everything is sent again, and the
-    // server ignores the rows it already has.
-    uint32_t loadCursor() {
-        if (!SD.exists(kCursorFileName)) {
-            return 0;
-        }
-        File file = SD.open(kCursorFileName, FILE_READ);
-        if (!file) {
-            return 0;
-        }
-        uint32_t cursor = static_cast<uint32_t>(file.parseInt());
-        file.close();
-        return cursor;
-    }
-
+    // The cursor is stored as text, for example "1234" (see
+    // sdLoadCursor())
     bool saveCursor(uint32_t cursor) {
         // FILE_WRITE replaces the previous content
         File file = SD.open(kCursorFileName, FILE_WRITE);
