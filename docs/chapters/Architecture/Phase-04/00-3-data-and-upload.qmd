@@ -12,10 +12,15 @@ timestamp,time_valid,temperature_c,humidity_pct,pressure_hpa
 2026-10-01T14:30:00Z,1,18.37,,1013.18
 ```
 
-- `timestamp`: ISO 8601 in UTC, with the explicit `Z` suffix.
-- `time_valid`: `1` if the clock was reliable when the row was written, `0` otherwise (F6 · Flag unreliable time).
-- The column names now include their unit, so the file can be read without documentation.
-- The second row shows a missing humidity value (empty field).
+| Column | Content | Unit |
+|--------|---------|------|
+| `timestamp` | Date and time of the measurement | ISO 8601, UTC, with the explicit `Z` suffix |
+| `time_valid` | `1` if the clock was reliable when the row was written, `0` otherwise (F6 · Flag unreliable time) | — |
+| `temperature_c` | Air temperature | degrees Celsius (°C) |
+| `humidity_pct` | Relative humidity | percent (%) |
+| `pressure_hpa` | Atmospheric pressure | hectopascals (hPa) |
+
+The suffix of each measurement column gives its unit (`_c`, `_pct`, `_hpa`), so the file can be read without this table. The second row of the example shows a missing humidity value: an empty field.
 
 A row is about 50 bytes: 96 rows per day represent about 5 KB per day, less than 2 MB per year.
 
@@ -37,7 +42,7 @@ The station sends the rows after the cursor, preceded by the header line, so tha
 
 ```http
 POST /api/v1/measurements HTTP/1.1
-Host: 192.168.1.15:8000
+Host: 192.168.1.15:8080
 Content-Type: text/csv
 
 timestamp,time_valid,temperature_c,humidity_pct,pressure_hpa
