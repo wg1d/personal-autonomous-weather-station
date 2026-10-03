@@ -8,6 +8,7 @@
 #   pixi run api-docs         # firmware API documentation (after the book)
 #   pixi run preview          # live preview of the book in the browser
 #   pixi run dummy-server     # start the Phase 3 dummy backend server
+#   pixi run test-server      # start the Phase 4 test server (upload v1)
 #
 # Not managed here: LaTeX (texlive with circuitikz, latexmk, pdf2svg),
 # only needed to regenerate the wiring diagrams (docs/assets/diagrams-src).
@@ -44,6 +45,7 @@ uvicorn-standard = ">=0.51"
 
 [feature.backend.tasks]
 dummy-server = { cmd = "python main.py", cwd = "backend/Phase-03/dummy_server" }
+test-server = { cmd = "python main.py", cwd = "backend/Phase-04/test_server" }
 
 [environments]
 backend = { features = ["backend"], no-default-feature = true }
