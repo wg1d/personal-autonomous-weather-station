@@ -1,0 +1,173 @@
+# A4 · Upload {.unnumbered}
+
+The [previous chapter](04-1-wifi-and-time-sync.qmd) connected the station to the Wi-Fi. This one sends the rows to the server, following the [Upload Protocol](00-3-data-and-upload.qmd#upload-protocol) of the design (F3 · Hourly upload):
+
+- the station sends only the rows that the server has not acknowledged yet, starting at the **upload cursor**;
+- the cursor moves forward only after the server confirmed the reception, so that no row is ever lost (N1 · No data loss);
+- the server ignores the rows it already has, so that sending a row twice is harmless.
+
+The chapter also adds a small test server, to receive the rows on a computer of the home network.
+
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/paws)
+
+## The interfaces
+
+Two interfaces gain the functions announced in A1. The storage gives back the rows after the cursor, and moves the cursor:
+
+```{.cpp include="../../../../firmware/paws/lib/ports/IStorage.h"}
+```
+
+The network sends a request to the server:
+
+```{.cpp include="../../../../firmware/paws/lib/ports/INetwork.h"}
+```
+
+The core never sees the cursor itself: it only asks the storage for "the unsent rows", then tells it how many bytes the server acknowledged. Where the cursor lives (a file on the SD card) is a detail of the adapter.
+
+## The core
+
+`UPLOAD` now sends the rows once the connection is open, in `sendUnsentRows()`:
+
+```{.cpp include="../../../../firmware/paws/lib/core/StateMachine.cpp"}
+```
+
+`sendUnsentRows()` repeats three steps until every row is sent:
+
+1. **Read** the unsent rows that fit in the buffer, after the header line written at the start of the buffer. Each request then describes itself, as the protocol requires.
+2. **Send** the header and the rows. If the server does not answer `2xx`, stop: the rows stay unsent, and the next upload sends them again.
+3. **Move the cursor** after the rows the server acknowledged.
+
+Step 3 comes after step 2, never before: that order is what guarantees N1. If the station moved the cursor first and the request then failed, those rows would never be sent.
+
+A request holds at most 24 KB, about 500 rows, as specified by the protocol: in normal operation, an upload sends a few rows in one request; after a week without Wi-Fi, a few requests in a row.
+
+::: {.callout-tip collapse="true"}
+## C++: a static buffer
+
+`static char batch[24 * 1024];` reserves the buffer once, when the firmware is built, outside of any function. A local variable (`char batch[...]` inside `sendUnsentRows()`) would be reserved on the *stack* at each call, and the stack of the Arduino task on the ESP32 is only 8 KB: a 24 KB buffer would overflow it and crash the firmware. `static` also limits the name to `StateMachine.cpp`, like the helper functions of [A3](03-1-sensor-and-storage.qmd#the-csv-format).
+:::
+
+## The tests
+
+The test doubles follow the interfaces. The fake storage keeps the CSV text and its cursor, and the mock network keeps the requests the server accepted, or refuses them when the test says so:
+
+::: {.callout-note collapse="true"}
+## FakeStorage and MockNetwork
+
+```{.cpp include="../../../../firmware/paws/test/doubles/FakeStorage.h"}
+```
+
+```{.cpp include="../../../../firmware/paws/test/doubles/MockNetwork.h"}
+```
+:::
+
+New scenarios check the upload on the computer:
+
+- **`test_f3_upload_sends_the_new_rows_once`**: at 14:00, the request starts with the header line and contains the two rows not sent yet (13:45 and 14:00), and the cursor reaches the end.
+- **`test_n1_server_error_keeps_rows_for_next_upload`**: the server refuses the upload of 14:00; the cursor does not move, and at 15:00 the row of 14:00 is sent with the four new ones.
+- **`test_large_backlog_is_sent_in_several_requests`**: 600 rows waiting are sent in several requests of at most 24 KB, each row once.
+- The simulated day of A1 now also checks that the last upload, at 23:00, sent every row stored before it.
+
+Moving the cursor *before* the request makes `test_n1_server_error_keeps_rows_for_next_upload` fail (`Expected 0 Was 44`): the tests protect the order that N1 relies on.
+
+::: {.callout-note collapse="true"}
+## Station.h and test_scenarios.cpp
+
+```{.cpp include="../../../../firmware/paws/test/test_scenarios/Station.h"}
+```
+
+```{.cpp include="../../../../firmware/paws/test/test_scenarios/test_scenarios.cpp"}
+```
+:::
+
+## The storage adapter
+
+The SD adapter keeps the cursor in `/upload.idx`, as text:
+
+```{.cpp include="../../../../firmware/paws/src/adapters/SdStorage.h"}
+```
+
+- **`readUnsent()`** opens the CSV file at the cursor and reads as much as fits in the buffer, then cuts after the last line break: the buffer only holds complete rows. At the start of the file (cursor 0), it skips the header line, since the core adds it to each request.
+- **`markSent()`** writes the new cursor: the position where the rows of the last read start, plus the length acknowledged by the server.
+- If `/upload.idx` is missing (first upload, or file deleted), the cursor is 0: every row is sent again, and the server ignores those it already has.
+
+## The network adapter
+
+`send()` posts the rows with `HTTPClient`, the HTTP client of the ESP32 Arduino core:
+
+```{.cpp include="../../../../firmware/paws/src/adapters/WifiNetwork.h"}
+```
+
+It prints the status and the short summary returned by the server. It reads that summary with the size announced by the server: `readBytes()` would otherwise wait for its timeout to fill the whole buffer. A negative status is not an HTTP status, but a connection error (server not running, wrong address).
+
+The address of the server is a setting of the home network, so it lives in `include/secrets.h`, next to the Wi-Fi settings:
+
+```{.cpp include="../../../../firmware/paws/include/secrets.example.h"}
+```
+
+## The test server
+
+The test server implements the server side of the protocol, in about 120 lines of Python with [FastAPI](https://fastapi.tiangolo.com/):
+
+```{.python include="../../../../backend/Phase-04/test_server/main.py"}
+```
+
+- `POST /api/v1/measurements` checks the header line, stores each row in a SQLite database, and answers with the number of rows received, inserted and ignored as duplicates. The timestamp is the primary key of the table: `INSERT OR IGNORE` skips a row whose timestamp is already stored, which makes repeated uploads harmless.
+- `GET /` shows the last rows received in a table, with the total number of rows, to check the uploads from a browser.
+- `GET /api/v1/measurements` returns the same rows as JSON, for programs.
+
+It is a bench tool, kept short on purpose: the backend of Phase 5 will replace it. Start it from the root of the repository:
+
+```bash
+pixi run test-server
+```
+
+It listens on port 8080 (`--port` chooses another one), on every network interface, so that the station can reach it over the Wi-Fi. In `include/secrets.h`, `kServerUrl` must contain the IP address of the computer running it.
+
+## main.cpp
+
+To see uploads every few minutes on the bench, `main.cpp` shortens the upload period to 5 minutes, as it already shortens the measurement interval:
+
+```{.cpp include="../../../../firmware/paws/src/main.cpp"}
+```
+
+## Expected output
+
+With the test server running, the first upload sends every row already stored on the card, since no cursor exists yet. On our board, it printed:
+
+```text
+   sent 2834 bytes, server answered 200 {"received":63,"inserted":63,"duplicates":0}
+```
+
+Five minutes later, the next upload only sends the five new rows:
+
+```text
+-> BOOT
+-> MEASURE
+-> STORE
+   stored: 2026-10-03T12:45:00Z,1,24.75,52.80,1006.09
+-> UPLOAD
+   Wi-Fi connected in 99 ms
+   sent 282 bytes, server answered 200 {"received":5,"inserted":5,"duplicates":0}
+-> SCHEDULE
+   alarm set for 12:46:00
+-> SLEEP
+   RTC alarm: yes, button: not wired before A5, timer: 117 s
+   awake for 3956 ms
+```
+
+The 282 bytes are the header line and five rows of about 45 bytes. There is no `TIME_SYNC`: the clock was synchronized at the previous upload, less than 24 hours ago. The test server page (`http://localhost:8080/`) then shows the five new rows at the top of its table.
+
+This wake-up lasted about 4 seconds. The Wi-Fi connection took 0.1 second here, but 7.2 seconds in the [previous chapter](04-1-wifi-and-time-sync.qmd#measured-durations): its duration varies a lot from one connection to the next. Step A6 will look at these durations with the energy estimate.
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+|---------|---------------|
+| `server answered -1` | The station cannot reach the server: check that it is running, that `kServerUrl` contains the IP address and port of its computer, and that the firewall of that computer accepts connections on port 8080. The rows stay on the card and are sent at the next upload. |
+| `server answered 400` | The server refused the request: the header line or a row does not have the expected format. The same rows are refused at each upload, until the format is fixed. |
+| Every row is sent again | `/upload.idx` was deleted or cannot be read: the cursor restarted at 0. The server ignores the rows it already has (`duplicates`). |
+
+## Next Steps
+
+The station now measures, stores and uploads its data on its own. Step A5 adds the maintenance mode: a button press starts an access point and a web page, to download or delete the data from a phone when the home Wi-Fi is out of reach.
