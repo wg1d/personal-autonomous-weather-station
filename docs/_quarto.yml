@@ -80,6 +80,8 @@ book:
       chapters:
         - href: chapters/Architecture/Phase-04/04-1-wifi-and-time-sync.qmd
           text: "Wi-Fi & Time Sync"
+        - href: chapters/Architecture/Phase-04/04-2-upload.qmd
+          text: "Upload"
 
 filters:
   - include-code-files

@@ -109,4 +109,4 @@ The energy estimate of the [design](00-2-behavior.qmd#energy-estimate) assumed a
 
 ## Next Steps
 
-The station now connects to the Wi-Fi and keeps an exact clock, but the rows stay on the SD card. The next chapter sends them to the server, with the upload cursor that remembers which rows the server already has.
+The station now connects to the Wi-Fi and keeps an exact clock, but the rows stay on the SD card. The [next chapter](04-2-upload.qmd) sends them to the server, with the upload cursor that remembers which rows the server already has.
