@@ -8,18 +8,18 @@ The [previous chapter](04-1-wifi-and-time-sync.qmd) connected the station to the
 
 The chapter also adds a small test server, to receive the rows on a computer of the home network.
 
-> **Ready-to-use project:** The complete code of this step is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/paws)
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v0.5.0/firmware/paws)
 
 ## The interfaces
 
 Two interfaces gain the functions announced in A1. The storage gives back the rows after the cursor, and moves the cursor:
 
-```{.cpp include="../../../../firmware/paws/lib/ports/IStorage.h"}
+```{.cpp include="../../../_versions/v0.5.0/firmware/paws/lib/ports/IStorage.h"}
 ```
 
 The network sends a request to the server:
 
-```{.cpp include="../../../../firmware/paws/lib/ports/INetwork.h"}
+```{.cpp include="../../../_versions/v0.5.0/firmware/paws/lib/ports/INetwork.h"}
 ```
 
 The core never sees the cursor itself: it only asks the storage for "the unsent rows", then tells it how many bytes the server acknowledged. Where the cursor lives (a file on the SD card) is a detail of the adapter.
@@ -28,7 +28,7 @@ The core never sees the cursor itself: it only asks the storage for "the unsent 
 
 `UPLOAD` now sends the rows once the connection is open, in `sendUnsentRows()`:
 
-```{.cpp include="../../../../firmware/paws/lib/core/StateMachine.cpp"}
+```{.cpp include="../../../_versions/v0.5.0/firmware/paws/lib/core/StateMachine.cpp"}
 ```
 
 `sendUnsentRows()` repeats three steps until every row is sent:
@@ -54,10 +54,10 @@ The test doubles follow the interfaces. The fake storage keeps the CSV text and 
 ::: {.callout-note collapse="true"}
 ## FakeStorage and MockNetwork
 
-```{.cpp include="../../../../firmware/paws/test/doubles/FakeStorage.h"}
+```{.cpp include="../../../_versions/v0.5.0/firmware/paws/test/doubles/FakeStorage.h"}
 ```
 
-```{.cpp include="../../../../firmware/paws/test/doubles/MockNetwork.h"}
+```{.cpp include="../../../_versions/v0.5.0/firmware/paws/test/doubles/MockNetwork.h"}
 ```
 :::
 
@@ -73,10 +73,10 @@ Moving the cursor *before* the request makes `test_n1_server_error_keeps_rows_fo
 ::: {.callout-note collapse="true"}
 ## Station.h and test_scenarios.cpp
 
-```{.cpp include="../../../../firmware/paws/test/test_scenarios/Station.h"}
+```{.cpp include="../../../_versions/v0.5.0/firmware/paws/test/test_scenarios/Station.h"}
 ```
 
-```{.cpp include="../../../../firmware/paws/test/test_scenarios/test_scenarios.cpp"}
+```{.cpp include="../../../_versions/v0.5.0/firmware/paws/test/test_scenarios/test_scenarios.cpp"}
 ```
 :::
 
@@ -84,7 +84,7 @@ Moving the cursor *before* the request makes `test_n1_server_error_keeps_rows_fo
 
 The SD adapter keeps the cursor in `/upload.idx`, as text:
 
-```{.cpp include="../../../../firmware/paws/src/adapters/SdStorage.h"}
+```{.cpp include="../../../_versions/v0.5.0/firmware/paws/src/adapters/SdStorage.h"}
 ```
 
 - **`readUnsent()`** opens the CSV file at the cursor and reads as much as fits in the buffer, then cuts after the last line break: the buffer only holds complete rows. At the start of the file (cursor 0), it skips the header line, since the core adds it to each request.
@@ -95,14 +95,14 @@ The SD adapter keeps the cursor in `/upload.idx`, as text:
 
 `send()` posts the rows with `HTTPClient`, the HTTP client of the ESP32 Arduino core:
 
-```{.cpp include="../../../../firmware/paws/src/adapters/WifiNetwork.h"}
+```{.cpp include="../../../_versions/v0.5.0/firmware/paws/src/adapters/WifiNetwork.h"}
 ```
 
 It prints the status and the short summary returned by the server. It reads that summary with the size announced by the server: `readBytes()` would otherwise wait for its timeout to fill the whole buffer. A negative status is not an HTTP status, but a connection error (server not running, wrong address).
 
 The address of the server is a setting of the home network, so it lives in `include/secrets.h`, next to the Wi-Fi settings:
 
-```{.cpp include="../../../../firmware/paws/include/secrets.example.h"}
+```{.cpp include="../../../_versions/v0.5.0/firmware/paws/include/secrets.example.h"}
 ```
 
 ## The test server
@@ -128,7 +128,7 @@ It listens on port 8080 (`--port` chooses another one), on every network interfa
 
 To see uploads every few minutes on the bench, `main.cpp` shortens the upload period to 5 minutes, as it already shortens the measurement interval:
 
-```{.cpp include="../../../../firmware/paws/src/main.cpp"}
+```{.cpp include="../../../_versions/v0.5.0/firmware/paws/src/main.cpp"}
 ```
 
 ## Expected output

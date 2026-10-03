@@ -7,20 +7,20 @@ Step A4 connects the station to the home Wi-Fi. It comes in two chapters:
 
 As in the previous steps, only an adapter changes: the decisions (when to connect, when to sync) were written and tested in A1.
 
-> **Ready-to-use project:** The complete code of this step is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/paws)
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v0.5.0/firmware/paws)
 
 ## Wi-Fi settings
 
 The name and the password of the Wi-Fi network must not be published with the code. As in the PoC, they live in a file ignored by Git, `include/secrets.h`, created from an example:
 
-```{.cpp include="../../../../firmware/paws/include/secrets.example.h"}
+```{.cpp include="../../../_versions/v0.5.0/firmware/paws/include/secrets.example.h"}
 ```
 
 Copy `secrets.example.h` to `secrets.h` in the same folder, and replace the two values. The ESP32 only supports 2.4 GHz Wi-Fi networks. If `secrets.h` is missing, `pixi run build-firmware` creates it from the example, so that the firmware still builds (but cannot connect).
 
 ## The Wi-Fi adapter
 
-```{.cpp include="../../../../firmware/paws/src/adapters/WifiNetwork.h"}
+```{.cpp include="../../../_versions/v0.5.0/firmware/paws/src/adapters/WifiNetwork.h"}
 ```
 
 - **`connect()`** starts the Wi-Fi in *station* mode (a client of the home network) and waits for the connection, checking every 100 ms. After the timeout of the settings (10 seconds), it gives up and turns the Wi-Fi off: the station keeps its schedule and tries again at the next full hour (N1 · No data loss).
@@ -35,7 +35,7 @@ The clock adapter also prints the new time when `setTime()` is called, to see th
 
 `main.cpp` creates a `WifiNetwork` with the settings of `secrets.h`, instead of the skeleton network of A1:
 
-```{.cpp include="../../../../firmware/paws/src/main.cpp"}
+```{.cpp include="../../../_versions/v0.5.0/firmware/paws/src/main.cpp"}
 ```
 
 ## Expected output
