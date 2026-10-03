@@ -82,6 +82,10 @@ book:
           text: "Wi-Fi & Time Sync"
         - href: chapters/Architecture/Phase-04/04-2-upload.qmd
           text: "Upload"
+    - part: "A5 – Maintenance Mode"
+      chapters:
+        - href: chapters/Architecture/Phase-04/05-1-maintenance-mode.qmd
+          text: "Maintenance Mode"
 
 filters:
   - include-code-files
