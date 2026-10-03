@@ -3,12 +3,13 @@
  * File: src/main.cpp
  *
  * Description:
- * Firmware of the station (step A4): at each wake-up, the BME280 is read
+ * Firmware of the station (step A5): at each wake-up, the BME280 is read
  * and the row is appended to the CSV file of the SD card, timestamped by
  * the DS3231, whose alarm wakes the ESP32 up on the measurement grid.
  * Once per hour, the station connects to the home Wi-Fi and sends the new
- * rows to the server; once per day, it sets the DS3231 with NTP. The
- * maintenance mode is still a skeleton adapter.
+ * rows to the server; once per day, it sets the DS3231 with NTP. A press
+ * on the button starts the maintenance mode: an access point and a web
+ * page to download or delete the data, for 3 minutes.
  *
  * Wiring:
  * - BME280: 3.3V -> VIN, GND -> GND, Pin 21 -> SDA, Pin 22 -> SCL
@@ -17,17 +18,19 @@
  * - SD card: 5V -> VCC, GND -> GND, Pin 19 -> MISO, Pin 23 -> MOSI,
  *            Pin 18 -> SCLK, Pin 5 -> CS,
  *            Pin 13 -> OFF (10k pull-down resistor to GND)
+ * - Button: 3.3V -> button -> Pin 39 (10k pull-down resistor to GND)
  * Dependencies: ESP32 Arduino core, RTClib, Adafruit BME280 Library,
- * lib/core, lib/ports, include/secrets.h (Wi-Fi and server settings).
+ * lib/core, lib/ports, include/secrets.h (Wi-Fi, server and access
+ * point settings).
  */
 
 #include <Arduino.h>
 
 #include "StateMachine.h"
+#include "adapters/AccessPointMaintenance.h"
 #include "adapters/Bme280Sensor.h"
 #include "adapters/Ds3231Clock.h"
 #include "adapters/Esp32Power.h"
-#include "adapters/NoMaintenance.h"
 #include "adapters/SdStorage.h"
 #include "adapters/SerialLog.h"
 #include "adapters/WifiNetwork.h"
@@ -43,7 +46,7 @@ Bme280Sensor sensor;
 SdStorage storage;
 WifiNetwork network(kWifiSsid, kWifiPassword, kServerUrl);
 Esp32Power power;
-NoMaintenance maintenance;
+AccessPointMaintenance maintenance(kApSsid, kApPassword);
 SerialLog serialLog;
 
 /// Runs one wake-up of the state machine, which ends in deep sleep
