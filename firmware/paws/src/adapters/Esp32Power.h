@@ -18,6 +18,7 @@
 #include <Arduino.h>
 #include <esp_sleep.h>
 
+#include "Console.h"
 #include "IPower.h"
 
 /// DS3231 SQW output: pulled low when the alarm fires
@@ -44,13 +45,10 @@ public:
     }
 
     void sleep(const SleepPlan& plan) override {
-        Serial.printf("   RTC alarm: %s, button: %s, timer: %lu s\n",
+        console.printf("   RTC alarm: %s, button: %s, timer: %lu s\n",
                       plan.rtcAlarm ? "yes" : "no",
                       plan.button ? "yes" : "no",
                       static_cast<unsigned long>(plan.timerSeconds));
-        // N3: awake time of this wake-up, measured by the firmware itself
-        Serial.printf("   awake for %lu ms\n",
-                      static_cast<unsigned long>(millis()));
         // Send the whole message before the UART is powered down
         Serial.flush();
 

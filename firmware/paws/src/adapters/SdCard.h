@@ -20,6 +20,8 @@
 #include <Arduino.h>
 #include <SD.h>
 
+#include "Console.h"
+
 /// Chip select of the SD card module (SPI)
 const uint8_t kSdCsPin = 5;
 
@@ -32,9 +34,19 @@ const uint8_t kSdPowerPin = 13;
 /// datasheet. 100 ms is a margin, kept from the PoC, not a measured value.
 const uint32_t kSdPowerUpMs = 100;
 
-/// File holding the upload cursor: the position, in bytes, of the first
-/// row of the CSV file that the server has not acknowledged
+/// File holding the upload cursor of the measurements: the position, in
+/// bytes, of the first row of the CSV file that the server has not
+/// acknowledged
 const char kCursorFileName[] = "/upload.idx";
+
+/// Log of the wake-ups: what the station printed on the serial port
+const char kLogFileName[] = "/log.txt";
+
+/// Previous log file, kept when the log reaches its maximum size
+const char kOldLogFileName[] = "/log.old";
+
+/// Upload cursor of the log, as for the measurements
+const char kLogCursorFileName[] = "/log.idx";
 
 /**
  * @brief The SD card module: power and mounting.
@@ -59,7 +71,7 @@ public:
         digitalWrite(kSdPowerPin, HIGH);
         delay(kSdPowerUpMs);
         if (!SD.begin(kSdCsPin)) {
-            Serial.println("   SD card not found");
+            console.println("   SD card not found");
             digitalWrite(kSdPowerPin, LOW);
             return false;
         }
@@ -79,19 +91,27 @@ public:
     }
 
     /**
-     * @brief Reads the upload cursor from the card, which must be mounted.
+     * @brief Tells whether the card is mounted.
+     *
+     * @return true between a successful mount() and unmount().
+     */
+    bool isMounted() const { return mounted_; }
+
+    /**
+     * @brief Reads an upload cursor from the card, which must be mounted.
      *
      * A missing file means that nothing was sent yet: everything is sent
      * again, and the server ignores the rows it already has.
      *
+     * @param[in] fileName The cursor file, such as kCursorFileName.
      * @return The cursor, stored as text such as "1234"; 0 if there is
      *         none.
      */
-    uint32_t loadCursor() {
-        if (!SD.exists(kCursorFileName)) {
+    uint32_t loadCursor(const char* fileName) {
+        if (!SD.exists(fileName)) {
             return 0;
         }
-        File file = SD.open(kCursorFileName, FILE_READ);
+        File file = SD.open(fileName, FILE_READ);
         if (!file) {
             return 0;
         }

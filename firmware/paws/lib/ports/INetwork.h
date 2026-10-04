@@ -14,6 +14,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "Record.h"
+
 /**
  * @brief The connection to the home Wi-Fi, the server and NTP.
  *
@@ -44,17 +46,20 @@ public:
     virtual void disconnect() = 0;
 
     /**
-     * @brief Sends rows to the server (see the Upload Protocol).
+     * @brief Sends rows or log lines to the server (see the Upload
+     *        Protocol).
      *
      * Only called while connected.
      *
-     * @param[in] data The CSV text of the request: the header line, then
-     *            the rows (not a C string).
+     * @param[in] kind The kind of data, which selects the address.
+     * @param[in] data The text of the request (not a C string): for the
+     *            measurements, the CSV header line, then the rows; for the
+     *            log, the lines.
      * @param[in] length The length of the text, in bytes.
      * @return true if the server answered with a 2xx status: it stored
      *         the rows, or already had them.
      */
-    virtual bool send(const char* data, size_t length) = 0;
+    virtual bool send(DataKind kind, const char* data, size_t length) = 0;
 
     /**
      * @brief Reads the current time from an NTP server.

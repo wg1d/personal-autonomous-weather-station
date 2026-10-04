@@ -4,8 +4,8 @@
  *
  * Description:
  * Fake storage: keeps the rows in RAM instead of the SD card, as records
- * and as CSV text with its upload cursor, and adds the "store" and
- * "close" events to the shared log.
+ * and as CSV text with its upload cursor, keeps a log text with its own
+ * cursor, and adds the "store" and "close" events to the shared log.
  *
  * Dependencies: lib/ports, lib/core (CSV format), EventLog.h.
  */
@@ -35,6 +35,8 @@ public:
     std::vector<Record> rows;  ///< The rows stored, oldest first
     std::string csv;           ///< The same rows, as the CSV file content
     size_t cursor = 0;         ///< Position of the first unsent row in csv
+    std::string log;           ///< The log lines, set by the test
+    size_t logCursor = 0;      ///< Position of the first unsent log line
     bool working = true;       ///< false simulates a missing or full card
 
     bool append(const Record& record) override {
@@ -50,18 +52,24 @@ public:
         return true;
     }
 
-    size_t readUnsent(char* buffer, size_t size) override {
-        // Complete rows only: cut after the last line break that fits
-        size_t length = csv.size() - cursor;
+    size_t readUnsent(DataKind kind, char* buffer, size_t size) override {
+        const std::string& text = kind == DataKind::Log ? log : csv;
+        size_t from = kind == DataKind::Log ? logCursor : cursor;
+        // Complete lines only: cut after the last line break that fits
+        size_t length = text.size() - from;
         if (length > size) {
-            length = csv.rfind('\n', cursor + size - 1) + 1 - cursor;
+            length = text.rfind('\n', from + size - 1) + 1 - from;
         }
-        memcpy(buffer, csv.data() + cursor, length);
+        memcpy(buffer, text.data() + from, length);
         return length;
     }
 
-    bool markSent(size_t length) override {
-        cursor += length;
+    bool markSent(DataKind kind, size_t length) override {
+        if (kind == DataKind::Log) {
+            logCursor += length;
+        } else {
+            cursor += length;
+        }
         return true;
     }
 

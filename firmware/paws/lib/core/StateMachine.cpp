@@ -18,8 +18,9 @@
 #include "CsvFormat.h"
 #include "Rules.h"
 
-// Text of one upload request: the header line, then at most about 500
-// rows of 45 bytes (see the Upload Protocol). It is static: reserved once
+// Text of one upload request: for the measurements, the header line, then
+// at most about 500 rows of 45 bytes (see the Upload Protocol); for the
+// log, up to 24 KB of lines. It is static: reserved once
 // when the firmware is built, instead of on the stack of the ESP32, which
 // is only 8 KB.
 static char batch[24 * 1024];
@@ -90,29 +91,33 @@ void StateMachine::onUpload() {
     // next try
     conditions_.connected = ports_.network.connect(config_.wifiTimeoutS);
     if (conditions_.connected) {
-        sendUnsentRows();
+        // The measurements first: they matter more than the log
+        sendUnsent(DataKind::Measurements);
+        sendUnsent(DataKind::Log);
     }
     conditions_.syncNeeded = isSyncNeeded(ports_.clock.now(), clockValid_,
                                      ports_.clock.lastSetTime(), config_);
 }
 
-void StateMachine::sendUnsentRows() {
-    // Each request starts with the header line, so that it describes
-    // itself (see the Upload Protocol)
-    size_t headerLength =
-        snprintf(batch, sizeof(batch), "%s\r\n", kCsvHeader);
+void StateMachine::sendUnsent(DataKind kind) {
+    // Each request of measurements starts with the header line, so that
+    // it describes itself (see the Upload Protocol). The log has none.
+    size_t headerLength = 0;
+    if (kind == DataKind::Measurements) {
+        headerLength = snprintf(batch, sizeof(batch), "%s\r\n", kCsvHeader);
+    }
 
     while (true) {
-        size_t rowsLength = ports_.storage.readUnsent(
-            batch + headerLength, sizeof(batch) - headerLength);
-        if (rowsLength == 0) {
-            return;  // every row was sent, or the storage cannot be read
+        size_t linesLength = ports_.storage.readUnsent(
+            kind, batch + headerLength, sizeof(batch) - headerLength);
+        if (linesLength == 0) {
+            return;  // everything was sent, or the storage cannot be read
         }
-        if (!ports_.network.send(batch, headerLength + rowsLength)) {
-            return;  // the same rows will be sent at the next upload
+        if (!ports_.network.send(kind, batch, headerLength + linesLength)) {
+            return;  // the same lines will be sent at the next upload
         }
         // The cursor only moves once the server confirmed (N1)
-        if (!ports_.storage.markSent(rowsLength)) {
+        if (!ports_.storage.markSent(kind, linesLength)) {
             return;
         }
     }

@@ -25,6 +25,7 @@ const char kApSsid[] = "PAWS-maintenance";
 /// Its password: at least 8 characters (WPA2). Choose your own.
 const char kApPassword[] = "CHANGE-ME";
 
-/// Address of the server that receives the rows: the IP address of the
-/// computer running the test server, on the home network
-const char kServerUrl[] = "http://192.168.1.15:8080/api/v1/measurements";
+/// Address of the server that receives the rows and the log: the IP
+/// address and port of the computer running the test server, on the home
+/// network
+const char kServerUrl[] = "http://192.168.1.15:8080";

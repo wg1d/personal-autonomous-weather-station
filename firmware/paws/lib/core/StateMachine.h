@@ -78,7 +78,7 @@ private:
     void onMeasure();
     void onStore();
     void onUpload();
-    void sendUnsentRows();  // part of UPLOAD, while connected
+    void sendUnsent(DataKind kind);  // part of UPLOAD, while connected
     void onTimeSync();
     void onSchedule();
     void onSleep();

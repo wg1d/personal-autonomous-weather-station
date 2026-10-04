@@ -38,8 +38,11 @@ public:
 
     bool connected = false;     ///< Whether a connection is open
 
-    /// The requests the server accepted, oldest first
+    /// The requests of measurements the server accepted, oldest first
     std::vector<std::string> requests;
+
+    /// The requests of log lines the server accepted, oldest first
+    std::vector<std::string> logRequests;
 
     bool connect(uint32_t /*timeoutS*/) override {
         log_.add("connect");
@@ -52,12 +55,16 @@ public:
         connected = false;
     }
 
-    bool send(const char* data, size_t length) override {
+    bool send(DataKind kind, const char* data, size_t length) override {
         log_.add(connected ? "send" : "send-while-disconnected");
         if (!connected || !serverWorks) {
             return false;
         }
-        requests.push_back(std::string(data, length));
+        if (kind == DataKind::Log) {
+            logRequests.push_back(std::string(data, length));
+        } else {
+            requests.push_back(std::string(data, length));
+        }
         return true;
     }
 
