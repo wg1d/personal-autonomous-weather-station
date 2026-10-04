@@ -1,0 +1,69 @@
+# A6 · Energy and Review {.unnumbered}
+
+The [Behavior](00-2-behavior.qmd) chapter of the design estimated the energy of the station, and listed how it reacts to each failure, before any code was written. With every adapter now real and checked on the board, this last chapter of Phase 4 compares both with what the board actually does.
+
+## Energy, with the measured durations
+
+The design estimate relied on assumed durations: about 1 second for a wake-up that only measures, and about 5 seconds of Wi-Fi per upload. The firmware prints its awake time at each wake-up, so these durations are now measured. The currents are still those of the [Power Budget](../../PoC/Phase-03/05-power-budget.qmd) chapter: about 50 mA awake, 120 mA with the Wi-Fi on, and 0.12 mA in deep sleep.
+
+::: {.callout-important}
+The durations below were measured on the board, by the firmware itself. The currents were **not measured**: they come from datasheets and manufacturer documentation. The results are estimates, useful to check the design choices, not to predict the exact battery life.
+:::
+
+| Duration | Design (assumed) | Measured on the board |
+|----------|------------------|-----------------------|
+| Wake-up that only measures | 1 s | 1.4 s |
+| Wi-Fi on, per upload | 5 s | usually 1.1 s (an upload wake-up lasts 2.5 s, of which 1.4 s to measure); up to about 7 s for the slowest connection we saw |
+
+With the method of the Power Budget chapter, and a 15-minute cycle:
+
+$$I_{measure} = \frac{50\,mA \times 1.4\,s + 0.12\,mA \times 898.6\,s}{900\,s} \approx 0.20\,mA$$
+
+$$I_{upload} = \frac{120\,mA \times 1.1\,s}{3600\,s} \approx 0.04\,mA \qquad \text{(slowest case: } \frac{120\,mA \times 7\,s}{3600\,s} \approx 0.23\,mA\text{)}$$
+
+The daily NTP sync adds a few seconds once a day, which is negligible (less than 0.01 mA).
+
+| | Design | Usual durations | Slowest connections |
+|---|---|---|---|
+| Average current | ~0.35 mA | ~0.24 mA | ~0.43 mA |
+| Battery life (2000 mAh) | about 8 months | about 11 months | about 6 months |
+
+The estimate of the design falls between the two cases. The measurements confirm its main lesson: the measurement wake-ups and the deep sleep make most of the consumption, as long as the Wi-Fi is used once per hour. The duration of the Wi-Fi connection is the most uncertain part: it varies a lot from one connection to the next, and would weigh more with a weaker signal outdoors.
+
+## N3 · Energy, checked
+
+The [verification matrix](00-4-structure-and-verification.qmd#verification-matrix) set two criteria for N3:
+
+- **At most 24 Wi-Fi connections per day** with a valid clock: checked by the scenario of the simulated day, since A1.
+- **A wake-up that only measures stays below 1.5 seconds**: 1.4 seconds on the board, with the SD card, the BME280 and the log. The criterion is met, with a small margin: most of this time is the initialization of the SD card.
+
+## Error handling, reviewed
+
+Each row of the [Error Handling](00-2-behavior.qmd#error-handling) table was compared with the firmware and with what the board showed:
+
+| Failure | Checked by | Result |
+|---------|------------|--------|
+| BME280 not responding | Scenario test (A1) | The row is stored with empty fields. |
+| SD card missing or full | Scenario test (A1), board (A3) | The row is lost and reported (`NOT stored`); storage resumes when the card is back. |
+| Wi-Fi not reachable | Scenario test (A1) | No upload, the cursors do not move. |
+| Server error or timeout | Scenario tests (A4, A6) | The cursors do not move; the same lines are sent at the next upload. |
+| NTP not answering | Scenario test (A1) | The clock is not changed; the next upload tries again. |
+| RTC not responding | Scenario test (A1) | The rows are flagged invalid; the safety timer wakes the station up. |
+| Firmware stuck | Board (A6) | The watchdog restarts the chip; the station goes back to its normal cycle. |
+
+The failures that are hard to cause on the bench (Wi-Fi, server, NTP, RTC) were checked by the scenario tests, with test doubles; the board confirmed the behavior with a missing SD card and a frozen wake-up.
+
+The table of the design was completed with two points found during the implementation: the delay of the watchdog, and the log, whose loss never affects the measurements.
+
+## The end of Phase 4
+
+The station now does, on its own, everything the requirements ask for:
+
+- it measures every 15 minutes on a fixed UTC grid, and keeps every row on the SD card (F1, F2);
+- it uploads the new rows once per hour, without losing any when the Wi-Fi or the server is down (F3, N1);
+- it keeps an exact clock with NTP, and flags the rows when the clock is not reliable (F4, F6);
+- it can be serviced from a phone when the home Wi-Fi is out of reach (F5);
+- it always wakes up again, even if the RTC fails or the firmware freezes (N2);
+- its decisions are tested on a computer at every pull request (N4), and each step only replaced adapters, without changing the state machine (N5).
+
+The firmware of this step is published as version `v0.7.0`. The next phase builds the backend that will receive the data: a server, a database and a dashboard, on a computer that stays on at home.
