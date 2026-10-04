@@ -197,6 +197,17 @@ void test_f3_n3_one_day_gives_24_uploads() {
     TEST_ASSERT_EQUAL(93, station.receivedRows().size());
 }
 
+// --- N3 · Energy: the SD card is powered once per wake-up ---
+
+void test_n3_storage_closed_once_after_its_last_use() {
+    Station station;
+    station.wake();  // 14:00:03: store, then upload
+
+    TEST_ASSERT_EQUAL(1, station.log.count("close"));
+    // After every use of the storage: the last event of the wake-up
+    TEST_ASSERT_EQUAL_STRING("close", station.log.events.back().c_str());
+}
+
 // --- F3 · Hourly upload: content of the requests ---
 
 void test_f3_upload_sends_the_new_rows_once() {
@@ -291,6 +302,7 @@ int main() {
     RUN_TEST(test_n2_rtc_failure_safety_timer_only);
     RUN_TEST(test_f3_n3_one_day_gives_24_uploads);
     RUN_TEST(test_f4_three_days_give_3_syncs_on_upload_connections);
+    RUN_TEST(test_n3_storage_closed_once_after_its_last_use);
     RUN_TEST(test_f3_upload_sends_the_new_rows_once);
     RUN_TEST(test_n1_server_error_keeps_rows_for_next_upload);
     RUN_TEST(test_large_backlog_is_sent_in_several_requests);

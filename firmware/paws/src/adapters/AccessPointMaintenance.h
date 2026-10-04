@@ -27,7 +27,8 @@
 /// the icon is a sunflower drawn from an emoji, so that no image file is
 /// needed. The %s and %lu are filled by sendPage(): a message, the state
 /// of the card, "disabled" twice when there is nothing to download or
-/// delete, then twice the time left, which a small script counts down;
+/// delete, the firmware version, then twice the time left, which a small
+/// script counts down;
 /// at 0, it tells that the access point is closed. The script also puts
 /// the address back to "/", so that a message such as "Measurements
 /// deleted." is not shown again when the page is reloaded.
@@ -39,8 +40,10 @@ const char kMaintenancePage[] =
     "'http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em'"
     " font-size='90'>&#127803;</text></svg>\">"
     "<style>body{font-family:Arial,sans-serif;text-align:center;"
-    "padding:30px}button{padding:15px 30px;font-size:18px;margin:10px;"
-    "border:none;border-radius:8px;color:white}"
+    "padding:20px}h1{font-size:1.6em}"
+    "button{width:100%%;max-width:320px;padding:15px;font-size:18px;"
+    "margin:8px 0;border:none;border-radius:8px;color:white}"
+    "small{color:#888}"
     ".download{background:#4CAF50}.delete{background:#f44336}"
     "button:disabled{background:#bbb}</style></head>"
     "<body><h1>&#127803; PAWS maintenance</h1>"
@@ -53,7 +56,7 @@ const char kMaintenancePage[] =
     "<button class='delete' type='submit' %s>Delete the measurements"
     "</button></form>"
     "<p id='info'>This page stays available for <span id='left'>%lu"
-    "</span> s.</p>"
+    "</span> s.</p><p><small>Firmware %s</small></p>"
     "<script>history.replaceState(null,'','/');"
     "var left=%lu;setInterval(function(){"
     "if(left>0){document.getElementById('left').textContent=--left;}"
@@ -75,15 +78,19 @@ public:
     /**
      * @brief Creates the maintenance mode with its Wi-Fi network.
      *
+     * @param[in,out] card The SD card module, shared with the storage.
      * @param[in] ssid Name of the network started by the station.
      * @param[in] password Its password, at least 8 characters (WPA2).
+     * @param[in] version Firmware version, shown on the page.
      */
-    AccessPointMaintenance(const char* ssid, const char* password)
-        : ssid_(ssid), password_(password) {}
+    AccessPointMaintenance(SdCard& card, const char* ssid,
+                           const char* password, const char* version)
+        : card_(card), ssid_(ssid), password_(password), version_(version) {}
 
     void run(uint32_t durationS) override {
-        // The card stays powered for the whole session
-        cardReady_ = sdMount();
+        // The card stays powered for the whole session, and until the end
+        // of the wake-up: the storage uses it right after
+        cardReady_ = card_.mount();
 
         WiFi.mode(WIFI_AP);
         WiFi.softAP(ssid_, password_);
@@ -127,9 +134,8 @@ public:
         }
 
         server.stop();
-        WiFi.softAPdisconnect(true);
+        // Turning the Wi-Fi off also stops the access point
         WiFi.mode(WIFI_OFF);
-        sdUnmount();
         Serial.println("   access point stopped");
     }
 
@@ -156,7 +162,7 @@ private:
         } else if (empty) {
             snprintf(state, sizeof(state), "No measurements on the card.");
         } else {
-            uint32_t cursor = sdLoadCursor();
+            uint32_t cursor = card_.loadCursor();
             size_t unsent = cursor < size ? size - cursor : 0;
             snprintf(state, sizeof(state),
                      "%lu KB of measurements on the card, %lu KB not "
@@ -170,7 +176,7 @@ private:
 
         char page[sizeof(kMaintenancePage) + 200];
         snprintf(page, sizeof(page), kMaintenancePage, message, state,
-                 disabled, disabled, secondsLeft, secondsLeft);
+                 disabled, disabled, secondsLeft, version_, secondsLeft);
         server.send(200, "text/html", page);
     }
 
@@ -205,8 +211,10 @@ private:
         server.send(303);
     }
 
+    SdCard& card_;
     const char* ssid_;
     const char* password_;
+    const char* version_;
     bool cardReady_ = false;
     uint32_t start_ = 0;       // millis() when the session started
     uint32_t durationMs_ = 0;  // length of the session

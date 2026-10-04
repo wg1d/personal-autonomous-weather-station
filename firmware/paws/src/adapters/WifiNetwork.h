@@ -30,6 +30,12 @@ const uint32_t kWifiPollMs = 100;
 /// Maximum time to wait for the answer of the server
 const uint32_t kServerTimeoutMs = 10000;
 
+/// Wi-Fi channel and router address (BSSID) of the last connection, kept
+/// in RTC memory across deep sleep. Channel 0 means "not known": after a
+/// power loss, or after a failed connection.
+RTC_DATA_ATTR static int32_t lastWifiChannel = 0;
+RTC_DATA_ATTR static uint8_t lastWifiBssid[6];
+
 /**
  * @brief Network adapter for the home Wi-Fi.
  *
@@ -52,12 +58,20 @@ public:
 
     bool connect(uint32_t timeoutS) override {
         WiFi.mode(WIFI_STA);
-        WiFi.begin(ssid_, password_);
+        if (lastWifiChannel != 0) {
+            // Go straight to the router of the last connection, instead
+            // of scanning every channel to find it
+            WiFi.begin(ssid_, password_, lastWifiChannel, lastWifiBssid);
+        } else {
+            WiFi.begin(ssid_, password_);
+        }
 
         uint32_t start = millis();
         while (WiFi.status() != WL_CONNECTED) {
             if (millis() - start > timeoutS * 1000) {
                 Serial.println("   Wi-Fi not reachable");
+                // The router may have changed channel: scan again next time
+                lastWifiChannel = 0;
                 disconnect();
                 return false;
             }
@@ -65,6 +79,9 @@ public:
         }
         Serial.printf("   Wi-Fi connected in %lu ms\n",
                       static_cast<unsigned long>(millis() - start));
+
+        lastWifiChannel = WiFi.channel();
+        memcpy(lastWifiBssid, WiFi.BSSID(), sizeof(lastWifiBssid));
         return true;
     }
 

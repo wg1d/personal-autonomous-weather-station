@@ -4,8 +4,8 @@
  *
  * Description:
  * Fake storage: keeps the rows in RAM instead of the SD card, as records
- * and as CSV text with its upload cursor, and adds a "store" event to the
- * shared log.
+ * and as CSV text with its upload cursor, and adds the "store" and
+ * "close" events to the shared log.
  *
  * Dependencies: lib/ports, lib/core (CSV format), EventLog.h.
  */
@@ -21,7 +21,7 @@
 #include "IStorage.h"
 
 /**
- * @brief Fake storage: keeps the rows in RAM, logs "store".
+ * @brief Fake storage: keeps the rows in RAM, logs "store" and "close".
  */
 class FakeStorage : public IStorage {
 public:
@@ -64,6 +64,8 @@ public:
         cursor += length;
         return true;
     }
+
+    void close() override { log_.add("close"); }
 
 private:
     EventLog& log_;
