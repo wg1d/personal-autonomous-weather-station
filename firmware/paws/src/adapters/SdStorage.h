@@ -32,29 +32,34 @@
  */
 class SdStorage : public IStorage {
 public:
+    /**
+     * @brief Creates the storage on an SD card.
+     *
+     * @param[in,out] card The card module, shared with the maintenance
+     *                mode.
+     */
+    explicit SdStorage(SdCard& card) : card_(card) {}
+
     bool append(const Record& record) override {
         char row[kCsvRowSize];
         if (!formatCsvRow(record, row, sizeof(row))) {
             Serial.println("   row too long for the buffer");
             return false;
         }
-        bool stored = sdMount() && write(row);
-        sdUnmount();
+        bool stored = card_.mount() && write(row);
         Serial.printf("   %s: %s\n", stored ? "stored" : "NOT stored", row);
         return stored;
     }
 
     size_t readUnsent(char* buffer, size_t size) override {
-        size_t length = sdMount() ? read(buffer, size) : 0;
-        sdUnmount();
-        return length;
+        return card_.mount() ? read(buffer, size) : 0;
     }
 
     bool markSent(size_t length) override {
-        bool saved = sdMount() && saveCursor(unsentStart_ + length);
-        sdUnmount();
-        return saved;
+        return card_.mount() && saveCursor(unsentStart_ + length);
     }
+
+    void close() override { card_.unmount(); }
 
 private:
     // Appends the row, after the header if the file is new
@@ -85,7 +90,7 @@ private:
         if (!file) {
             return 0;
         }
-        uint32_t cursor = sdLoadCursor();
+        uint32_t cursor = card_.loadCursor();
         if (cursor == 0) {
             // Start of the file: skip the header line, which the core
             // adds to each request itself
@@ -107,7 +112,7 @@ private:
     }
 
     // The cursor is stored as text, for example "1234" (see
-    // sdLoadCursor())
+    // SdCard::loadCursor())
     bool saveCursor(uint32_t cursor) {
         // FILE_WRITE replaces the previous content
         File file = SD.open(kCursorFileName, FILE_WRITE);
@@ -120,5 +125,6 @@ private:
         return saved;
     }
 
+    SdCard& card_;
     uint32_t unsentStart_ = 0;  // where the rows of the last read start
 };

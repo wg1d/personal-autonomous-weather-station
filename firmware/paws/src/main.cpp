@@ -25,6 +25,7 @@
  */
 
 #include <Arduino.h>
+#include <esp_task_wdt.h>
 
 #include "StateMachine.h"
 #include "adapters/AccessPointMaintenance.h"
@@ -36,31 +37,55 @@
 #include "adapters/WifiNetwork.h"
 #include "secrets.h"
 
-/// Short periods for the demo on the bench, instead of 15 minutes and
-/// one hour
-const uint32_t kDemoIntervalS = 60;
-const uint32_t kDemoUploadPeriodS = 5 * 60;
+// Set to 1 by the esp32-bench environment of platformio.ini
+#ifndef PAWS_BENCH_DEMO
+#define PAWS_BENCH_DEMO 0
+#endif
+
+/// true when built with the esp32-bench environment: one measurement per
+/// minute and one upload every 5 minutes, to see the whole cycle quickly
+/// on the bench. false with the esp32 environment, for the station: the
+/// periods of the design, 15 minutes and one hour.
+const bool kBenchDemo = PAWS_BENCH_DEMO;
+
+/// Longest normal wake-up, with margin: a maintenance session (3 minutes)
+/// followed by a large upload. Beyond it, the firmware is considered stuck,
+/// and the watchdog restarts the chip.
+const uint32_t kWatchdogS = 10 * 60;
 
 Ds3231Clock rtcClock;
 Bme280Sensor sensor;
-SdStorage storage;
+SdCard card;
+SdStorage storage(card);
 WifiNetwork network(kWifiSsid, kWifiPassword, kServerUrl);
 Esp32Power power;
-AccessPointMaintenance maintenance(kApSsid, kApPassword);
+AccessPointMaintenance maintenance(card, kApSsid, kApPassword,
+                                   PAWS_VERSION);
 SerialLog serialLog;
 
 /// Runs one wake-up of the state machine, which ends in deep sleep
 void setup() {
     Serial.begin(115200);
-    Serial.println();
+    Serial.printf("\nPAWS firmware %s%s\n", PAWS_VERSION,
+                  kBenchDemo ? " (bench periods)" : "");
+
+    // If this wake-up ever freezes (a library waiting forever, for
+    // example), the watchdog restarts the chip: the next boot measures and
+    // goes back to the normal cycle instead of staying awake (N2, N3).
+    // The Arduino core already starts this watchdog; this sets its delay
+    // and makes it watch setup().
+    esp_task_wdt_init(kWatchdogS, true);
+    esp_task_wdt_add(nullptr);
 
     // Without an answer, the clock reports an invalid time and the safety
     // timer takes over (N2): the station keeps running
     rtcClock.begin();
 
     Config config;
-    config.measurementIntervalS = kDemoIntervalS;
-    config.uploadPeriodS = kDemoUploadPeriodS;
+    if (kBenchDemo) {
+        config.measurementIntervalS = 60;
+        config.uploadPeriodS = 5 * 60;
+    }
 
     StateMachine machine(config,
                          {rtcClock, sensor, storage, network, power,

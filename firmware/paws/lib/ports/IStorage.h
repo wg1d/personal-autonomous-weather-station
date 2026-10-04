@@ -63,4 +63,13 @@ public:
      * @return true if the new cursor was saved.
      */
     virtual bool markSent(size_t length) = 0;
+
+    /**
+     * @brief Releases the storage, once per wake-up, before sleeping.
+     *
+     * On the board, it powers the SD card off: the card then stays
+     * powered from its first use until the end of the wake-up, instead of
+     * being initialized again for each operation (N3).
+     */
+    virtual void close() = 0;
 };

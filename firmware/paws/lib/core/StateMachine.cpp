@@ -146,5 +146,6 @@ void StateMachine::onSchedule() {
 }
 
 void StateMachine::onSleep() {
+    ports_.storage.close();
     ports_.power.sleep(plan_);
 }

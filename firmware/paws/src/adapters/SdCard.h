@@ -4,7 +4,9 @@
  *
  * Description:
  * The SD card module, shared by the storage adapter and the maintenance
- * mode: its pins, its files, and how to power it on and off.
+ * mode: its pins, its files, and its power. The card is mounted at its
+ * first use in a wake-up, and stays mounted until the end of the
+ * wake-up, so that it is initialized only once.
  *
  * Wiring:
  * - SD card: 5V -> VCC, GND -> GND, Pin 19 -> MISO, Pin 23 -> MOSI,
@@ -35,48 +37,69 @@ const uint32_t kSdPowerUpMs = 100;
 const char kCursorFileName[] = "/upload.idx";
 
 /**
- * @brief Powers the card module on and mounts the card.
+ * @brief The SD card module: power and mounting.
  *
- * The module stays off during deep sleep, to save the battery.
- *
- * @return true if the card is ready; false if it is missing.
+ * One object is created by main.cpp and given to the adapters that use
+ * the card, so that they share its state.
  */
-inline bool sdMount() {
-    pinMode(kSdPowerPin, OUTPUT);
-    digitalWrite(kSdPowerPin, HIGH);
-    delay(kSdPowerUpMs);
-    if (!SD.begin(kSdCsPin)) {
-        Serial.println("   SD card not found");
-        return false;
+class SdCard {
+public:
+    /**
+     * @brief Powers the module on and mounts the card, if not done yet.
+     *
+     * The module stays off during deep sleep, to save the battery.
+     *
+     * @return true if the card is ready; false if it is missing.
+     */
+    bool mount() {
+        if (mounted_) {
+            return true;
+        }
+        pinMode(kSdPowerPin, OUTPUT);
+        digitalWrite(kSdPowerPin, HIGH);
+        delay(kSdPowerUpMs);
+        if (!SD.begin(kSdCsPin)) {
+            Serial.println("   SD card not found");
+            digitalWrite(kSdPowerPin, LOW);
+            return false;
+        }
+        mounted_ = true;
+        return true;
     }
-    return true;
-}
 
-/**
- * @brief Reads the upload cursor from the mounted card.
- *
- * A missing file means that nothing was sent yet: everything is sent
- * again, and the server ignores the rows it already has.
- *
- * @return The cursor, stored as text such as "1234"; 0 if there is none.
- */
-inline uint32_t sdLoadCursor() {
-    if (!SD.exists(kCursorFileName)) {
-        return 0;
+    /**
+     * @brief Unmounts the card and powers the module off.
+     */
+    void unmount() {
+        if (mounted_) {
+            SD.end();
+            mounted_ = false;
+        }
+        digitalWrite(kSdPowerPin, LOW);
     }
-    File file = SD.open(kCursorFileName, FILE_READ);
-    if (!file) {
-        return 0;
-    }
-    uint32_t cursor = static_cast<uint32_t>(file.parseInt());
-    file.close();
-    return cursor;
-}
 
-/**
- * @brief Unmounts the card and powers the module off.
- */
-inline void sdUnmount() {
-    SD.end();
-    digitalWrite(kSdPowerPin, LOW);
-}
+    /**
+     * @brief Reads the upload cursor from the card, which must be mounted.
+     *
+     * A missing file means that nothing was sent yet: everything is sent
+     * again, and the server ignores the rows it already has.
+     *
+     * @return The cursor, stored as text such as "1234"; 0 if there is
+     *         none.
+     */
+    uint32_t loadCursor() {
+        if (!SD.exists(kCursorFileName)) {
+            return 0;
+        }
+        File file = SD.open(kCursorFileName, FILE_READ);
+        if (!file) {
+            return 0;
+        }
+        uint32_t cursor = static_cast<uint32_t>(file.parseInt());
+        file.close();
+        return cursor;
+    }
+
+private:
+    bool mounted_ = false;
+};
