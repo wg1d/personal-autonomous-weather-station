@@ -4,7 +4,7 @@ Step A5 replaces the last skeleton adapter: the maintenance mode (F5 · Maintena
 
 The PoC already did this in [Fallback AP](../../PoC/Phase-03/03-fallback-ap.qmd). The state machine already handles the path (`BOOT` → `MAINTENANCE` → `MEASURE`) since A1: only the adapter and the button wake-up are new.
 
-> **Ready-to-use project:** The complete code of this step is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/paws)
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v0.6.0/firmware/paws)
 
 ## Wiring
 
@@ -20,7 +20,7 @@ The button is the one of the PoC ([Fallback AP](../../PoC/Phase-03/03-fallback-a
 
 The power adapter now arms a third wake-up source, `EXT1`, on pin 39:
 
-```{.cpp include="../../../../firmware/paws/src/adapters/Esp32Power.h"}
+```{.cpp include="../../../_versions/v0.6.0/firmware/paws/src/adapters/Esp32Power.h"}
 ```
 
 `EXT1` can watch several pins at once, selected by a bit mask: `1ULL << kButtonPin` sets the bit of pin 39 only. `ESP_EXT1_WAKEUP_ANY_HIGH` wakes the ESP32 up as soon as this pin goes high, when the button is pressed. At the next boot, the wake-up cause is `Button`, and `BOOT` goes to `MAINTENANCE`.
@@ -29,7 +29,7 @@ The power adapter now arms a third wake-up source, `EXT1`, on pin 39:
 
 The maintenance mode also reads and deletes the files of the SD card. To avoid writing the power-up code twice, the parts of the card used by both adapters move to a small shared header:
 
-```{.cpp include="../../../../firmware/paws/src/adapters/SdCard.h"}
+```{.cpp include="../../../_versions/v0.6.0/firmware/paws/src/adapters/SdCard.h"}
 ```
 
 ::: {.callout-tip collapse="true"}
@@ -40,12 +40,12 @@ A function defined in a header is copied into every source file (`.cpp`) that in
 
 The storage adapter of A3 and A4 now uses these helpers:
 
-```{.cpp include="../../../../firmware/paws/src/adapters/SdStorage.h"}
+```{.cpp include="../../../_versions/v0.6.0/firmware/paws/src/adapters/SdStorage.h"}
 ```
 
 ## The maintenance adapter
 
-```{.cpp include="../../../../firmware/paws/src/adapters/AccessPointMaintenance.h"}
+```{.cpp include="../../../_versions/v0.6.0/firmware/paws/src/adapters/AccessPointMaintenance.h"}
 ```
 
 `run()` works in four steps:
@@ -77,7 +77,7 @@ Any other address answers "not found", without an error message: browsers ask fo
 
 The name and password of the access point live in `include/secrets.h`, next to the Wi-Fi and server settings:
 
-```{.cpp include="../../../../firmware/paws/include/secrets.example.h"}
+```{.cpp include="../../../_versions/v0.6.0/firmware/paws/include/secrets.example.h"}
 ```
 
 The station creates this network, so the name and password are free. The name has at most 32 characters; avoid the name of the home Wi-Fi, which would confuse the phone. The password needs 8 to 63 characters (WPA2), and should be a real one: during a session, anyone in range who knows it could delete the measurements.
@@ -86,7 +86,7 @@ The station creates this network, so the name and password are free. The name ha
 
 `main.cpp` creates an `AccessPointMaintenance` with the settings of `secrets.h`, instead of the skeleton adapter of A1. All the adapters are now the real ones:
 
-```{.cpp include="../../../../firmware/paws/src/main.cpp"}
+```{.cpp include="../../../_versions/v0.6.0/firmware/paws/src/main.cpp"}
 ```
 
 ## Expected output
