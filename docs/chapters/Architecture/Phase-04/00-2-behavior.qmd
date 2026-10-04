@@ -93,7 +93,8 @@ The clock validity needs no extra storage. As seen in Phase 01, the DS3231 sets 
 | Server error or timeout | Same as above. |
 | NTP not answering within 5 s | Retry at the next upload. |
 | RTC not responding | Timestamps and alarms are impossible: the rows are flagged invalid, and the ESP32 internal timer wakes the station up (see below). |
-| Firmware stuck | The ESP32 watchdog resets the chip; the next boot takes a reading and goes back to the normal cycle. |
+| Firmware stuck | After 10 minutes awake, longer than any normal wake-up, the ESP32 watchdog restarts the chip; the next boot takes a reading and goes back to the normal cycle. |
+| Log cannot be written | The log entry of the wake-up is lost; the measurements are not affected. |
 
 To guarantee N2 · Always wake up again, `SLEEP` always arms **three** wake-up sources:
 
@@ -111,6 +112,6 @@ With the method and assumptions of the [Power Budget](../../PoC/Phase-03/05-powe
 | 24 uploads per day (~5 s at 120 mA each) | ~0.17 mA |
 | **Total** | **~0.35 mA**, i.e. about 8 months on a 2000 mAh battery |
 
-The daily NTP sync is negligible, since it reuses an upload connection.
+The daily NTP sync is negligible, since it reuses an upload connection. Step A6 updates this estimate with the durations measured on the board (see [Energy and Review](06-3-energy-and-review.qmd)).
 
 The [next chapter](00-3-data-and-upload.qmd) describes the data stored at each wake-up, and how it reaches the server.
