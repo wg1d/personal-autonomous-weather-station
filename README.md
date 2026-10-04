@@ -52,6 +52,14 @@ pixi run pio run -d firmware/paws -t upload
 pixi run pio device monitor -d firmware/paws
 ```
 
+This builds the firmware of the station, with the periods of the design: one measurement every 15 minutes, one upload every hour. To see the whole cycle quickly on the bench, use the `esp32-bench` environment instead, which measures every minute and uploads every 5 minutes:
+
+```bash
+pixi run pio run -d firmware/paws -e esp32-bench -t upload
+```
+
+In VS Code with the PlatformIO extension, choose `env:esp32` or `env:esp32-bench` in the status bar.
+
 The Proof of Concept sketches (`firmware/PoC/`) are flashed the same way, with their own folder after `-d`.
 
 The Wi-Fi sketches read their credentials from a git-ignored `secrets.h`: copy `secrets.example.h` to `secrets.h` in the sketch folder and fill in your values. If `secrets.h` is missing, `pixi run build-firmware` creates it from the example, with placeholder values that only allow the sketch to compile.
