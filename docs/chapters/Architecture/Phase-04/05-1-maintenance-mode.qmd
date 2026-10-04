@@ -132,4 +132,4 @@ E (184618) wifi_init_default: netstack cb reg failed with 12308
 
 ## Next Steps
 
-Every adapter is now real: the station measures, stores, uploads, keeps its clock exact, and can be serviced from a phone. Step A6 hardens it: watchdog, a review of the error handling, and the durations measured in the previous steps compared with the energy estimate.
+Every adapter is now real: the station measures, stores, uploads, keeps its clock exact, and can be serviced from a phone. Step A6, [Robustness](06-1-robustness.qmd), hardens it: watchdog, a review of the error handling, and the durations measured in the previous steps compared with the energy estimate.

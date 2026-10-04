@@ -1,0 +1,110 @@
+# A6 · Robustness {.unnumbered}
+
+Step A6 is the last step of Phase 4. It adds no new feature to the station: it makes the existing ones more reliable over months outdoors, and checks the design against what the board showed in the previous steps. It comes in three chapters:
+
+1. **Robustness** (this chapter): a watchdog, the SD card initialized once per wake-up, the Wi-Fi connection, the firmware version, and a bench environment.
+2. [Log](06-2-log.qmd): a log of the wake-ups, kept on the card, downloadable from the maintenance page and uploaded to the server.
+3. [Energy and Review](06-3-energy-and-review.qmd): the energy estimate with the durations measured on the board, and a review of the error handling.
+
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/paws)
+
+## The watchdog
+
+Normally, every wake-up ends in deep sleep after a few seconds. But over months, rare events end up happening: a library that waits forever for a module that no longer answers, a bug that only shows in a rare case, an electrical disturbance. A frozen ESP32 stays awake, at tens of milliamperes instead of a few microamperes: it stops measuring and empties its battery in a few days, silently (N2 · Always wake up again, N3 · Energy).
+
+A **watchdog** is a hardware timer, independent of the program, which restarts the chip if the program does not show a sign of life in time. The Arduino core of the ESP32 already starts one, the *task watchdog*, which only watches a task of the system. `main.cpp` sets its delay to 10 minutes and adds `setup()` to the tasks it watches:
+
+```{.cpp include="../../../../firmware/paws/src/main.cpp"}
+```
+
+The firmware never resets the watchdog: since each deep sleep restarts the chip from scratch, the watchdog starts again at each wake-up, and the whole wake-up must simply end within 10 minutes. The longest normal wake-up, a maintenance session of 3 minutes followed by a large upload, stays well below.
+
+To check it on the board, we shortened the delay to 60 seconds for one test, then started a maintenance session, which lasts 3 minutes and therefore looks frozen to such a short watchdog:
+
+```text
+-> BOOT
+-> MAINTENANCE
+   access point "PAWS-maintenance" started, page: http://192.168.4.1
+E (67295) task_wdt: Task watchdog got triggered. The following tasks did not reset the watchdog in time:
+E (67295) task_wdt:  - loopTask (CPU 1)
+...
+Rebooting...
+ets Jun  8 2016 00:22:57
+
+rst:0xc (SW_CPU_RESET),boot:0x13 (SPI_FAST_FLASH_BOOT)
+...
+PAWS firmware v0.6.0-dirty (bench periods)
+-> BOOT
+-> MEASURE
+-> STORE
+   stored: 2026-10-04T14:27:35Z,1,24.18,53.88,1005.95
+-> SCHEDULE
+   alarm set for 14:28:00
+-> SLEEP
+```
+
+About a minute after the boot (67 seconds, according to the `E (67295)` lines, in milliseconds), the watchdog restarted the chip (`SW_CPU_RESET`, a restart requested by software). The next boot is a normal one: the station measures, schedules its alarm and sleeps, as described in [Error Handling](00-2-behavior.qmd#error-handling).
+
+## The SD card, once per wake-up
+
+Until A5, each use of the card powered it on, initialized it, and powered it off: an upload wake-up initialized it three times (store, read the rows, save the cursor), about one second each. The card now stays mounted from its first use until the end of the wake-up. Its state is kept by an `SdCard` object, created once by `main.cpp` and shared by the storage and the maintenance mode:
+
+```{.cpp include="../../../../firmware/paws/src/adapters/SdCard.h"}
+```
+
+The storage interface gains a function, `close()`, which the state machine calls once, just before sleeping. On the board, it powers the card off (and writes the log, see the [next chapter](06-2-log.qmd)):
+
+```{.cpp include="../../../../firmware/paws/lib/ports/IStorage.h"}
+```
+
+A new scenario test checks that the storage is closed once per wake-up, after its last use. On the board, an upload wake-up without NTP sync now lasts **2.5 seconds**, against 4.0 seconds in [A4](04-2-upload.qmd#expected-output).
+
+## The Wi-Fi connection
+
+Two changes concern the Wi-Fi adapter:
+
+```{.cpp include="../../../../firmware/paws/src/adapters/WifiNetwork.h"}
+```
+
+- **The channel and the router of the last connection** are kept in RTC memory, and given to `WiFi.begin()` at the next connection, so that it does not have to scan every channel. After a failed connection, they are forgotten, in case the router changed its channel. On our bench, the connection took between 0.1 and 0.7 seconds with or without this memory: we could not measure a gain, but it costs nothing.
+- **The address of the server** (`kServerUrl` in `secrets.h`) is now only the server, such as `http://192.168.1.15:8080`: the adapter adds the path of each kind of data, for the log of the [next chapter](06-2-log.qmd).
+
+The maintenance mode now stops its access point with a single `WiFi.mode(WIFI_OFF)`, which turns the whole Wi-Fi off.
+
+## The firmware version
+
+The firmware prints its version at each boot, and shows it at the bottom of the maintenance page. It is computed by Git at each build, so that it never has to be updated by hand:
+
+```{.python include="../../../../firmware/paws/version.py"}
+```
+
+`git describe` gives the last version tag, such as `v0.7.0`. Built from a later commit, the firmware shows the number of commits since that tag and the commit itself, such as `v0.6.0-3-gb9d931a`, and `-dirty` when files were changed without a commit. Any version can then be traced back to its exact code.
+
+## The bench environment
+
+The firmware now uses the periods of the design by default: one measurement every 15 minutes, one upload every hour. To see the whole cycle quickly on the bench, a second PlatformIO environment, `esp32-bench`, builds the same firmware with one measurement per minute and one upload every 5 minutes:
+
+```{.ini include="../../../../firmware/paws/platformio.ini"}
+```
+
+- `extends = env:esp32` reuses every setting of the station, and adds the flag `-D PAWS_BENCH_DEMO=1`.
+- `build_flags = !python version.py` runs the script at each build: the `!` asks PlatformIO to use what the command prints as build flags.
+- In `main.cpp`, the flag only sets the constant `kBenchDemo`, and an ordinary `if` chooses the periods: both branches are always checked by the compiler.
+
+In VS Code, the environment is chosen in the status bar: `env:esp32` for the station, `env:esp32-bench` for the bench. From a terminal: `pixi run pio run -d firmware/paws -e esp32-bench -t upload`.
+
+::: {.callout-tip collapse="true"}
+## C++: a default value with `#ifndef`
+
+```cpp
+#ifndef PAWS_BENCH_DEMO
+#define PAWS_BENCH_DEMO 0
+#endif
+```
+
+`-D PAWS_BENCH_DEMO=1` defines a *macro*, a name that the preprocessor replaces with its value before the compilation. `#ifndef` ("if not defined") gives it the value 0 when the environment did not define it. The macro is then used only once, to give its value to an ordinary constant: the rest of the code uses the constant, which the compiler checks like any other variable.
+:::
+
+## Next Steps
+
+The station is now protected against a frozen wake-up, and its version is always known. The [next chapter](06-2-log.qmd) keeps a log of its wake-ups, to know what happened when nobody was watching the serial port.
