@@ -109,7 +109,7 @@ The address of the server is a setting of the home network, so it lives in `incl
 
 The test server implements the server side of the protocol, in about 120 lines of Python with [FastAPI](https://fastapi.tiangolo.com/):
 
-```{.python include="../../../../backend/Phase-04/test_server/main.py"}
+```{.python include="../../../_versions/v0.5.0/backend/Phase-04/test_server/main.py"}
 ```
 
 - `POST /api/v1/measurements` checks the header line, stores each row in a SQLite database, and answers with the number of rows received, inserted and ignored as duplicates. The timestamp is the primary key of the table: `INSERT OR IGNORE` skips a row whose timestamp is already stored, which makes repeated uploads harmless.
