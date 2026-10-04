@@ -7,7 +7,9 @@ Test server for the upload protocol v1 of the station (see the Upload
 Protocol in the Data and Upload chapter of the Phase 4 design). It
 receives CSV rows on POST /api/v1/measurements, stores them in a SQLite
 database, ignores the rows whose timestamp it already has, and answers
-with a short JSON summary. It is a bench tool, not the Phase 5 backend.
+with a short JSON summary. It also receives the log of the station on
+POST /api/v1/logs, and appends it to a text file. It is a bench tool, not
+the Phase 5 backend.
 
 Usage: python main.py [--port PORT] (default port: 8080)
 
@@ -16,6 +18,7 @@ Dependencies: FastAPI, uvicorn (pixi backend environment).
 
 import argparse
 import csv
+import html
 import io
 import sqlite3
 
@@ -28,6 +31,7 @@ COLUMNS = ["timestamp", "time_valid", "temperature_c", "humidity_pct",
            "pressure_hpa"]
 
 DATABASE = "measurements.db"
+LOG_FILE = "station.log"
 
 app = FastAPI()
 
@@ -75,6 +79,32 @@ async def receive_measurements(request: Request):
     return summary
 
 
+@app.post("/api/v1/logs")
+async def receive_log(request: Request):
+    # Log lines are only kept for reading: appended as they are received
+    text = (await request.body()).decode("utf-8", errors="replace")
+    with open(LOG_FILE, "a", encoding="utf-8") as log:
+        log.write(text)
+    lines = text.count("\n")
+    print(f"POST /api/v1/logs: {lines} lines")
+    return {"received": lines}
+
+
+@app.get("/log", response_class=HTMLResponse)
+def show_log():
+    # The last lines of the log of the station, newest at the bottom
+    try:
+        with open(LOG_FILE, encoding="utf-8") as log:
+            lines = log.readlines()[-200:]
+    except FileNotFoundError:
+        lines = []
+    text = html.escape("".join(lines)) or "No log received yet."
+    return (f"<html><head><title>PAWS test server</title></head><body>"
+            f"<h1>PAWS test server: station log</h1>"
+            f"<p><a href='/'>Measurements</a></p><pre>{text}</pre>"
+            f"</body></html>")
+
+
 def last_rows(count):
     with open_database() as connection:
         total = connection.execute(
@@ -103,6 +133,7 @@ def show_measurements():
         for row in rows)
     return (f"<html><head><title>PAWS test server</title></head><body>"
             f"<h1>PAWS test server</h1>"
+            f"<p><a href='/log'>Station log</a></p>"
             f"<p>{total} rows received. Last {len(rows)}, newest first:</p>"
             f"<table border='1' cellpadding='4'><tr>{header}</tr>{lines}"
             f"</table></body></html>")

@@ -22,6 +22,7 @@ backend/*.pyc
 backend/data/          # CSV / database files — never commit raw data
 **/received_data.csv
 **/measurements.db
+**/station.log
 
 # OS
 .DS_Store
