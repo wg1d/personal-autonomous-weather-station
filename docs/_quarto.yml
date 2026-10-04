@@ -1,99 +1,107 @@
+# The book is a Quarto website: its sidebar accepts sections within
+# sections, which a Quarto book does not.
 project:
-  type: book
+  type: website
   output-dir: _output
   # The chapters of earlier steps include the code of their own version
   pre-render: bash ../scripts/extract-versions.sh
 
-book:
+website:
   title: "PAWS"
-  subtitle: "Personal Autonomous Weather Station"
+  description: "Personal Autonomous Weather Station"
   repo-url: https://github.com/wg1d/personal-autonomous-weather-station
-  repo-branch: main
+  page-navigation: true
+  reader-mode: false
+  search: true
   sidebar:
+    style: docked
+    title: "PAWS"
+    subtitle: "Personal Autonomous Weather Station"
     tools:
-      # Doxygen documentation of firmware/paws, published with the book
+      - icon: github
+        href: https://github.com/wg1d/personal-autonomous-weather-station
+      # Doxygen documentation of firmware/paws, published with the site
       - icon: file-earmark-code
         href: https://wg1d.github.io/personal-autonomous-weather-station/api/
         text: Firmware API documentation
-  date: last-modified
-  reader-mode: false
+    contents:
+      - href: index.qmd
+        text: "Introduction"
+      - href: chapters/01-motivation.qmd
+        text: "Motivation"
+      - href: chapters/02-roadmap.qmd
+        text: "Roadmap"
+      - section: "Proof of Concept"
+        contents:
+          - section: "Phase 1 – Core"
+            contents:
+              - href: chapters/PoC/Phase-01/01-components.qmd
+                text: "Components"
+              - chapters/PoC/Phase-01/02-data-acquisition.qmd
+              - chapters/PoC/Phase-01/03-data-storage.qmd
+              - chapters/PoC/Phase-01/04-real-time-clock.qmd
+          - section: "Phase 2 – Power"
+            contents:
+              - href: chapters/PoC/Phase-02/01-deep-sleep.qmd
+                text: "Deep Sleep"
+              - href: chapters/PoC/Phase-02/02-hardware-modifications.qmd
+                text: "Hardware Changes"
+              - href: chapters/PoC/Phase-02/03-software-implementation.qmd
+                text: "Firmware"
+          - section: "Phase 3 – Wi-Fi"
+            contents:
+              - href: chapters/PoC/Phase-03/01-wifi-station.qmd
+                text: "Wi-Fi Upload"
+              - href: chapters/PoC/Phase-03/02-dummy-backend.qmd
+                text: "Dummy Server"
+              - href: chapters/PoC/Phase-03/03-fallback-ap.qmd
+                text: "Fallback AP"
+              - href: chapters/PoC/Phase-03/04-ntp-sync.qmd
+                text: "NTP Sync"
+              - href: chapters/PoC/Phase-03/05-power-budget.qmd
+                text: "Power Budget"
+      - section: "Architecture"
+        contents:
+          - section: "Design"
+            contents:
+              - href: chapters/Architecture/Phase-04/00-1-requirements.qmd
+                text: "Requirements"
+              - href: chapters/Architecture/Phase-04/00-2-behavior.qmd
+                text: "Behavior"
+              - href: chapters/Architecture/Phase-04/00-3-data-and-upload.qmd
+                text: "Data & Upload"
+              - href: chapters/Architecture/Phase-04/00-4-structure-and-verification.qmd
+                text: "Structure & Verification"
+          - section: "A1 – FSM Skeleton"
+            contents:
+              - href: chapters/Architecture/Phase-04/01-1-interfaces-and-state-machine.qmd
+                text: "Interfaces & State Machine"
+              - href: chapters/Architecture/Phase-04/01-2-tests.qmd
+                text: "Tests"
+              - href: chapters/Architecture/Phase-04/01-3-walking-skeleton.qmd
+                text: "Walking Skeleton"
+          - href: chapters/Architecture/Phase-04/02-1-ds3231-clock.qmd
+            text: "A2 – DS3231 Clock"
+          - href: chapters/Architecture/Phase-04/03-1-sensor-and-storage.qmd
+            text: "A3 – Sensor and Storage"
+          - section: "A4 – Wi-Fi and Upload"
+            contents:
+              - href: chapters/Architecture/Phase-04/04-1-wifi-and-time-sync.qmd
+                text: "Wi-Fi & Time Sync"
+              - href: chapters/Architecture/Phase-04/04-2-upload.qmd
+                text: "Upload"
+          - href: chapters/Architecture/Phase-04/05-1-maintenance-mode.qmd
+            text: "A5 – Maintenance Mode"
+          - section: "A6 – Hardening"
+            contents:
+              - href: chapters/Architecture/Phase-04/06-1-robustness.qmd
+                text: "Robustness"
+              - href: chapters/Architecture/Phase-04/06-2-log.qmd
+                text: "Log"
+              - href: chapters/Architecture/Phase-04/06-3-energy-and-review.qmd
+                text: "Energy & Review"
 
-  chapters:
-    - index.qmd
-    - href: chapters/01-motivation.qmd
-      text: "Motivation"
-    - chapters/02-roadmap.qmd
-    - part: "Phase 1 – Core"
-      chapters:
-        - href: chapters/PoC/Phase-01/01-components.qmd
-          text: "Components"
-        - chapters/PoC/Phase-01/02-data-acquisition.qmd
-        - chapters/PoC/Phase-01/03-data-storage.qmd
-        - chapters/PoC/Phase-01/04-real-time-clock.qmd
-    - part: "Phase 2 – Power"
-      chapters:
-        - href: chapters/PoC/Phase-02/01-deep-sleep.qmd
-          text: "Deep Sleep"
-        - href: chapters/PoC/Phase-02/02-hardware-modifications.qmd
-          text: "Hardware Changes"
-        - href: chapters/PoC/Phase-02/03-software-implementation.qmd
-          text: "Firmware"
-    - part: "Phase 3 – Wi-Fi"
-      chapters:
-        - href: chapters/PoC/Phase-03/01-wifi-station.qmd
-          text: "Wi-Fi Upload"
-        - href: chapters/PoC/Phase-03/02-dummy-backend.qmd
-          text: "Dummy Server"
-        - href: chapters/PoC/Phase-03/03-fallback-ap.qmd
-          text: "Fallback AP"
-        - href: chapters/PoC/Phase-03/04-ntp-sync.qmd
-          text: "NTP Sync"
-        - href: chapters/PoC/Phase-03/05-power-budget.qmd
-          text: "Power Budget"
-    - part: "Phase 4 – Architecture"
-      chapters:
-        - href: chapters/Architecture/Phase-04/00-1-requirements.qmd
-          text: "Requirements"
-        - href: chapters/Architecture/Phase-04/00-2-behavior.qmd
-          text: "Behavior"
-        - href: chapters/Architecture/Phase-04/00-3-data-and-upload.qmd
-          text: "Data & Upload"
-        - href: chapters/Architecture/Phase-04/00-4-structure-and-verification.qmd
-          text: "Structure & Verification"
-    - part: "A1 – FSM Skeleton"
-      chapters:
-        - href: chapters/Architecture/Phase-04/01-1-interfaces-and-state-machine.qmd
-          text: "Interfaces & State Machine"
-        - href: chapters/Architecture/Phase-04/01-2-tests.qmd
-          text: "Tests"
-        - href: chapters/Architecture/Phase-04/01-3-walking-skeleton.qmd
-          text: "Walking Skeleton"
-    - part: "A2 – DS3231 Clock"
-      chapters:
-        - href: chapters/Architecture/Phase-04/02-1-ds3231-clock.qmd
-          text: "DS3231 Clock"
-    - part: "A3 – Sensor and Storage"
-      chapters:
-        - href: chapters/Architecture/Phase-04/03-1-sensor-and-storage.qmd
-          text: "Sensor & Storage"
-    - part: "A4 – Wi-Fi and Upload"
-      chapters:
-        - href: chapters/Architecture/Phase-04/04-1-wifi-and-time-sync.qmd
-          text: "Wi-Fi & Time Sync"
-        - href: chapters/Architecture/Phase-04/04-2-upload.qmd
-          text: "Upload"
-    - part: "A5 – Maintenance Mode"
-      chapters:
-        - href: chapters/Architecture/Phase-04/05-1-maintenance-mode.qmd
-          text: "Maintenance Mode"
-    - part: "A6 – Hardening"
-      chapters:
-        - href: chapters/Architecture/Phase-04/06-1-robustness.qmd
-          text: "Robustness"
-        - href: chapters/Architecture/Phase-04/06-2-log.qmd
-          text: "Log"
-        - href: chapters/Architecture/Phase-04/06-3-energy-and-review.qmd
-          text: "Energy & Review"
+date: last-modified
 
 filters:
   - include-code-files
@@ -106,7 +114,7 @@ format:
     fig-align: center
     toc: true
     toc-depth: 4
-    number-sections: true
+    number-sections: false
     number-depth: 4
     highlight-style: github
     code-fold: false
