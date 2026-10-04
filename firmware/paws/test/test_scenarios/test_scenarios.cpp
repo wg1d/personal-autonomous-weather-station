@@ -208,6 +208,30 @@ void test_n3_storage_closed_once_after_its_last_use() {
     TEST_ASSERT_EQUAL_STRING("close", station.log.events.back().c_str());
 }
 
+// --- Log: sent with the hourly upload, like the measurements ---
+
+void test_log_is_sent_with_the_measurements() {
+    Station station;
+    station.storage.log = "line 1\nline 2\n";
+    station.wake();  // 14:00:03: upload
+
+    TEST_ASSERT_EQUAL(1, station.network.requests.size());
+    TEST_ASSERT_EQUAL(1, station.network.logRequests.size());
+    // The log has no header line: the lines are sent as they are
+    TEST_ASSERT_EQUAL_STRING("line 1\nline 2\n",
+                             station.network.logRequests[0].c_str());
+    TEST_ASSERT_EQUAL(station.storage.log.size(), station.storage.logCursor);
+}
+
+void test_log_is_kept_when_the_server_refuses() {
+    Station station;
+    station.storage.log = "line 1\n";
+    station.network.serverWorks = false;
+    station.wake();
+
+    TEST_ASSERT_EQUAL(0, station.storage.logCursor);
+}
+
 // --- F3 · Hourly upload: content of the requests ---
 
 void test_f3_upload_sends_the_new_rows_once() {
@@ -303,6 +327,8 @@ int main() {
     RUN_TEST(test_f3_n3_one_day_gives_24_uploads);
     RUN_TEST(test_f4_three_days_give_3_syncs_on_upload_connections);
     RUN_TEST(test_n3_storage_closed_once_after_its_last_use);
+    RUN_TEST(test_log_is_sent_with_the_measurements);
+    RUN_TEST(test_log_is_kept_when_the_server_refuses);
     RUN_TEST(test_f3_upload_sends_the_new_rows_once);
     RUN_TEST(test_n1_server_error_keeps_rows_for_next_upload);
     RUN_TEST(test_large_backlog_is_sent_in_several_requests);

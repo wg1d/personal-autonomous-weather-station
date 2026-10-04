@@ -14,6 +14,7 @@
 
 #include <Arduino.h>
 
+#include "Console.h"
 #include "ILog.h"
 
 /**
@@ -22,6 +23,6 @@
 class SerialLog : public ILog {
 public:
     void stateEntered(const char* name) override {
-        Serial.printf("-> %s\n", name);
+        console.printf("-> %s\n", name);
     }
 };

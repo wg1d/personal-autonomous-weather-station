@@ -30,6 +30,7 @@
 #include "StateMachine.h"
 #include "adapters/AccessPointMaintenance.h"
 #include "adapters/Bme280Sensor.h"
+#include "adapters/Console.h"
 #include "adapters/Ds3231Clock.h"
 #include "adapters/Esp32Power.h"
 #include "adapters/SdStorage.h"
@@ -53,6 +54,9 @@ const bool kBenchDemo = PAWS_BENCH_DEMO;
 /// and the watchdog restarts the chip.
 const uint32_t kWatchdogS = 10 * 60;
 
+/// The console of the adapters: serial port, and log of the wake-up
+Console console;
+
 Ds3231Clock rtcClock;
 Bme280Sensor sensor;
 SdCard card;
@@ -66,8 +70,8 @@ SerialLog serialLog;
 /// Runs one wake-up of the state machine, which ends in deep sleep
 void setup() {
     Serial.begin(115200);
-    Serial.printf("\nPAWS firmware %s%s\n", PAWS_VERSION,
-                  kBenchDemo ? " (bench periods)" : "");
+    console.printf("\nPAWS firmware %s%s\n", PAWS_VERSION,
+                   kBenchDemo ? " (bench periods)" : "");
 
     // If this wake-up ever freezes (a library waiting forever, for
     // example), the watchdog restarts the chip: the next boot measures and

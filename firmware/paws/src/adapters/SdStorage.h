@@ -4,8 +4,10 @@
  *
  * Description:
  * Storage adapter for the SD card: appends each row to the CSV file
- * /measurements_v1.csv, and gives back the rows after the upload cursor,
- * kept in /upload.idx. The card module is powered only while it is used.
+ * /measurements_v1.csv, appends the log of each wake-up to /log.txt, and
+ * gives back the rows and log lines after their upload cursors
+ * (/upload.idx, /log.idx). The card module is powered only during the
+ * wake-up.
  *
  * Wiring:
  * - SD card: 5V -> VCC, GND -> GND, Pin 19 -> MISO, Pin 23 -> MOSI,
@@ -20,9 +22,14 @@
 #include <Arduino.h>
 #include <SD.h>
 
+#include "Console.h"
 #include "CsvFormat.h"
 #include "IStorage.h"
 #include "SdCard.h"
+
+/// Maximum size of the log file, about a month of wake-ups with the
+/// periods of the design (about 300 bytes per wake-up)
+const size_t kLogMaxSize = 1024 * 1024;
 
 /**
  * @brief Storage adapter for the SD card.
@@ -43,31 +50,52 @@ public:
     bool append(const Record& record) override {
         char row[kCsvRowSize];
         if (!formatCsvRow(record, row, sizeof(row))) {
-            Serial.println("   row too long for the buffer");
+            console.println("   row too long for the buffer");
             return false;
         }
+        // The timestamp starts the row: kept to date the log entry
+        memcpy(wakeTime_, row, sizeof(wakeTime_) - 1);
         bool stored = card_.mount() && write(row);
-        Serial.printf("   %s: %s\n", stored ? "stored" : "NOT stored", row);
+        console.printf("   %s: %s\n", stored ? "stored" : "NOT stored", row);
         return stored;
     }
 
-    size_t readUnsent(char* buffer, size_t size) override {
-        return card_.mount() ? read(buffer, size) : 0;
+    size_t readUnsent(DataKind kind, char* buffer, size_t size) override {
+        return card_.mount() ? read(kind, buffer, size) : 0;
     }
 
-    bool markSent(size_t length) override {
-        return card_.mount() && saveCursor(unsentStart_ + length);
+    bool markSent(DataKind kind, size_t length) override {
+        return card_.mount() &&
+               saveCursor(cursorFile(kind), unsentStart_ + length);
     }
 
-    void close() override { card_.unmount(); }
+    void close() override {
+        // The last line of the log of this wake-up
+        console.printf("   awake for %lu ms\n",
+                       static_cast<unsigned long>(millis()));
+        // Only if the card was usable during the wake-up: trying to mount
+        // a missing card again would only make the wake-up longer
+        if (card_.isMounted()) {
+            writeLog();
+        }
+        card_.unmount();
+    }
 
 private:
+    static const char* dataFile(DataKind kind) {
+        return kind == DataKind::Log ? kLogFileName : kCsvFileName;
+    }
+
+    static const char* cursorFile(DataKind kind) {
+        return kind == DataKind::Log ? kLogCursorFileName : kCursorFileName;
+    }
+
     // Appends the row, after the header if the file is new
     bool write(const char* row) {
         bool newFile = !SD.exists(kCsvFileName);
         File file = SD.open(kCsvFileName, FILE_APPEND);
         if (!file) {
-            Serial.println("   cannot open the CSV file");
+            console.println("   cannot open the CSV file");
             return false;
         }
         if (newFile) {
@@ -79,20 +107,56 @@ private:
         return written;
     }
 
-    // Reads complete rows from the cursor, as many as fit in the buffer
-    size_t read(char* buffer, size_t size) {
+    // Appends what the console kept during this wake-up to the log file
+    void writeLog() {
+        // Rotation: past its maximum size, the log becomes the old log,
+        // and the previous old log is deleted. Its unsent lines are no
+        // longer uploaded, but stay on the card.
+        if (SD.exists(kLogFileName)) {
+            File current = SD.open(kLogFileName, FILE_READ);
+            size_t size = current.size();
+            current.close();
+            if (size > kLogMaxSize) {
+                SD.remove(kOldLogFileName);
+                SD.rename(kLogFileName, kOldLogFileName);
+                SD.remove(kLogCursorFileName);
+            }
+        }
+        File file = SD.open(kLogFileName, FILE_APPEND);
+        if (!file) {
+            return;  // the log is a help, not data: nothing more to do
+        }
+        // A blank line, then the date of the wake-up, before its lines
+        file.printf("\n=== %s ===\n", wakeTime_);
+        // The console starts with a line break, which separates the first
+        // line from the boot messages on the serial port: not needed here
+        const char* text = console.text();
+        size_t length = console.length();
+        if (length > 0 && text[0] == '\n') {
+            ++text;
+            --length;
+        }
+        file.write(reinterpret_cast<const uint8_t*>(text), length);
+        if (console.truncated()) {
+            file.println("   (log of this wake-up truncated)");
+        }
+        file.close();
+    }
+
+    // Reads complete lines from the cursor, as many as fit in the buffer
+    size_t read(DataKind kind, char* buffer, size_t size) {
         // Check first: opening a missing file prints an error of the
         // SD library, although it is a normal case here
-        if (!SD.exists(kCsvFileName)) {
+        if (!SD.exists(dataFile(kind))) {
             return 0;  // no file yet: nothing to send
         }
-        File file = SD.open(kCsvFileName, FILE_READ);
+        File file = SD.open(dataFile(kind), FILE_READ);
         if (!file) {
             return 0;
         }
-        uint32_t cursor = card_.loadCursor();
-        if (cursor == 0) {
-            // Start of the file: skip the header line, which the core
+        uint32_t cursor = card_.loadCursor(cursorFile(kind));
+        if (cursor == 0 && kind == DataKind::Measurements) {
+            // Start of the CSV file: skip the header line, which the core
             // adds to each request itself
             while (file.available() && file.read() != '\n') {
             }
@@ -102,7 +166,7 @@ private:
         size_t length = file.read(reinterpret_cast<uint8_t*>(buffer), size);
         file.close();
 
-        // Keep complete rows only: cut after the last line break
+        // Keep complete lines only: cut after the last line break
         while (length > 0 && buffer[length - 1] != '\n') {
             --length;
         }
@@ -113,11 +177,11 @@ private:
 
     // The cursor is stored as text, for example "1234" (see
     // SdCard::loadCursor())
-    bool saveCursor(uint32_t cursor) {
+    bool saveCursor(const char* fileName, uint32_t cursor) {
         // FILE_WRITE replaces the previous content
-        File file = SD.open(kCursorFileName, FILE_WRITE);
+        File file = SD.open(fileName, FILE_WRITE);
         if (!file) {
-            Serial.println("   cannot save the upload cursor");
+            console.println("   cannot save the upload cursor");
             return false;
         }
         bool saved = file.print(cursor) > 0;
@@ -126,5 +190,6 @@ private:
     }
 
     SdCard& card_;
-    uint32_t unsentStart_ = 0;  // where the rows of the last read start
+    uint32_t unsentStart_ = 0;  // where the lines of the last read start
+    char wakeTime_[21] = "unknown time";  // timestamp of the last row
 };

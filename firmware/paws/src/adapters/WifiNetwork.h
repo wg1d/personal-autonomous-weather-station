@@ -19,6 +19,7 @@
 #include <sys/time.h>
 #include <time.h>
 
+#include "Console.h"
 #include "INetwork.h"
 
 /// NTP servers, chosen among the closest ones by the pool
@@ -49,8 +50,8 @@ public:
      *
      * @param[in] ssid Name of the network.
      * @param[in] password Password of the network.
-     * @param[in] serverUrl Address of the measurements endpoint, such as
-     *            "http://192.168.1.15:8080/api/v1/measurements".
+     * @param[in] serverUrl Address of the server, such as
+     *            "http://192.168.1.15:8080".
      */
     WifiNetwork(const char* ssid, const char* password,
                 const char* serverUrl)
@@ -69,7 +70,7 @@ public:
         uint32_t start = millis();
         while (WiFi.status() != WL_CONNECTED) {
             if (millis() - start > timeoutS * 1000) {
-                Serial.println("   Wi-Fi not reachable");
+                console.println("   Wi-Fi not reachable");
                 // The router may have changed channel: scan again next time
                 lastWifiChannel = 0;
                 disconnect();
@@ -77,7 +78,7 @@ public:
             }
             delay(kWifiPollMs);
         }
-        Serial.printf("   Wi-Fi connected in %lu ms\n",
+        console.printf("   Wi-Fi connected in %lu ms\n",
                       static_cast<unsigned long>(millis() - start));
 
         lastWifiChannel = WiFi.channel();
@@ -91,11 +92,16 @@ public:
         WiFi.mode(WIFI_OFF);
     }
 
-    bool send(const char* data, size_t length) override {
+    bool send(DataKind kind, const char* data, size_t length) override {
+        bool isLog = kind == DataKind::Log;
+        char url[128];
+        snprintf(url, sizeof(url), "%s%s", serverUrl_,
+                 isLog ? "/api/v1/logs" : "/api/v1/measurements");
+
         HTTPClient http;
-        http.begin(serverUrl_);
+        http.begin(url);
         http.setTimeout(kServerTimeoutMs);
-        http.addHeader("Content-Type", "text/csv");
+        http.addHeader("Content-Type", isLog ? "text/plain" : "text/csv");
         int status = http.POST(
             reinterpret_cast<uint8_t*>(const_cast<char*>(data)), length);
 
@@ -116,8 +122,9 @@ public:
         http.end();
 
         // A negative status is a connection error, not an HTTP status
-        Serial.printf("   sent %lu bytes, server answered %d %s\n",
-                      static_cast<unsigned long>(length), status, answer);
+        console.printf("   sent %lu bytes of %s, server answered %d %s\n",
+                       static_cast<unsigned long>(length),
+                       isLog ? "log" : "measurements", status, answer);
         return status >= 200 && status < 300;
     }
 
@@ -132,11 +139,11 @@ public:
         configTime(0, 0, kNtpServer);
         tm received;
         if (!getLocalTime(&received, timeoutS * 1000)) {
-            Serial.println("   NTP not answering");
+            console.println("   NTP not answering");
             return false;
         }
         unixTime = static_cast<uint32_t>(time(nullptr));
-        Serial.println("   NTP time received");
+        console.println("   NTP time received");
         return true;
     }
 

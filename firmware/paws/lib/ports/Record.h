@@ -4,7 +4,8 @@
  *
  * Description:
  * The data exchanged between the core and the adapters: one measurement
- * of all sensors, and the row stored for each wake-up.
+ * of all sensors, the row stored for each wake-up, and the kinds of data
+ * that are uploaded.
  *
  * Dependencies: none (standard C++ only).
  */
@@ -34,4 +35,14 @@ struct Record {
     uint32_t timestamp = 0;  ///< Time of the measurement (Unix time, UTC)
     bool timeValid = false;  ///< false if the clock was not reliable (F6)
     Measurement values;      ///< The values read from the sensors
+};
+
+/**
+ * @brief The two kinds of data that the station keeps and uploads.
+ *
+ * Each one has its own file and its own upload cursor.
+ */
+enum class DataKind {
+    Measurements,  ///< The rows of the CSV file
+    Log,           ///< The lines of the log of the wake-ups
 };

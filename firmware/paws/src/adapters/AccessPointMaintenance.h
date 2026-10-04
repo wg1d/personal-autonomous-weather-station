@@ -4,8 +4,8 @@
  *
  * Description:
  * Maintenance mode (F5): the ESP32 starts its own Wi-Fi network (an
- * access point) and a web page, to download or delete the data of the
- * SD card from a phone, for a limited time.
+ * access point) and a web page, to download or delete the measurements
+ * of the SD card, or download its log, from a phone, for a limited time.
  *
  * Wiring: none (Wi-Fi is built into the ESP32; SD card: see SdCard.h).
  * Dependencies: ESP32 Arduino core (WiFi, WebServer, SD), lib/core (CSV
@@ -19,6 +19,7 @@
 #include <WebServer.h>
 #include <WiFi.h>
 
+#include "Console.h"
 #include "CsvFormat.h"
 #include "IMaintenance.h"
 #include "SdCard.h"
@@ -27,8 +28,8 @@
 /// the icon is a sunflower drawn from an emoji, so that no image file is
 /// needed. The %s and %lu are filled by sendPage(): a message, the state
 /// of the card, "disabled" twice when there is nothing to download or
-/// delete, the firmware version, then twice the time left, which a small
-/// script counts down;
+/// delete, "disabled" once more when there is no log, the firmware
+/// version, then twice the time left, which a small script counts down;
 /// at 0, it tells that the access point is closed. The script also puts
 /// the address back to "/", so that a message such as "Measurements
 /// deleted." is not shown again when the page is reloaded.
@@ -44,13 +45,16 @@ const char kMaintenancePage[] =
     "button{width:100%%;max-width:320px;padding:15px;font-size:18px;"
     "margin:8px 0;border:none;border-radius:8px;color:white}"
     "small{color:#888}"
-    ".download{background:#4CAF50}.delete{background:#f44336}"
+    ".download{background:#4CAF50}.log{background:#2196F3}"
+    ".delete{background:#f44336}"
     "button:disabled{background:#bbb}</style></head>"
     "<body><h1>&#127803; PAWS maintenance</h1>"
     "<p><b>%s</b></p><p>%s</p>"
     "<form action='/download'>"
     "<button class='download' %s>Download the measurements</button>"
     "</form>"
+    "<form action='/log'>"
+    "<button class='log' %s>Download the log</button></form>"
     "<form action='/delete' method='POST' onsubmit=\"return confirm("
     "'Delete all the measurements, including those not uploaded yet?')\">"
     "<button class='delete' type='submit' %s>Delete the measurements"
@@ -94,9 +98,9 @@ public:
 
         WiFi.mode(WIFI_AP);
         WiFi.softAP(ssid_, password_);
-        Serial.printf("   access point \"%s\" started, page: http://",
+        console.printf("   access point \"%s\" started, page: http://",
                       ssid_);
-        Serial.println(WiFi.softAPIP());
+        console.println(WiFi.softAPIP());
 
         start_ = millis();
         durationMs_ = durationS * 1000;
@@ -117,6 +121,9 @@ public:
         server.on("/download", HTTP_GET, [this, &server]() {
             sendMeasurements(server);
         });
+        server.on("/log", HTTP_GET, [this, &server]() {
+            sendLog(server);
+        });
         server.on("/delete", HTTP_POST, [this, &server]() {
             deleteMeasurements(server);
         });
@@ -136,7 +143,7 @@ public:
         server.stop();
         // Turning the Wi-Fi off also stops the access point
         WiFi.mode(WIFI_OFF);
-        Serial.println("   access point stopped");
+        console.println("   access point stopped");
     }
 
 private:
@@ -162,7 +169,7 @@ private:
         } else if (empty) {
             snprintf(state, sizeof(state), "No measurements on the card.");
         } else {
-            uint32_t cursor = card_.loadCursor();
+            uint32_t cursor = card_.loadCursor(kCursorFileName);
             size_t unsent = cursor < size ? size - cursor : 0;
             snprintf(state, sizeof(state),
                      "%lu KB of measurements on the card, %lu KB not "
@@ -173,10 +180,13 @@ private:
 
         unsigned long secondsLeft = (durationMs_ - (millis() - start_)) / 1000;
         const char* disabled = empty ? "disabled" : "";
+        bool noLog = !cardReady_ || !SD.exists(kLogFileName);
+        const char* logDisabled = noLog ? "disabled" : "";
 
         char page[sizeof(kMaintenancePage) + 200];
         snprintf(page, sizeof(page), kMaintenancePage, message, state,
-                 disabled, disabled, secondsLeft, version_, secondsLeft);
+                 disabled, logDisabled, disabled, secondsLeft, version_,
+                 secondsLeft);
         server.send(200, "text/html", page);
     }
 
@@ -191,7 +201,20 @@ private:
                           "attachment; filename=measurements_v1.csv");
         server.streamFile(file, "text/csv");
         file.close();
-        Serial.println("   measurements downloaded");
+        console.println("   measurements downloaded");
+    }
+
+    void sendLog(WebServer& server) {
+        if (!cardReady_ || !SD.exists(kLogFileName)) {
+            sendPage(server, "No log on the card.");
+            return;
+        }
+        File file = SD.open(kLogFileName, FILE_READ);
+        server.sendHeader("Content-Disposition",
+                          "attachment; filename=log.txt");
+        server.streamFile(file, "text/plain");
+        file.close();
+        console.println("   log downloaded");
     }
 
     void deleteMeasurements(WebServer& server) {
@@ -201,7 +224,7 @@ private:
             SD.remove(kCsvFileName);
             SD.remove(kCursorFileName);
             deleted = true;
-            Serial.println("   measurements deleted");
+            console.println("   measurements deleted");
         }
         // Send the phone back to the main page (code 303, "see other"),
         // instead of answering here: reloading the page then cannot send

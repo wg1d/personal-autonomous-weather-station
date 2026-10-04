@@ -17,6 +17,7 @@
 #include <Arduino.h>
 #include <RTClib.h>
 
+#include "Console.h"
 #include "IClock.h"
 
 /// Time of the last setTime(), kept in RTC memory across deep sleep
@@ -39,7 +40,7 @@ public:
     bool begin() {
         responding_ = rtc_.begin();
         if (!responding_) {
-            Serial.println("   DS3231 not responding");
+            console.println("   DS3231 not responding");
             return false;
         }
         // The 32 kHz output is not used: turn it off to save power
@@ -75,7 +76,7 @@ public:
         DateTime time(unixTime);
         rtc_.adjust(time);
         ds3231LastSet = unixTime;
-        Serial.printf("   clock set to %02d:%02d:%02d\n", time.hour(),
+        console.printf("   clock set to %02d:%02d:%02d\n", time.hour(),
                       time.minute(), time.second());
     }
 
@@ -92,7 +93,7 @@ public:
         if (!rtc_.setAlarm1(alarm, DS3231_A1_Hour)) {
             return false;
         }
-        Serial.printf("   alarm set for %02d:%02d:%02d\n", alarm.hour(),
+        console.printf("   alarm set for %02d:%02d:%02d\n", alarm.hour(),
                       alarm.minute(), alarm.second());
         return true;
     }

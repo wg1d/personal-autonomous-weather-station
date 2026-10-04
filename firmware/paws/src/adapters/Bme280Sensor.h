@@ -17,6 +17,7 @@
 #include <Adafruit_BME280.h>
 #include <Arduino.h>
 
+#include "Console.h"
 #include "ISensor.h"
 
 /// I2C address of the BME280 module (0x76 when SDO is tied to GND)
@@ -34,7 +35,7 @@ public:
         Measurement measurement;  // all values missing until read
 
         if (!bme_.begin(kBme280Address)) {
-            Serial.println("   BME280 not responding");
+            console.println("   BME280 not responding");
             return measurement;
         }
         // Forced mode: one measurement on demand, then the sensor goes
@@ -49,7 +50,7 @@ public:
                          Adafruit_BME280::SAMPLING_X1,  // humidity
                          Adafruit_BME280::FILTER_OFF);
         if (!bme_.takeForcedMeasurement()) {
-            Serial.println("   BME280 measurement timed out");
+            console.println("   BME280 measurement timed out");
             return measurement;
         }
 
