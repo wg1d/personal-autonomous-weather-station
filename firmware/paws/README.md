@@ -39,3 +39,13 @@ pixi run test             # unit and scenario tests on the computer
 pixi run build-firmware   # build the firmware for the board
 pixi run api-docs         # this documentation (after pixi run book)
 ```
+
+The project has three PlatformIO environments:
+
+| Environment | Use |
+|-------------|-----|
+| `esp32` | The firmware of the station: one measurement every 15 minutes, one upload every hour. |
+| `esp32-bench` | The same firmware with short periods, to see the whole cycle on the bench: one measurement every minute, one upload every 5 minutes. |
+| `native` | The unit and scenario tests, on the computer. |
+
+The firmware prints its version at each boot, for example `PAWS firmware v0.7.0`. It is computed by Git at each build (`version.py`): the last version tag, followed by the commits since that tag when there are any.
