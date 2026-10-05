@@ -35,6 +35,9 @@ Once the production firmware is reliable, we shift our focus away from the ESP32
 
 While Phases 1 through 6 represent the core project (from data collection to forecasting), the following sections are purely optional ideas to expand the station's capabilities if we decide to take it further.
 
+## A Single Definition of the Data Format (Idea)
+The CSV format of the measurements is written twice: in C++ in the firmware, which writes the rows, and in Python in the backend, which reads them. A single reference file could describe the columns (name, type, unit), and a small script could generate the code of both sides from it, so that they can never disagree. This becomes more useful as new sensors add columns to the format.
+
 ## Adding Light & UV Sensors (Idea)
 Once we validate that the system is working fine (data acquisition, storage, data transfer, and basic ML), let's improve the station by adding some new sensors. Let's start by adding a light and UV sensor to the station like the BH1750 and the VEML6075.
 
