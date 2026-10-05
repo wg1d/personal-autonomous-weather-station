@@ -37,6 +37,9 @@ pixi run book             # generate the book in docs/_output
 pixi run api-docs         # generate the firmware API docs in docs/_output/api
 pixi run preview          # live preview of the book in the browser
 pixi run dummy-server     # start the Phase 3 dummy backend server
+pixi run backend          # start the backend on this computer (port 8080)
+pixi run backend-test     # run the backend tests
+pixi run deploy-backend   # deploy the committed backend to the server
 ```
 
 The first build downloads the ESP32 toolchain into `.pio-core/` (about 1.5 GB), inside the repository, so it does not interfere with an existing `~/.platformio`.
@@ -63,6 +66,33 @@ In VS Code with the PlatformIO extension, choose `env:esp32` or `env:esp32-bench
 The Proof of Concept sketches (`firmware/PoC/`) are flashed the same way, with their own folder after `-d`.
 
 The Wi-Fi sketches read their credentials from a git-ignored `secrets.h`: copy `secrets.example.h` to `secrets.h` in the sketch folder and fill in your values. If `secrets.h` is missing, `pixi run build-firmware` creates it from the example, with placeholder values that only allow the sketch to compile.
+
+### 4. Run the backend on the server
+
+The backend (`backend/paws`) runs on a computer that stays on at home, as a systemd service named `paws-backend`, on port 8080. It is managed by [uv](https://docs.astral.sh/uv/), which must be installed on the server (`~/.local/bin/uv`), with SSH access from the development computer.
+
+`pixi run deploy-backend` deploys the committed code to the SSH host `pi` (another host can be given: `bash scripts/deploy-backend.sh <host>`). It refuses to deploy changes that are not committed. On the server, the code lives in `~/paws/backend`, replaced at each deployment, and the data in `~/paws/data`, never touched by a deployment.
+
+To stop the service, for example while the station is off, and keep it from starting again when the server boots:
+
+```bash
+ssh pi 'sudo systemctl disable --now paws-backend'
+```
+
+To start it again, now and at each boot:
+
+```bash
+ssh pi 'sudo systemctl enable --now paws-backend'
+```
+
+A deployment also starts the service, and enables it at boot. To check its state and read its messages:
+
+```bash
+ssh pi 'systemctl status paws-backend'
+ssh pi 'journalctl -u paws-backend -n 50'
+```
+
+The station sends its data to the address set by `kServerUrl` in `firmware/paws/include/secrets.h`, for example `http://192.168.1.28:8080`.
 
 ### Environments
 
