@@ -79,28 +79,37 @@ def rows_between(connection, start, end):
     included, end is not. The timestamps are stored as text, but in this
     format their alphabetical order is the order of time: comparing them
     as text is enough.
+
+    Each row also holds "local_time": its time in the local time of the
+    server, as text ("2026-10-05 14:45:00"), converted by SQLite
+    ('localtime') much faster than Python would.
     """
     rows = connection.execute(
-        "SELECT * FROM measurements WHERE time_valid = 1 "
-        "AND timestamp >= ? AND timestamp < ? ORDER BY timestamp",
-        (start, end)).fetchall()
-    return [dict(zip(COLUMNS, row)) for row in rows]
+        "SELECT *, datetime(timestamp, 'localtime') FROM measurements "
+        "WHERE time_valid = 1 AND timestamp >= ? AND timestamp < ? "
+        "ORDER BY timestamp", (start, end)).fetchall()
+    return [dict(zip(COLUMNS + ["local_time"], row)) for row in rows]
 
 
-def daily_summary(connection):
-    """Returns the minimum, average and maximum of each day.
+def daily_summary(connection, start, end):
+    """Returns the minimum, average and maximum of each day, start to end.
 
-    The days are those of the local time of the server: SQLite converts
-    each timestamp ('localtime'), then groups the rows of the same date.
+    The days are those of UTC: the first ten characters of the timestamp,
+    its date. Converting each timestamp to local time first would take
+    seconds on the server, for several years of rows; in France, a day in
+    UTC starts at 1:00 or 2:00, which changes little to its minimum,
+    average and maximum.
+
     Returns one dictionary per day, oldest first, with the keys "day" and
     "<column>_min", "<column>_avg", "<column>_max" for each quantity.
     """
     quantities = COLUMNS[2:]
     columns = ", ".join(f"MIN({q}), AVG({q}), MAX({q})" for q in quantities)
     rows = connection.execute(
-        f"SELECT date(timestamp, 'localtime') AS day, {columns} "
+        f"SELECT substr(timestamp, 1, 10) AS day, {columns} "
         "FROM measurements WHERE time_valid = 1 "
-        "GROUP BY day ORDER BY day").fetchall()
+        "AND timestamp >= ? AND timestamp < ? "
+        "GROUP BY day ORDER BY day", (start, end)).fetchall()
     keys = ["day"] + [f"{q}_{s}" for q in quantities
                       for s in ("min", "avg", "max")]
     return [dict(zip(keys, row)) for row in rows]

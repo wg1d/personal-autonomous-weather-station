@@ -23,8 +23,8 @@ Dependencies: dash (which includes plotly).
 
 from datetime import datetime, timedelta, timezone
 
+import plotly.io as pio
 from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
-from plotly.subplots import make_subplots
 
 from . import database
 from .protocol import TIMESTAMP_FORMAT
@@ -42,13 +42,12 @@ PERIOD_LABELS = {"24h": "24 hours", "7d": "7 days", "30d": "30 days",
 # How much data the graphs hold on each side of the period shown, so that
 # dragging them shows the data before or after right away. Plotly only
 # tells the server where the graphs are when the mouse is released: the
-# page then loads the data around the new position. Over a year, each day
-# is a single point: the whole history is loaded.
+# page then loads the data around the new position.
 MARGINS = {
     "24h": timedelta(days=7),
     "7d": timedelta(days=28),
     "30d": timedelta(days=60),
-    "1y": None,
+    "1y": timedelta(days=365),
 }
 
 # The quantities shown: column of the database, name, unit, color
@@ -67,9 +66,12 @@ REFRESH_MS = 5 * 60 * 1000
 
 
 def parse_timestamp(text):
-    """Turns a timestamp of the station into a datetime in UTC."""
-    return datetime.strptime(text, TIMESTAMP_FORMAT).replace(
-        tzinfo=timezone.utc)
+    """Turns a timestamp of the station into a datetime in UTC.
+
+    The format of the station is ISO 8601, which fromisoformat() reads,
+    the Z suffix included, much faster than strptime().
+    """
+    return datetime.fromisoformat(text)
 
 
 def to_timestamp(moment):
@@ -189,14 +191,22 @@ def _transparent(color, alpha):
     return f"rgba({red},{green},{blue},{alpha})"
 
 
-# Colors of the two themes: background of the page and of the cards; the
-# graphs use the matching Plotly template
+# Colors of the two themes: background of the cards, and of the dotted
+# lines at midnight. The graphs use the matching template of Plotly, its
+# set of colors, fonts and grids, read once as a dictionary
 THEMES = {
-    "dark": {"template": "plotly_dark", "card": "#1f242c",
-             "midnight": "rgba(255,255,255,0.3)"},
-    "light": {"template": "plotly_white", "card": "#ffffff",
-              "midnight": "rgba(0,0,0,0.3)"},
+    "dark": {"template": pio.templates["plotly_dark"].to_plotly_json(),
+             "card": "#1f242c", "midnight": "rgba(255,255,255,0.3)"},
+    "light": {"template": pio.templates["plotly_white"].to_plotly_json(),
+              "card": "#ffffff", "midnight": "rgba(0,0,0,0.3)"},
 }
+
+# Where each graph sits in the figure, from the bottom (0) to the top (1):
+# the temperature at the top, the pressure at the bottom
+DOMAINS = [[0.72, 1.0], [0.36, 0.64], [0.0, 0.28]]
+
+# The format of the times given to Plotly, in local time
+PLOTLY_TIME = "%Y-%m-%d %H:%M:%S"
 
 
 def midnights(first, last):
@@ -218,57 +228,85 @@ def figure(period, rows, days, start, stop, theme):
     the period from start to stop, but hold more data on each side (see
     MARGINS), so that the visitor can drag them to see what comes before
     or after.
+
+    The figure is written as a dictionary, in the format that Plotly reads
+    in the browser: "data" holds the curves, "layout" the axes, titles and
+    colors. The figure objects of Plotly (plotly.graph_objects) would
+    check each of the thousands of values, which takes seconds on the
+    small computer of the server.
     """
-    result = make_subplots(rows=3, cols=1, shared_xaxes=True,
-                           vertical_spacing=0.08,
-                           subplot_titles=[f"{name} ({unit})"
-                                           for _, name, unit, _ in QUANTITIES])
-    for line, (column, name, unit, color) in enumerate(QUANTITIES, start=1):
+    data = []
+    layout = {}
+    times = [row["local_time"] for row in rows]
+    for index, (column, name, unit, color) in enumerate(QUANTITIES):
+        # Plotly names the axes x, x2, x3 and y, y2, y3
+        suffix = "" if index == 0 else str(index + 1)
+        axes = {"xaxis": "x" + suffix, "yaxis": "y" + suffix}
+        hover = f"%{{y:.1f}} {unit}<extra>{name}</extra>"
         if period == "1y":
             x = [day["day"] for day in days]
             # The minimum first, without a line, then the maximum, filled
             # down to the minimum: the band between them
-            result.add_scatter(
-                x=x, y=[day[f"{column}_min"] for day in days],
-                mode="lines", line={"width": 0}, legendgroup=name,
-                showlegend=False, hoverinfo="skip", row=line, col=1)
-            result.add_scatter(
-                x=x, y=[day[f"{column}_max"] for day in days],
-                mode="lines", line={"width": 0}, fill="tonexty",
-                fillcolor=_transparent(color, 0.2), legendgroup=name,
-                name=f"{name}: daily min – max", hoverinfo="skip",
-                row=line, col=1)
-            result.add_scatter(
-                x=x, y=[day[f"{column}_avg"] for day in days],
-                mode="lines", line={"color": color}, legendgroup=name,
-                name=f"{name}: daily average",
-                hovertemplate=f"%{{y:.1f}} {unit}<extra>{name}</extra>",
-                row=line, col=1)
+            data.append({"type": "scatter", "x": x, **axes,
+                         "y": [day[f"{column}_min"] for day in days],
+                         "mode": "lines", "line": {"width": 0},
+                         "legendgroup": name, "showlegend": False,
+                         "hoverinfo": "skip"})
+            data.append({"type": "scatter", "x": x, **axes,
+                         "y": [day[f"{column}_max"] for day in days],
+                         "mode": "lines", "line": {"width": 0},
+                         "fill": "tonexty",
+                         "fillcolor": _transparent(color, 0.2),
+                         "legendgroup": name,
+                         "name": f"{name}: daily min – max",
+                         "hoverinfo": "skip"})
+            data.append({"type": "scatter", "x": x, **axes,
+                         "y": [day[f"{column}_avg"] for day in days],
+                         "mode": "lines", "line": {"color": color},
+                         "legendgroup": name,
+                         "name": f"{name}: daily average",
+                         "hovertemplate": hover})
         else:
-            result.add_scatter(
-                x=[to_local(parse_timestamp(r["timestamp"])) for r in rows],
-                y=[r[column] for r in rows], mode="lines",
-                line={"color": color, "width": 2}, name=name,
-                hovertemplate=f"%{{y:.1f}} {unit}<extra>{name}</extra>",
-                row=line, col=1)
-        # Only the time axis moves: the values keep their scale
-        result.update_yaxes(fixedrange=True, row=line, col=1)
+            data.append({"type": "scatter", "x": times, **axes,
+                         "y": [row[column] for row in rows],
+                         "mode": "lines",
+                         "line": {"color": color, "width": 2}, "name": name,
+                         "hovertemplate": hover})
+        # Each graph has its own value axis, which keeps its scale (only
+        # time moves), and a time axis that follows the first one
+        # ("matches"); only the time axis of the bottom graph shows dates
+        layout["yaxis" + suffix] = {"domain": DOMAINS[index],
+                                    "anchor": "x" + suffix,
+                                    "fixedrange": True}
+        layout["xaxis" + suffix] = {"anchor": "y" + suffix, "type": "date",
+                                    "showticklabels": index == 2}
+        if index > 0:
+            layout["xaxis" + suffix]["matches"] = "x"
+
     if period == "1y":
-        shown = [f"{to_local(start):%Y-%m-%d}", f"{to_local(stop):%Y-%m-%d}"]
+        layout["xaxis"]["range"] = [f"{to_local(start):%Y-%m-%d}",
+                                    f"{to_local(stop):%Y-%m-%d}"]
     else:
-        shown = [to_local(start), to_local(stop)]
-    result.update_xaxes(range=shown)
-    if period != "1y":
+        layout["xaxis"]["range"] = [f"{to_local(start):{PLOTLY_TIME}}",
+                                    f"{to_local(stop):{PLOTLY_TIME}}"]
         # A dotted line at each midnight, across the three graphs, to tell
         # the days apart
         margin = MARGINS[period]
-        for midnight in midnights(to_local(start - margin),
-                                  to_local(stop + margin)):
-            result.add_shape(type="line", x0=midnight, x1=midnight,
-                             xref="x", y0=0, y1=1, yref="paper",
-                             line={"color": THEMES[theme]["midnight"],
-                                   "width": 1, "dash": "dot"})
-    result.update_layout(
+        line = {"color": THEMES[theme]["midnight"], "width": 1, "dash": "dot"}
+        layout["shapes"] = [
+            {"type": "line", "x0": f"{midnight:{PLOTLY_TIME}}",
+             "x1": f"{midnight:{PLOTLY_TIME}}", "xref": "x",
+             "y0": 0, "y1": 1, "yref": "paper", "line": line}
+            for midnight in midnights(to_local(start - margin),
+                                      to_local(stop + margin))]
+
+    # The title of each graph, above it
+    layout["annotations"] = [
+        {"text": f"{name} ({unit})", "x": 0.5, "xref": "paper",
+         "y": DOMAINS[index][1], "yref": "paper", "yanchor": "bottom",
+         "showarrow": False, "font": {"size": 16}}
+        for index, (_, name, unit, _) in enumerate(QUANTITIES)]
+    layout.update(
         template=THEMES[theme]["template"],
         paper_bgcolor=THEMES[theme]["card"],
         plot_bgcolor=THEMES[theme]["card"],
@@ -281,7 +319,7 @@ def figure(period, rows, days, start, stop, theme):
         legend={"orientation": "h", "x": 0, "y": 0, "yref": "container",
                 "yanchor": "bottom"},
         font={"family": "system-ui, sans-serif"})
-    return result
+    return {"data": data, "layout": layout}
 
 
 def build_view(connection, period, end, now, theme="dark"):
@@ -295,15 +333,14 @@ def build_view(connection, period, end, now, theme="dark"):
     last = database.last_row(connection)
     stale, status, alert = health(last, now)
     start, stop = window(period, end, now)
+    # The period shown, and a margin on each side to drag the graphs into
+    loaded = (to_timestamp(start - MARGINS[period]),
+              to_timestamp(stop + MARGINS[period]))
     rows, days = [], []
     if period == "1y":
-        days = database.daily_summary(connection)
+        days = database.daily_summary(connection, *loaded)
     else:
-        # The margin on each side, to drag the graphs into
-        margin = MARGINS[period]
-        rows = database.rows_between(connection,
-                                     to_timestamp(start - margin),
-                                     to_timestamp(stop + margin))
+        rows = database.rows_between(connection, *loaded)
     first = database.first_timestamp(connection)
     return {"stale": stale, "status": status, "alert": alert, "last": last,
             "label": window_label(period, start, stop),
