@@ -1,0 +1,116 @@
+# Backend Design {.unnumbered}
+
+The station now uploads its rows and its log once per hour, following the [Upload Protocol](../Architecture/Phase-04/00-3-data-and-upload.qmd#upload-protocol). On the bench, a [test server](../Architecture/Phase-04/04-2-upload.qmd#the-test-server) running on a development computer receives them. The backend replaces it with a server that stays on at home, keeps the data safely, and shows it in a dashboard.
+
+As for the firmware, this chapter designs the backend before any code: what it must do, the technical choices, how it is deployed and checked, and the steps that build it. The backend is much smaller than the firmware, so the design fits in one chapter.
+
+## Requirements
+
+The requirements follow the same pattern as those of the [firmware](../Architecture/Phase-04/00-1-requirements.qmd): an identifier, a short name, the requirement, and the reason why it exists. Their identifiers start with **B** for backend.
+
+### Functional requirements
+
+| ID | Name | Requirement | Why |
+|----|------|-------------|-----|
+| BF1 | Receive the measurements | Implement the server side of the upload protocol v1: check the format, store the new rows, ignore the rows whose timestamp is already stored, and answer with a summary. | The protocol is the contract with the station; the station only moves its cursor after a `2xx` answer. |
+| BF2 | Receive the log | Keep the log lines sent by the station, in the order received. | To understand, from home, what happened on the station when nobody was watching its serial port. |
+| BF3 | Dashboard | Show the last measurement, and the graphs of temperature, humidity and pressure over a chosen period (24 hours, 7 days, 30 days…). | The purpose of the station: see the weather it measures. |
+| BF4 | Health of the station | Show when the last row was received, and warn when it is older than two hours. | A station that stopped sending does not complain: the dashboard must make it visible. |
+| BF5 | Export | Download all the measurements as a CSV file. | To analyze the data elsewhere, and for the forecasting of the next phase. |
+
+### Non-functional requirements
+
+| ID | Name | Requirement | Why |
+|----|------|-------------|-----|
+| BN1 | No data loss | A row acknowledged to the station is stored durably, and the database is backed up every day. | Once acknowledged, the station never sends a row again: the backend is then the only copy outside the SD card. |
+| BN2 | Light | Run as a single service, using a fraction of the memory of the server computer, on a port of its own (8080). | The server is a small computer that also runs other services. |
+| BN3 | Always available | Start at boot, and restart by itself after a crash. | The station uploads every hour, day and night, without anyone watching. |
+| BN4 | Testable and deployable | Run and test on the development computer exactly as on the server, and deploy it with one command. | Every change is checked before it reaches the server, and a deployment never leaves stale files behind. |
+| BN5 | Local only | Stay on the home network, without authentication. | The scope of the project is a single user at home (see [Motivation & Goals](../01-motivation.qmd)); exposing the server to the internet would need encryption and authentication. |
+
+## The server computer
+
+The backend runs on a **Raspberry Pi 2 Model B**, which stays on at home. Its resources were checked before choosing the technologies:
+
+| Resource | Value |
+|----------|-------|
+| Processor | 4 cores, ARMv7, 32-bit |
+| Memory | 1 GB, of which about 750 MB available |
+| Storage | SD card, about 4 GB free |
+| System | Raspberry Pi OS 11 (Bullseye), 32-bit |
+
+At our scale, the load is tiny: 96 rows per day, about 35,000 per year, received in 24 small requests per day. The constraint is memory, shared with other services, and the 32-bit system, which some server software no longer supports.
+
+## Technical choices
+
+### Database: SQLite
+
+A *time-series database* such as InfluxDB is designed for millions of points: compression, automatic downsampling, retention policies. We need none of it. **SQLite** is a general-purpose database that stores everything in a single file, and is part of Python:
+
+- with the timestamp as primary key, `INSERT OR IGNORE` ignores a row already stored: the idempotence of the protocol comes for free;
+- each request is stored in a *transaction*: either all its rows are written, or none, even if the server stops in the middle (BN1);
+- an index on the timestamp makes queries over years of data take milliseconds, and averages per hour or per day are a single SQL query;
+- the backup is a copy of one file.
+
+InfluxDB 2, the reference time-series database, only supports 64-bit systems, and would use much more memory. TinyFlux, a small time-series database in Python, stores its data in a CSV file without a primary key: detecting duplicates would be left to our code.
+
+### Server: FastAPI
+
+The test server is already written with [FastAPI](https://fastapi.tiangolo.com/), and implements the protocol. The backend reuses its code for the API (BF1, BF2), in a project with tests.
+
+### Dashboard: Plotly Dash
+
+[Dash](https://dash.plotly.com/) builds interactive dashboards in Python: the graphs are drawn by [Plotly](https://plotly.com/python/) in the browser, and the controls (period, quantity) are handled by Python functions, without writing JavaScript. Dash runs on Flask; it is mounted inside the FastAPI application, so that the API and the dashboard share a single service and a single port (BN2).
+
+### Deployment: uv and systemd
+
+- **uv** installs Python and the dependencies, at the versions frozen in a lock file (`uv.lock`), on the development computer and on the server alike (BN4). The development environment of the project, pixi, does not exist for 32-bit ARM, so the backend has its own `pyproject.toml`, managed by uv.
+- **systemd**, the service manager of the system, starts the backend at boot and restarts it after a crash (BN3).
+
+## Deployment
+
+A script, run on the development computer, deploys the backend to the server in one command (BN4):
+
+1. it refuses to deploy if the code has changes that are not committed;
+2. it sends only the committed files, with `git archive`: a file deleted on the development computer can never stay on the server;
+3. on the server, it replaces the whole application folder, installs the dependencies with `uv sync --frozen`, and restarts the service.
+
+The **database and the log live outside the application folder**: a deployment replaces the code, never the data.
+
+```text
+/home/<user>/paws/
+├── backend/          # replaced at each deployment
+└── data/             # never touched by a deployment
+    ├── measurements.db
+    ├── station.log
+    └── backups/      # one copy of the database per day (BN1)
+```
+
+## Verification
+
+As for the firmware, each requirement is checked at least once:
+
+| Requirement | Checked by |
+|-------------|------------|
+| BF1 · Receive the measurements | Automatic tests of the API: new rows, duplicates, wrong header, malformed row, missing values. |
+| BF2 · Receive the log | Automatic test of the API. |
+| BF3 · Dashboard | Checked in a browser, on the development computer and on the server. |
+| BF4 · Health of the station | Automatic test of the computation of the age of the last row; checked in a browser by stopping the station. |
+| BF5 · Export | Automatic test: the exported file has the format of the station. |
+| BN1 · No data loss | Automatic test of the backup; restore checked once by hand. |
+| BN2 · Light | Memory of the service measured on the server. |
+| BN3 · Always available | Server rebooted, and service killed: it comes back by itself. |
+| BN4 · Testable and deployable | Tests run by the CI at each pull request; deployment script used for every deployment. |
+| BN5 · Local only | Review: the server listens on the home network only, behind the router. |
+
+The automatic tests use [pytest](https://docs.pytest.org/), with the test client of FastAPI, which calls the API without a network.
+
+## Implementation plan
+
+| Step | Content | Version |
+|------|---------|---------|
+| B1 | Ingestion: the API with SQLite, its tests, the systemd service, the deployment script; the station uploads to the server. | v0.8.0 |
+| B2 | Dashboard: last measurement, graphs over a chosen period, health of the station, CSV export. | v0.9.0 |
+| B3 | Operations: daily backup of the database, restore checked, behavior after a reboot. | v1.0.0 |
+
+At the end of B3, the station and the backend work together, on their own: version 1.0.0, the first complete system.
