@@ -14,7 +14,7 @@ mkdir -p data
 # Install the dependencies frozen in uv.lock before stopping anything: if
 # this fails, the running version keeps running
 cd backend.new
-UV_PROJECT_ENVIRONMENT=~/paws/venv ~/.local/bin/uv sync --frozen --no-dev
+UV_PROJECT_ENVIRONMENT=~/paws/venv ~/.local/bin/uv sync --locked --no-dev
 cd ..
 
 # Replace the whole application folder: a file deleted from the project
