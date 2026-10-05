@@ -1,6 +1,6 @@
 # Backend Design {.unnumbered}
 
-The station now uploads its rows and its log once per hour, following the [Upload Protocol](../Architecture/Phase-04/00-3-data-and-upload.qmd#upload-protocol). On the bench, a [test server](../Architecture/Phase-04/04-2-upload.qmd#the-test-server) running on a development computer receives them. The backend replaces it with a server that stays on at home, keeps the data safely, and shows it in a dashboard.
+The station now uploads its data once per hour, following the [Upload Protocol](../Architecture/Phase-04/00-3-data-and-upload.qmd#upload-protocol). On the bench, a [test server](../Architecture/Phase-04/04-2-upload.qmd#the-test-server) running on a development computer receives them. The backend replaces it with a server that stays on at home, keeps the data safely, and shows it in a dashboard.
 
 As for the firmware, this chapter designs the backend before any code: what it must do, the technical choices, how it is deployed and checked, and the steps that build it. The backend is much smaller than the firmware, so the design fits in one chapter.
 
@@ -15,15 +15,18 @@ The requirements follow the same pattern as those of the [firmware](../Architect
 | BF1 | Receive the measurements | Implement the server side of the upload protocol v1: check the format, store the new rows, ignore the rows whose timestamp is already stored, and answer with a summary. | The protocol is the contract with the station; the station only moves its cursor after a `2xx` answer. |
 | BF2 | Receive the log | Keep the log lines sent by the station, in the order received. | To understand, from home, what happened on the station when nobody was watching its serial port. |
 | BF3 | Dashboard | Show the last measurement, and the graphs of temperature, humidity and pressure over a chosen period: 24 hours, 7 days, 30 days or 1 year. Over a year, show the minimum, average and maximum of each day. | The purpose of the station: see the weather it measures, from the last hours to the seasons. |
-| BF6 | Compare periods | Overlay several periods of the same length on one graph, aligned on their start: weeks, months or years, for example the last three weeks, or every month of October since the station started. | To see how a week, a month or a season differs from the previous ones. |
 | BF4 | Health of the station | Show when the last row was received, and warn when it is older than two hours. | A station that stopped sending does not complain: the dashboard must make it visible. |
 | BF5 | Export | Download all the measurements as a CSV file. | To analyze the data elsewhere, and for the forecasting of the next phase. |
+| BF6 | Compare periods | Overlay several periods of the same length on one graph, aligned on their start: weeks, months or years, for example the last three weeks, or every month of October since the station started. | To see how a week, a month or a season differs from the previous ones. |
+| BF7 | Manual upload | Upload by hand, from the dashboard, the measurements file (and the log) downloaded from the maintenance page of the station; overlaps with the data already stored are ignored, and a summary tells how many rows were inserted or ignored. | When the station cannot reach the home Wi-Fi, its data is retrieved with a phone: it must still end up in the database. |
+
+Overlaps are detected by the timestamp, as for the uploads of the station: a row whose timestamp is already stored is ignored. A row written while the clock was not reliable (`time_valid = 0`) may carry a wrong timestamp, such as `2000-01-01`; in the unlikely case where it equals the timestamp of a stored row, it would be ignored as well.
 
 ### Non-functional requirements
 
 | ID | Name | Requirement | Why |
 |----|------|-------------|-----|
-| BN1 | No data loss | A row acknowledged to the station is stored durably, and the database is backed up every day. | Once acknowledged, the station never sends a row again: the backend is then the only copy outside the SD card. |
+| BN1 | No data loss | A row acknowledged to the station is stored durably. The database is backed up every day, and the backup is copied outside the house, to a cloud storage. | Once acknowledged, the station never sends a row again: the backend is then the only copy outside the SD card of the station, and the server computer has its own SD card, which can fail. |
 | BN2 | Light | Run as a single service, using a fraction of the memory of the server computer, on a port of its own (8080). | The server is a small computer that also runs other services. |
 | BN3 | Always available | Start at boot, and restart by itself after a crash. | The station uploads every hour, day and night, without anyone watching. |
 | BN4 | Testable and deployable | Run and test on the development computer exactly as on the server, and deploy it with one command. | Every change is checked before it reaches the server, and a deployment never leaves stale files behind. |
@@ -51,7 +54,7 @@ A *time-series database* such as InfluxDB is designed for millions of points: co
 - with the timestamp as primary key, `INSERT OR IGNORE` ignores a row already stored: the idempotence of the protocol comes for free;
 - each request is stored in a *transaction*: either all its rows are written, or none, even if the server stops in the middle (BN1);
 - an index on the timestamp makes queries over years of data take milliseconds, and the minimum, average and maximum of each day, for the graphs over a year, are a single SQL query;
-- the backup is a copy of one file.
+- the backup is a copy of one file, made with the backup function of SQLite, which gives a consistent copy even while a row is being written.
 
 InfluxDB 2, the reference time-series database, only supports 64-bit systems, and would use much more memory. TinyFlux, a small time-series database in Python, stores its data in a CSV file without a primary key: detecting duplicates would be left to our code.
 
@@ -62,6 +65,10 @@ The test server is already written with [FastAPI](https://fastapi.tiangolo.com/)
 ### Dashboard: Plotly Dash
 
 [Dash](https://dash.plotly.com/) builds interactive dashboards in Python: the graphs are drawn by [Plotly](https://plotly.com/python/) in the browser, and the controls (period, quantity) are handled by Python functions, without writing JavaScript. Dash runs on Flask; it is mounted inside the FastAPI application, so that the API and the dashboard share a single service and a single port (BN2).
+
+### Backup: rclone and Proton Drive
+
+[rclone](https://rclone.org/) copies files to cloud storages, among them [Proton Drive](https://rclone.org/protondrive/). Each day, the backup of the database is copied to a folder of its own on Proton Drive, with `rclone copy`: a one-way copy, since only the server writes the data. If the SD card of the server fails, the data survives outside the house (BN1).
 
 ### Deployment: uv and systemd
 
@@ -99,7 +106,8 @@ As for the firmware, each requirement is checked at least once:
 | BF4 · Health of the station | Automatic test of the computation of the age of the last row; checked in a browser by stopping the station. |
 | BF5 · Export | Automatic test: the exported file has the format of the station. |
 | BF6 · Compare periods | Automatic test of the alignment of several weeks, months and years on their start; checked in a browser with test data covering several years. |
-| BN1 · No data loss | Automatic test of the backup; restore checked once by hand. |
+| BF7 · Manual upload | Automatic tests: a file already stored is inserted once only; a file overlapping the stored data inserts only the new rows. |
+| BN1 · No data loss | Automatic test of the backup; restore from Proton Drive checked once by hand. |
 | BN2 · Light | Memory of the service measured on the server. |
 | BN3 · Always available | Server rebooted, and service killed: it comes back by itself. |
 | BN4 · Testable and deployable | Tests run by the CI at each pull request; deployment script used for every deployment. |
@@ -112,7 +120,7 @@ The automatic tests use [pytest](https://docs.pytest.org/), with the test client
 | Step | Content | Version |
 |------|---------|---------|
 | B1 | Ingestion: the API with SQLite, its tests, the systemd service, the deployment script; the station uploads to the server. | v0.8.0 |
-| B2 | Dashboard: last measurement, graphs over a chosen period up to a year, comparison of several weeks, months or years, health of the station, CSV export. | v0.9.0 |
-| B3 | Operations: daily backup of the database, restore checked, behavior after a reboot. | v1.0.0 |
+| B2 | Dashboard: last measurement, graphs over a chosen period up to a year, comparison of several weeks, months or years, health of the station, CSV export, manual upload. | v0.9.0 |
+| B3 | Operations: daily backup of the database, copied to Proton Drive, restore checked, behavior after a reboot. | v1.0.0 |
 
 At the end of B3, the station and the backend work together, on their own: version 1.0.0, the first complete system.
