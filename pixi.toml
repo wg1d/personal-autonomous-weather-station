@@ -42,7 +42,7 @@ preview = { cmd = "quarto preview", cwd = "docs" }
 # Backend (backend/paws): uv installs its Python and packages from uv.lock,
 # as on the server
 backend = { cmd = "uv run uvicorn paws_server.main:app --host 0.0.0.0 --port 8080 --reload", cwd = "backend/paws" }
-backend-test = { cmd = "uv run pytest", cwd = "backend/paws" }
+backend-test = { cmd = "uv run --locked pytest", cwd = "backend/paws" }
 deploy-backend = "bash scripts/deploy-backend.sh"
 
 # Backend: a separate environment, because PlatformIO requires an old
