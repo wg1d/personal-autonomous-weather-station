@@ -9,6 +9,9 @@
 #   pixi run preview          # live preview of the book in the browser
 #   pixi run dummy-server     # start the Phase 3 dummy backend server
 #   pixi run test-server      # start the Phase 4 test server (upload v1)
+#   pixi run backend          # start the backend on this computer (port 8080)
+#   pixi run backend-test     # run the tests of the backend
+#   pixi run deploy-backend   # deploy the committed backend to the server
 #
 # Not managed here: LaTeX (texlive with circuitikz, latexmk, pdf2svg),
 # only needed to regenerate the wiring diagrams (docs/assets/diagrams-src).
@@ -23,6 +26,7 @@ platformio = "6.2.*"
 quarto = "1.7.*"
 cxx-compiler = "*"      # g++ for the tests running on the computer
 doxygen = "1.18.*"
+uv = "0.12.*"            # Python packages of the backend (same as on the server)
 
 [activation.env]
 # Keep PlatformIO packages (ESP32 toolchain, libraries) inside the
@@ -35,6 +39,11 @@ test = "pio test -d firmware/paws -e native"
 book = "bash scripts/render-book.sh"
 api-docs = { cmd = "doxygen Doxyfile", cwd = "firmware/paws" }
 preview = { cmd = "quarto preview", cwd = "docs" }
+# Backend (backend/paws): uv installs its Python and packages from uv.lock,
+# as on the server
+backend = { cmd = "uv run uvicorn paws_server.main:app --host 0.0.0.0 --port 8080 --reload", cwd = "backend/paws" }
+backend-test = { cmd = "uv run pytest", cwd = "backend/paws" }
+deploy-backend = "bash scripts/deploy-backend.sh"
 
 # Backend: a separate environment, because PlatformIO requires an old
 # version of uvicorn (for its own web interface) that FastAPI cannot use
