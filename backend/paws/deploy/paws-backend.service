@@ -1,0 +1,27 @@
+# systemd service of the PAWS backend.
+#
+# Template: the deployment script replaces @USER@ and @HOME@, then installs
+# it as /etc/systemd/system/paws-backend.service.
+
+[Unit]
+Description=PAWS backend (Personal Autonomous Weather Station)
+# Start once the network is up, so that the server can listen on it
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=@USER@
+WorkingDirectory=@HOME@/paws/backend
+# The data lives outside the application folder, which each deployment
+# replaces
+Environment=PAWS_DATA_DIR=@HOME@/paws/data
+# The virtual environment too: it is reused from one deployment to the next
+Environment=UV_PROJECT_ENVIRONMENT=@HOME@/paws/venv
+# One worker: the load is tiny, and memory is shared with other services
+ExecStart=@HOME@/.local/bin/uv run --frozen --no-dev uvicorn paws_server.main:app --host 0.0.0.0 --port 8080 --workers 1
+# Restart after a crash, after 5 seconds
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
