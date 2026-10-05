@@ -14,7 +14,8 @@ The requirements follow the same pattern as those of the [firmware](../Architect
 |----|------|-------------|-----|
 | BF1 | Receive the measurements | Implement the server side of the upload protocol v1: check the format, store the new rows, ignore the rows whose timestamp is already stored, and answer with a summary. | The protocol is the contract with the station; the station only moves its cursor after a `2xx` answer. |
 | BF2 | Receive the log | Keep the log lines sent by the station, in the order received. | To understand, from home, what happened on the station when nobody was watching its serial port. |
-| BF3 | Dashboard | Show the last measurement, and the graphs of temperature, humidity and pressure over a chosen period (24 hours, 7 days, 30 days…). | The purpose of the station: see the weather it measures. |
+| BF3 | Dashboard | Show the last measurement, and the graphs of temperature, humidity and pressure over a chosen period: 24 hours, 7 days, 30 days or 1 year. Over a year, show the minimum, average and maximum of each day. | The purpose of the station: see the weather it measures, from the last hours to the seasons. |
+| BF6 | Compare years | Show the same period of two different years on the same graph, for example two months of October. | To see how a season differs from the previous ones, once the station has more than a year of data. |
 | BF4 | Health of the station | Show when the last row was received, and warn when it is older than two hours. | A station that stopped sending does not complain: the dashboard must make it visible. |
 | BF5 | Export | Download all the measurements as a CSV file. | To analyze the data elsewhere, and for the forecasting of the next phase. |
 
@@ -49,7 +50,7 @@ A *time-series database* such as InfluxDB is designed for millions of points: co
 
 - with the timestamp as primary key, `INSERT OR IGNORE` ignores a row already stored: the idempotence of the protocol comes for free;
 - each request is stored in a *transaction*: either all its rows are written, or none, even if the server stops in the middle (BN1);
-- an index on the timestamp makes queries over years of data take milliseconds, and averages per hour or per day are a single SQL query;
+- an index on the timestamp makes queries over years of data take milliseconds, and the minimum, average and maximum of each day, for the graphs over a year, are a single SQL query;
 - the backup is a copy of one file.
 
 InfluxDB 2, the reference time-series database, only supports 64-bit systems, and would use much more memory. TinyFlux, a small time-series database in Python, stores its data in a CSV file without a primary key: detecting duplicates would be left to our code.
@@ -94,9 +95,10 @@ As for the firmware, each requirement is checked at least once:
 |-------------|------------|
 | BF1 · Receive the measurements | Automatic tests of the API: new rows, duplicates, wrong header, malformed row, missing values. |
 | BF2 · Receive the log | Automatic test of the API. |
-| BF3 · Dashboard | Checked in a browser, on the development computer and on the server. |
+| BF3 · Dashboard | Automatic test of the daily minimum, average and maximum; checked in a browser, on the development computer and on the server. |
 | BF4 · Health of the station | Automatic test of the computation of the age of the last row; checked in a browser by stopping the station. |
 | BF5 · Export | Automatic test: the exported file has the format of the station. |
+| BF6 · Compare years | Automatic test of the alignment of two years on the same dates; checked in a browser with two years of test data. |
 | BN1 · No data loss | Automatic test of the backup; restore checked once by hand. |
 | BN2 · Light | Memory of the service measured on the server. |
 | BN3 · Always available | Server rebooted, and service killed: it comes back by itself. |
@@ -110,7 +112,7 @@ The automatic tests use [pytest](https://docs.pytest.org/), with the test client
 | Step | Content | Version |
 |------|---------|---------|
 | B1 | Ingestion: the API with SQLite, its tests, the systemd service, the deployment script; the station uploads to the server. | v0.8.0 |
-| B2 | Dashboard: last measurement, graphs over a chosen period, health of the station, CSV export. | v0.9.0 |
+| B2 | Dashboard: last measurement, graphs over a chosen period up to a year, comparison of two years, health of the station, CSV export. | v0.9.0 |
 | B3 | Operations: daily backup of the database, restore checked, behavior after a reboot. | v1.0.0 |
 
 At the end of B3, the station and the backend work together, on their own: version 1.0.0, the first complete system.
