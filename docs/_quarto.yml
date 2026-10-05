@@ -106,6 +106,10 @@ website:
             text: "Design"
           - href: chapters/Backend/01-ingestion.qmd
             text: "B1 – Ingestion"
+          - section: "B2 – Dashboard"
+            contents:
+              - href: chapters/Backend/02-1-dashboard.qmd
+                text: "Graphs"
 
 date: last-modified
 
