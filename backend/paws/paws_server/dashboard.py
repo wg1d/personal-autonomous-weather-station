@@ -340,6 +340,13 @@ def build_view(connection, period, end, now, theme="dark"):
 
 # --- The page --------------------------------------------------------------
 
+# The icon of the browser tab: a sunflower drawn from an emoji, as on the
+# maintenance page of the station, so that no image file is needed
+SUNFLOWER_ICON = (
+    "<link rel=\"icon\" href=\"data:image/svg+xml,<svg xmlns="
+    "'http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' "
+    "font-size='90'>&#127803;</text></svg>\">")
+
 def create_dashboard(open_database):
     """Creates the Dash application.
 
@@ -354,6 +361,9 @@ def create_dashboard(open_database):
                title="PAWS",
                meta_tags=[{"name": "viewport",
                            "content": "width=device-width, initial-scale=1"}])
+    # The page that Dash sends holds the icon at the place of {%favicon%}
+    app.index_string = app.index_string.replace("{%favicon%}",
+                                                SUNFLOWER_ICON)
 
     # The outer block carries the theme ("root dark" or "root light"):
     # style.css gives the page its colors from it

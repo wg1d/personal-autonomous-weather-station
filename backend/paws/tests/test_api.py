@@ -94,6 +94,8 @@ def test_home_redirects_to_the_dashboard(client):
 
 
 def test_dashboard_is_served(client):
-    assert "<title>PAWS</title>" in client.get("/dashboard/").text
+    page = client.get("/dashboard/").text
+    assert "<title>PAWS</title>" in page
+    assert "&#127803;" in page                      # the sunflower icon
     # The layout, asked by the page under the same prefix
     assert client.get("/dashboard/_dash-layout").status_code == 200
