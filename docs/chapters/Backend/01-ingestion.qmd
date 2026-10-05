@@ -1,0 +1,271 @@
+# B1 · Ingestion {.unnumbered}
+
+Step B1 builds the part of the backend that receives the data of the station: the server side of the [Upload Protocol](../Architecture/Phase-04/00-3-data-and-upload.qmd#upload-protocol) (BF1 · Receive the measurements, BF2 · Receive the log). By the end of the step, the backend runs on the Raspberry Pi as a service of its own (BN3 · Always available), it is tested on the development computer and deployed with one command (BN4 · Testable and deployable), and the station uploads to it.
+
+The [test server](../Architecture/Phase-04/04-2-upload.qmd#the-test-server) of Phase 4 already implements the protocol, in a single file. The backend keeps its logic, split into small modules with automatic tests, and checks the format of the requests more strictly.
+
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v0.8.0/backend/paws)
+
+## The project
+
+The backend lives in `backend/paws`:
+
+```text
+backend/paws/
+├── pyproject.toml        # the project and its dependencies
+├── uv.lock               # the exact versions of every package
+├── .python-version       # the version of Python (3.12)
+├── paws_server/          # the code of the server
+│   ├── protocol.py       #   the CSV format of the protocol
+│   ├── database.py       #   the SQLite database
+│   └── main.py           #   the web server (FastAPI)
+├── tests/
+│   └── test_api.py       # the automatic tests
+└── deploy/
+    ├── paws-backend.service   # the systemd service
+    └── install.sh             # the installation on the server
+```
+
+`pyproject.toml` is the standard description of a Python project: its name, its version, the version of Python it needs, and the packages it uses.
+
+```{.toml include="../../../backend/paws/pyproject.toml"}
+```
+
+- **`dependencies`** are the packages the server needs to run: FastAPI, and [uvicorn](https://www.uvicorn.org/), the program that runs a FastAPI application and answers the HTTP requests.
+- **`dev`** lists the packages only needed on the development computer, to run the tests: [pytest](https://docs.pytest.org/), and `httpx2`, used by the test client of FastAPI. They are not installed on the server.
+- **`package = false`** tells uv that the project is an application to run, not a library to publish.
+
+[uv](https://docs.astral.sh/uv/) reads this file, finds versions of all the packages that work together, and writes them to `uv.lock`, with a checksum for each file. The tests and the deployment use `--locked`: uv installs exactly the versions of `uv.lock`, and stops with an error if `uv.lock` no longer matches `pyproject.toml`, instead of choosing new versions on its own. The server never runs with versions that the tests did not use. uv also downloads the version of Python given by `.python-version` if the computer does not have it.
+
+uvicorn exists with optional extras (`uvicorn[standard]`), which make it a little faster with compiled C extensions. Some of them have no ready-made package for the 32-bit processor of the Raspberry Pi, and would have to be compiled on it. At 24 requests per day, the plain uvicorn is more than enough.
+
+## The CSV format
+
+`protocol.py` checks the text of a request and turns its rows into values ready to be stored:
+
+```{.python include="../../../backend/paws/paws_server/protocol.py"}
+```
+
+`parse_rows()` checks, for each row:
+
+- the five columns of the [CSV format v1](../Architecture/Phase-04/00-3-data-and-upload.qmd#csv-format);
+- the timestamp, in UTC with the `Z` suffix: `datetime.strptime()` refuses any other format, and dates that do not exist, such as a 13th month;
+- the validity flag, `0` or `1`;
+- the values: a number, or an empty field when the sensor did not answer. An empty field becomes `None`, stored as `NULL`, never as `0`: a temperature of 0 °C is a real value.
+
+If anything is wrong, it raises a `FormatError` and returns nothing: the request is refused **as a whole**, and no row is stored. The station gets an error, does not move its cursor, and sends the same rows at the next upload. Storing the correct rows and dropping the others would instead lose data without anyone noticing.
+
+::: {.callout-tip collapse="true"}
+## Python: exceptions
+
+`raise FormatError(...)` stops the function and goes back up the calls until a `try ... except FormatError` handles it. `parse_rows()` does not need to return an error code after each check: any `ValueError` raised in the `try` block (by `float()`, `strptime()` or the explicit checks) is caught once, and turned into a `FormatError` that tells which row is wrong. `FormatError` is a *subclass* of `ValueError`: it is a `ValueError` with a name of its own, so that `main.py` catches the format errors only, and not any `ValueError` of another origin.
+:::
+
+## The database
+
+`database.py` stores the rows in [SQLite](https://www.sqlite.org/), in a single file, `measurements.db`:
+
+```{.python include="../../../backend/paws/paws_server/database.py"}
+```
+
+- **The table** has one column per field of the CSV format. The timestamp is the *primary key*: two rows cannot have the same timestamp.
+- **`INSERT OR IGNORE`** inserts a row, or ignores it without error if its timestamp is already stored. A row sent twice, after an upload whose answer was lost, is stored once: this is the idempotence that the protocol relies on.
+- **`with connection:`** opens a *transaction*: the rows of a request are written all at once when the block ends, or not at all if an error stops it. A request is never stored halfway, even if the server stops in the middle (BN1 · No data loss).
+- **`total_changes`** counts the rows changed by the connection: the difference before and after the insertion is the number of rows actually inserted. The others were already stored.
+
+## The server
+
+`main.py` is the web server. It connects the protocol and the database to the HTTP requests of the station:
+
+```{.python include="../../../backend/paws/paws_server/main.py"}
+```
+
+| Request | Role |
+|---------|------|
+| `POST /api/v1/measurements` | Checks and stores the rows, answers with the number of rows received, inserted and ignored (`400` if the format is wrong). |
+| `POST /api/v1/logs` | Appends the log lines to `station.log`, answers with the number of lines received. |
+| `GET /api/v1/measurements` | Returns the last rows stored, newest first, as JSON (20 by default, `?count=` to choose). |
+| `GET /` | A short status page: the number of rows stored and the timestamp of the last one. The dashboard replaces it in step B2. |
+
+The station only moves its cursor after a `2xx` answer. FastAPI answers `200` when the function returns, and `400` when it raises `HTTPException(status_code=400)`: the station then keeps its rows.
+
+The data lives in the folder given by the `PAWS_DATA_DIR` *environment variable*, a setting given to a program when it starts. On the server, it is `~/paws/data`, outside the folder of the code, so that a deployment never touches the data. On the development computer, without the variable, it is `data/`, next to the code, a folder ignored by git.
+
+::: {.callout-tip collapse="true"}
+## Python: decorators and `async`
+
+`@app.post("/api/v1/measurements")` is a *decorator*: it registers the function below it with FastAPI, which calls it for each `POST` request to this address. It plays the same role as `server.on()` in the [maintenance mode](../Architecture/Phase-04/05-1-maintenance-mode.qmd#the-maintenance-adapter) of the station.
+
+`receive_measurements()` is declared with `async def`, because it reads the body of the request with `await request.body()`: while the body arrives over the network, the server can handle other requests instead of waiting. The functions that do not wait for the network are declared with a plain `def`, and FastAPI runs them on a separate thread.
+:::
+
+## The tests
+
+The tests call the API with the test client of FastAPI: it sends the requests directly to the application, without a network or a running server.
+
+```{.python include="../../../backend/paws/tests/test_api.py"}
+```
+
+- **The fixture** `client` gives each test a fresh temporary data folder, through `PAWS_DATA_DIR`: each test starts with an empty database, and the tests never touch the data of the development computer.
+- The tests cover the requirements of the [verification](00-design.qmd#verification): new rows, duplicates, a request that overlaps the stored rows, a wrong header, a malformed row (nothing is stored), wrong timestamps, missing values stored as `NULL`, and the log appended in order.
+
+::: {.callout-tip collapse="true"}
+## pytest: fixtures and parameters
+
+A *fixture* is a function that prepares what a test needs. pytest reads the names of the parameters of a test (`client`, `tmp_path`) and calls the fixture of the same name before the test. `tmp_path` and `monkeypatch` are fixtures of pytest itself: a temporary folder, deleted afterwards, and a tool that changes an environment variable for the duration of a test only.
+
+`@pytest.mark.parametrize` runs the same test once per value of a list: `test_bad_timestamp_is_refused` runs three times, with three wrong timestamps.
+:::
+
+Run the tests from the root of the repository:
+
+```bash
+pixi run backend-test
+```
+
+The CI runs them at each pull request that changes the backend.
+
+## Running on the development computer
+
+To try the backend on the development computer, start it with:
+
+```bash
+pixi run backend
+```
+
+It listens on port 8080, as the test server, and restarts by itself when the code changes. With `kServerUrl` set to the IP address of the development computer, the station uploads to it.
+
+## The service
+
+On the server, *systemd*, the service manager of the system, starts the backend at boot and restarts it after a crash (BN3). A service is described by a small text file:
+
+```{.ini include="../../../backend/paws/deploy/paws-backend.service"}
+```
+
+- **`[Unit]`** describes the service, and starts it once the network is up.
+- **`[Service]`** tells how to run it: as which user, from which folder, with which environment variables, and with which command. `Restart=always` restarts it 5 seconds after it stops, for any reason.
+- **`[Install]`** starts it at boot, once the system is ready (`multi-user.target`), when the service is *enabled*.
+
+The command runs uvicorn through `uv run --frozen --no-dev`: uv uses the packages of `uv.lock` installed by the deployment, without the development packages, and does not try to update `uv.lock` (`--frozen`), then starts the server. `--host 0.0.0.0` accepts connections from the home network, not only from the server itself. A single *worker* (`--workers 1`), one process, handles the requests: the load is tiny, and each worker would use more memory.
+
+The file is a template: `@USER@` and `@HOME@` are replaced by the user and the home folder of the server at installation.
+
+## Deployment
+
+The deployment follows the [design](00-design.qmd#deployment). It needs, on the server, uv installed in `~/.local/bin`, and on the development computer, an SSH access to the server: the host is named `pi` in the SSH configuration (`~/.ssh/config`).
+
+From the root of the repository:
+
+```bash
+pixi run deploy-backend
+```
+
+The script runs on the development computer:
+
+```{.bash include="../../../scripts/deploy-backend.sh"}
+```
+
+1. It refuses to deploy if `backend/paws` has changes that are not committed: what runs on the server is always a version of the repository.
+2. `git archive` packs the committed files of `backend/paws`, and `ssh` sends them to the server, which extracts them in `~/paws/backend.new`. The files ignored by git (the virtual environment, the local data) are never sent.
+3. It runs `install.sh`, which has just arrived on the server with the code.
+
+`install.sh` runs on the server:
+
+```{.bash include="../../../backend/paws/deploy/install.sh"}
+```
+
+1. It installs the dependencies of `uv.lock` in `~/paws/venv`, which is kept from one deployment to the next: uv only downloads the packages that changed. If this fails, the running version is not touched.
+2. It replaces the whole application folder with the new one: a file deleted from the project can never stay on the server.
+3. It installs the service, enables it at boot, and restarts it.
+4. It checks that the server answers on port 8080, and fails otherwise.
+
+The script is split in two because each part runs on a different computer: the commands for the server would otherwise be written as a single text inside the `ssh` command, where quotes and `$` must be escaped twice.
+
+The first deployment printed:
+
+```text
+Deploying v0.7.0-9-g2ac94be to pi
+Using CPython 3.12.14
+Creating virtual environment at: /home/william/paws/venv
+Prepared 9 packages in 1.97s
+Installed 14 packages in 57ms
+ + fastapi==0.142.2
+ + uvicorn==0.54.0
+ ...
+Deployed: the backend answers on port 8080
+```
+
+## Managing the service
+
+The service is managed over SSH, from the development computer. To check its state and read its last messages:
+
+```bash
+ssh pi 'systemctl status paws-backend'
+ssh pi 'journalctl -u paws-backend -n 50'
+```
+
+To stop it, for example while the station is off, and keep it from starting again when the server boots:
+
+```bash
+ssh pi 'sudo systemctl disable --now paws-backend'
+```
+
+To start it again, now and at each boot:
+
+```bash
+ssh pi 'sudo systemctl enable --now paws-backend'
+```
+
+`disable` and `enable` decide whether the service starts at boot; `--now` also stops or starts it right away. A plain `systemctl stop` would only stop it until the next boot. A deployment always starts the service and enables it at boot.
+
+On our server, the service uses about 58 MB of memory (BN2 · Light): 33 MB for the server itself, and 25 MB for the `uv run` process that launched it and waits for it to stop. After its process was killed on purpose, systemd restarted it within a few seconds (BN3).
+
+## The station uploads to the server
+
+The station needs no change of its firmware: only the address of the server, in `include/secrets.h`, now points to the Raspberry Pi:
+
+```cpp
+const char kServerUrl[] = "http://192.168.1.28:8080";
+```
+
+At its next upload, our station printed:
+
+```text
+-> BOOT
+-> MEASURE
+-> STORE
+   stored: 2026-10-05T12:55:00Z,1,25.80,51.25,1003.55
+-> UPLOAD
+   Wi-Fi connected in 314 ms
+   sent 854 bytes of measurements, server answered 200 {"received":18,"inserted":18,"duplicates":0}
+   sent 5153 bytes of log, server answered 200 {"received":226}
+-> TIME_SYNC
+   NTP time received
+   clock set to 12:55:06
+-> SCHEDULE
+   alarm set for 12:56:00
+-> SLEEP
+   awake for 5937 ms
+   RTC alarm: yes, button: yes, timer: 114 s
+```
+
+The 18 rows are the rows of the card that the previous server had not acknowledged. On the Raspberry Pi, the journal of the service shows both requests, and the status page (`http://192.168.1.28:8080/`) shows the rows stored:
+
+```text
+"POST /api/v1/measurements HTTP/1.1" 200 OK
+"POST /api/v1/logs HTTP/1.1" 200 OK
+```
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+|---------|---------------|
+| `backend/paws has uncommitted changes` | The deployment only sends committed code: commit the changes, or set them aside with `git stash`. |
+| `uv: No such file or directory` on the server | uv is not installed in `~/.local/bin`: install it on the server with its [official instructions](https://docs.astral.sh/uv/getting-started/installation/). |
+| `The backend does not answer` | The service does not start: `ssh pi 'journalctl -u paws-backend -n 50'` shows why (port 8080 already in use, Python error). |
+| The station prints `server answered -1` | It cannot reach the server: check `kServerUrl`, and that the service is running (`systemctl status paws-backend`). The rows stay on the card and are sent at the next upload. |
+| `The lockfile at uv.lock needs to be updated, but --locked was provided` | `pyproject.toml` changed without `uv.lock`: run `pixi run uv lock` in `backend/paws`, run the tests, and commit both files. |
+
+## Next Steps
+
+The station now uploads its data to a server that stays on at home, and the backend stores it durably. Step B2 builds the dashboard: the last measurement, the graphs over a chosen period, the comparison of several periods, the health of the station, the export, and the manual upload of the files downloaded from the maintenance page.
