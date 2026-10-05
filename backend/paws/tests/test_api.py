@@ -87,6 +87,13 @@ def test_log_lines_are_appended(client, tmp_path):
     assert log == "-> BOOT\n-> MEASURE\n-> STORE\n"
 
 
-def test_status_page_shows_the_count(client):
-    upload(client, HEADER + ROW_1)
-    assert "1 rows stored" in client.get("/").text
+def test_home_redirects_to_the_dashboard(client):
+    answer = client.get("/", follow_redirects=False)
+    assert answer.status_code == 307
+    assert answer.headers["location"] == "/dashboard/"
+
+
+def test_dashboard_is_served(client):
+    assert "<title>PAWS</title>" in client.get("/dashboard/").text
+    # The layout, asked by the page under the same prefix
+    assert client.get("/dashboard/_dash-layout").status_code == 200

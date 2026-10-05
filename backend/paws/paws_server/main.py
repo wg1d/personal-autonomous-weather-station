@@ -5,7 +5,7 @@ File: backend/paws/paws_server/main.py
 Description:
 The backend server: receives the measurements and the log of the station
 (upload protocol v1), stores the measurements in SQLite and appends the log
-to a text file.
+to a text file. It also serves the dashboard, under /dashboard/.
 
 The data lives in the folder given by the PAWS_DATA_DIR environment
 variable (by default "data", next to the code), so that a deployment
@@ -14,16 +14,18 @@ replaces the code without touching the data.
 Run (development computer):
     uv run uvicorn paws_server.main:app --port 8080
 
-Dependencies: fastapi, uvicorn.
+Dependencies: fastapi, uvicorn, a2wsgi, dash.
 """
 
 import os
 from pathlib import Path
 
+from a2wsgi import WSGIMiddleware
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import RedirectResponse
 
 from . import database
+from .dashboard import create_dashboard
 from .protocol import FormatError, parse_rows
 
 app = FastAPI(title="PAWS backend")
@@ -84,15 +86,13 @@ def get_measurements(count: int = 20):
         connection.close()
 
 
-@app.get("/", response_class=HTMLResponse)
-def status():
-    """A short status page, until the dashboard of step B2."""
-    connection = open_database()
-    try:
-        total = database.count_rows(connection)
-        last = database.last_rows(connection, 1)
-    finally:
-        connection.close()
-    last_time = last[0]["timestamp"] if last else "none"
-    return (f"<h1>PAWS backend</h1><p>{total} rows stored. "
-            f"Last row: {last_time}.</p>")
+@app.get("/")
+def home():
+    """Sends the browser to the dashboard."""
+    return RedirectResponse("/dashboard/")
+
+
+# Dash runs on Flask, a WSGI application (the older standard of the Python
+# web servers), and FastAPI is an ASGI application: WSGIMiddleware lets
+# FastAPI serve Dash under /dashboard, on the same port
+app.mount("/dashboard", WSGIMiddleware(create_dashboard(open_database).server))
