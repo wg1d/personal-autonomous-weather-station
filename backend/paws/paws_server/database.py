@@ -55,3 +55,52 @@ def last_rows(connection, count):
         "SELECT * FROM measurements ORDER BY timestamp DESC LIMIT ?",
         (count,)).fetchall()
     return [dict(zip(COLUMNS, row)) for row in rows]
+
+
+def last_row(connection):
+    """Returns the newest row with a valid time, or None if there is none."""
+    rows = connection.execute(
+        "SELECT * FROM measurements WHERE time_valid = 1 "
+        "ORDER BY timestamp DESC LIMIT 1").fetchall()
+    return dict(zip(COLUMNS, rows[0])) if rows else None
+
+
+def first_timestamp(connection):
+    """Returns the oldest timestamp with a valid time, or None."""
+    return connection.execute(
+        "SELECT MIN(timestamp) FROM measurements WHERE time_valid = 1"
+    ).fetchone()[0]
+
+
+def rows_between(connection, start, end):
+    """Returns the rows with a valid time from start to end, oldest first.
+
+    start and end are timestamps in the format of the station; start is
+    included, end is not. The timestamps are stored as text, but in this
+    format their alphabetical order is the order of time: comparing them
+    as text is enough.
+    """
+    rows = connection.execute(
+        "SELECT * FROM measurements WHERE time_valid = 1 "
+        "AND timestamp >= ? AND timestamp < ? ORDER BY timestamp",
+        (start, end)).fetchall()
+    return [dict(zip(COLUMNS, row)) for row in rows]
+
+
+def daily_summary(connection):
+    """Returns the minimum, average and maximum of each day.
+
+    The days are those of the local time of the server: SQLite converts
+    each timestamp ('localtime'), then groups the rows of the same date.
+    Returns one dictionary per day, oldest first, with the keys "day" and
+    "<column>_min", "<column>_avg", "<column>_max" for each quantity.
+    """
+    quantities = COLUMNS[2:]
+    columns = ", ".join(f"MIN({q}), AVG({q}), MAX({q})" for q in quantities)
+    rows = connection.execute(
+        f"SELECT date(timestamp, 'localtime') AS day, {columns} "
+        "FROM measurements WHERE time_valid = 1 "
+        "GROUP BY day ORDER BY day").fetchall()
+    keys = ["day"] + [f"{q}_{s}" for q in quantities
+                      for s in ("min", "avg", "max")]
+    return [dict(zip(keys, row)) for row in rows]
