@@ -127,14 +127,6 @@ def end_after_drag(relayout, period, now):
     return None if last >= now else to_timestamp(last)
 
 
-def window_label(period, start, stop):
-    """Describes the period shown, in local time."""
-    start, stop = to_local(start), to_local(stop)
-    if period == "24h":
-        return (f"{start:%a %d %b %H:%M} → {stop:%a %d %b %H:%M}")
-    return f"{start:%d %b %Y} → {stop:%d %b %Y}"
-
-
 # --- Health and last measurement -------------------------------------------
 
 def format_age(age):
@@ -326,9 +318,8 @@ def build_view(connection, period, end, now, theme="dark"):
     """Computes everything the page shows.
 
     Returns a dictionary: "stale", "status" and "alert" (the health of
-    the station, see health()), "last" (the last measurement), "label"
-    (the period shown), "figure" (the graphs), and "at_start" (no older
-    data to go back to).
+    the station, see health()), "last" (the last measurement), "figure"
+    (the graphs), and "at_start" (no older data to go back to).
     """
     last = database.last_row(connection)
     stale, status, alert = health(last, now)
@@ -343,7 +334,6 @@ def build_view(connection, period, end, now, theme="dark"):
         rows = database.rows_between(connection, *loaded)
     first = database.first_timestamp(connection)
     return {"stale": stale, "status": status, "alert": alert, "last": last,
-            "label": window_label(period, start, stop),
             "figure": figure(period, rows, days, start, stop, theme),
             "at_start": first is None or to_timestamp(start) <= first}
 
@@ -387,7 +377,6 @@ def create_dashboard(open_database):
                          for period, label in PERIOD_LABELS.items()]),
             html.Div(className="navigation", children=[
                 html.Button("◀", id="back", title="Previous period"),
-                html.Span(id="label", className="label"),
                 html.Button("▶", id="forth", title="Next period"),
                 html.Button("Today", id="today"),
             ]),
@@ -437,7 +426,7 @@ def create_dashboard(open_database):
     @app.callback(
         Output("alert", "children"), Output("alert", "className"),
         Output("status", "children"), Output("status", "className"),
-        Output("cards", "children"), Output("label", "children"),
+        Output("cards", "children"),
         Output("graph", "figure"),
         Output("back", "disabled"), Output("forth", "disabled"),
         Output("root", "className"), Output("theme-button", "children"),
@@ -458,7 +447,7 @@ def create_dashboard(open_database):
         # The button shows the theme it switches to
         icon = "☀" if theme == "dark" else "☾"
         return (view["alert"], alert_class, status, f"status {state}",
-                cards(view["last"]), view["label"],
+                cards(view["last"]),
                 view["figure"], view["at_start"], end is None,
                 f"root {theme}", icon)
 

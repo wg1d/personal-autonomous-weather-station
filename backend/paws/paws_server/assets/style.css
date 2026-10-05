@@ -186,12 +186,6 @@ button:disabled {
     cursor: default;
 }
 
-.label {
-    min-width: 13em;
-    text-align: center;
-    font-weight: 600;
-}
-
 /* The graphs, on a card like the values */
 #graph {
     background: var(--card);
@@ -240,12 +234,6 @@ button:disabled {
     }
 
     .navigation {
-        justify-content: space-between;
-    }
-
-    .label {
-        min-width: 0;
-        flex: 1;
-        font-size: 0.85rem;
+        justify-content: flex-end;
     }
 }
