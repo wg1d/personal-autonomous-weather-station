@@ -37,7 +37,9 @@ pixi run book             # generate the book in docs/_output
 pixi run api-docs         # generate the firmware API docs in docs/_output/api
 pixi run preview          # live preview of the book in the browser
 pixi run dummy-server     # start the Phase 3 dummy backend server
+pixi run test-server      # start the Phase 4 test server (upload v1)
 pixi run backend          # start the backend on this computer (port 8080)
+pixi run backend-demo     # the same, with 3 years of made-up data
 pixi run backend-test     # run the backend tests
 pixi run deploy-backend   # deploy the committed backend to the server
 ```

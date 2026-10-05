@@ -10,6 +10,7 @@
 #   pixi run dummy-server     # start the Phase 3 dummy backend server
 #   pixi run test-server      # start the Phase 4 test server (upload v1)
 #   pixi run backend          # start the backend on this computer (port 8080)
+#   pixi run backend-demo     # the same, with 3 years of made-up data
 #   pixi run backend-test     # run the tests of the backend
 #   pixi run deploy-backend   # deploy the committed backend to the server
 #
@@ -42,6 +43,7 @@ preview = { cmd = "quarto preview", cwd = "docs" }
 # Backend (backend/paws): uv installs its Python and packages from uv.lock,
 # as on the server
 backend = { cmd = "uv run uvicorn paws_server.main:app --host 0.0.0.0 --port 8080 --reload", cwd = "backend/paws" }
+backend-demo = { cmd = "uv run python dev/make_test_data.py && uv run uvicorn paws_server.main:app --host 0.0.0.0 --port 8080 --reload", cwd = "backend/paws", env = { PAWS_DATA_DIR = "dev/data" } }
 backend-test = { cmd = "uv run --locked pytest", cwd = "backend/paws" }
 deploy-backend = "bash scripts/deploy-backend.sh"
 

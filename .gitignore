@@ -22,6 +22,7 @@ backend/**/__pycache__/
 backend/*.pyc
 backend/data/          # CSV / database files — never commit raw data
 backend/paws/data/
+backend/paws/dev/data/
 **/received_data.csv
 **/measurements.db
 **/station.log
