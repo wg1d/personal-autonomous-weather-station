@@ -123,7 +123,8 @@ def test_daily_summary(connection):
         row("2026-10-04T15:00:00Z", None),         # missing value: ignored
         row("2026-10-05T06:00:00Z", 12.0),
     ])
-    days = database.daily_summary(connection)
+    days = database.daily_summary(connection, "2026-01-01T00:00:00Z",
+                                  "2026-10-06T00:00:00Z")
     assert [d["day"] for d in days] == ["2026-10-04", "2026-10-05"]
     first = days[0]
     assert (first["temperature_c_min"], first["temperature_c_avg"],
@@ -133,9 +134,10 @@ def test_daily_summary(connection):
 def test_view_of_a_day_shows_every_row(connection):
     database.insert_rows(connection, [row("2026-10-05T11:45:00Z", 12.0)])
     view = build_view(connection, "24h", None, NOW)
-    temperature = view["figure"].data[0]
-    assert list(temperature.y) == [12.0]
-    assert len(view["figure"].data) == 3            # one line per quantity
+    temperature = view["figure"]["data"][0]
+    assert temperature["y"] == [12.0]
+    assert temperature["x"] == ["2026-10-05 11:45:00"]
+    assert len(view["figure"]["data"]) == 3         # one line per quantity
 
 
 def test_view_holds_a_margin_on_each_side(connection):
@@ -144,13 +146,13 @@ def test_view_holds_a_margin_on_each_side(connection):
         row("2026-09-27T11:45:00Z", 9.0),           # too old: not loaded
     ])
     view = build_view(connection, "24h", None, NOW)
-    assert list(view["figure"].data[0].y) == [10.0]
+    assert view["figure"]["data"][0]["y"] == [10.0]
 
 
 def test_view_of_a_year_shows_min_average_max(connection):
     database.insert_rows(connection, [row("2026-10-05T11:45:00Z", 12.0)])
     view = build_view(connection, "1y", None, NOW)
-    names = [trace.name for trace in view["figure"].data[:3]]
+    names = [trace.get("name") for trace in view["figure"]["data"][:3]]
     assert names == [None, "Temperature: daily min – max",
                      "Temperature: daily average"]
 
