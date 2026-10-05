@@ -1,0 +1,26 @@
+[project]
+name = "paws-server"
+version = "0.8.0"
+description = "Backend of the Personal Autonomous Weather Station"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115",
+    # Without the [standard] extras: their C extensions have no build for
+    # the 32-bit ARM of the server, and are not needed at our load
+    "uvicorn>=0.30",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    # Used by the test client of FastAPI (httpx is deprecated for it)
+    "httpx2>=2",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# paws_server is imported from the project folder, without installing it
+pythonpath = ["."]

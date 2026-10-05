@@ -15,11 +15,13 @@ firmware/.vscode/
 firmware/**/secrets.h
 
 # Backend Python
-backend/.venv/
+backend/**/.venv/
+backend/**/.pytest_cache/
 backend/__pycache__/
 backend/**/__pycache__/
 backend/*.pyc
 backend/data/          # CSV / database files — never commit raw data
+backend/paws/data/
 **/received_data.csv
 **/measurements.db
 **/station.log
