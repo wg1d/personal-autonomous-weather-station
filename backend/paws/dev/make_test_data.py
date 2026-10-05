@@ -12,7 +12,8 @@ Usage (from backend/paws):
     uv run python dev/make_test_data.py [years]   # default: 3 years
     PAWS_DATA_DIR=dev/data uv run uvicorn paws_server.main:app --port 8080
 
-The database is written to dev/data/measurements.db, ignored by git.
+The database is written to dev/data/measurements.db, ignored by git. It
+is made again at each run, so that it always ends at the present time.
 
 Dependencies: Python standard library.
 """
@@ -52,7 +53,9 @@ while time <= end:
                  round(min(humidity, 100), 2), round(pressure, 2)))
     time += timedelta(minutes=15)
 
-connection = database.connect(folder / "measurements.db")
+path = folder / "measurements.db"
+path.unlink(missing_ok=True)
+connection = database.connect(path)
 inserted = database.insert_rows(connection, rows)
 connection.close()
-print(f"{inserted} rows inserted in {folder / 'measurements.db'}")
+print(f"{inserted} rows inserted in {path}")
