@@ -7,7 +7,7 @@ Step B1 stores the data of the station on the server. Step B2 shows it in a dash
 
 The second tab, Compare, draws two periods over each other (BF6): it is the subject of the [next chapter](02-2-compare.qmd). The third one, [Data](02-3-data.qmd), exports the measurements (BF5) and receives the files of the station uploaded by hand (BF7).
 
-> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/backend/paws)
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v0.9.0/backend/paws)
 
 ## The page
 
@@ -44,14 +44,14 @@ In the browser, the graphs are drawn by [Plotly](https://plotly.com/javascript/)
 
 Dash runs on Flask, an older kind of Python web application, called *WSGI*; FastAPI is an *ASGI* application, its newer version. The `a2wsgi` package lets FastAPI serve the Dash application under `/dashboard`, so that the API and the dashboard share one service and one port (BN2 · Light):
 
-```{.python include="../../../backend/paws/paws_server/main.py"}
+```{.python include="../../_versions/v0.9.0/backend/paws/paws_server/main.py"}
 ```
 
 ## The queries
 
 The dashboard reads the database with five new functions:
 
-```{.python include="../../../backend/paws/paws_server/database.py"}
+```{.python include="../../_versions/v0.9.0/backend/paws/paws_server/database.py"}
 ```
 
 - **`last_row()`** gives the last measurement, for the cards and the health of the station.
@@ -70,7 +70,7 @@ The days of `daily_summary()` are days in UTC: the first ten characters of the t
 
 `dashboard.py` holds the whole page:
 
-```{.python include="../../../backend/paws/paws_server/dashboard.py"}
+```{.python include="../../_versions/v0.9.0/backend/paws/paws_server/dashboard.py"}
 ```
 
 It is organized in five parts; this chapter explains four of them, the [next one](02-2-compare.qmd) the Compare tab. The callbacks of the Data tab are described [with it](02-3-data.qmd#in-the-dashboard).
@@ -118,7 +118,7 @@ The colors, sizes and layout of the page are in a style sheet, `assets/style.css
 ::: {.callout-note collapse="true"}
 ## style.css
 
-```{.css include="../../../backend/paws/paws_server/assets/style.css"}
+```{.css include="../../_versions/v0.9.0/backend/paws/paws_server/assets/style.css"}
 ```
 
 The two themes only differ by the values of a few *CSS variables*, such as `--background` or `--card`, given by the class of the outermost element (`root dark` or `root light`). The rules below use these variables, and the callback only changes this class. The components of Dash, such as its lists, take their colors from variables of their own (`--Dash-…`), set from the same values.
@@ -146,7 +146,7 @@ Measuring on the real server, and with realistic amounts of data, showed the pro
 
 The tests of the dashboard call its functions directly, with a temporary database:
 
-```{.python include="../../../backend/paws/tests/test_dashboard.py"}
+```{.python include="../../_versions/v0.9.0/backend/paws/tests/test_dashboard.py"}
 ```
 
 - **The health**: no data, a recent row, and a row older than 2 hours.
@@ -165,7 +165,7 @@ Without the station, the database of the development computer is empty. A small 
 ::: {.callout-note collapse="true"}
 ## make_test_data.py
 
-```{.python include="../../../backend/paws/dev/make_test_data.py"}
+```{.python include="../../_versions/v0.9.0/backend/paws/dev/make_test_data.py"}
 ```
 :::
 
