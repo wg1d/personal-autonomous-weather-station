@@ -29,12 +29,12 @@ The maintenance page of the station gives two files: the measurements, and the l
 
 A spreadsheet such as Excel, in French, saves a CSV file with `;` between the fields and `,` in the numbers: such a file is refused, with a message asking to keep the format of the station.
 
-```{.python include="../../../backend/paws/paws_server/transfer.py"}
+```{.python include="../../_versions/v0.9.0/backend/paws/paws_server/transfer.py"}
 ```
 
 The log of the server moves to a module of its own, `logs.py`, used both by the API, which appends the lines sent by the station, and by the manual upload, which merges the entries of a file:
 
-```{.python include="../../../backend/paws/paws_server/logs.py"}
+```{.python include="../../_versions/v0.9.0/backend/paws/paws_server/logs.py"}
 ```
 
 ## In the dashboard
@@ -55,7 +55,7 @@ Two components of Dash do the work in the browser:
 - a file saved by a spreadsheet, and any other file, are refused, and not taken for a log;
 - a log only adds its new entries, cut at their first line.
 
-```{.python include="../../../backend/paws/tests/test_transfer.py"}
+```{.python include="../../_versions/v0.9.0/backend/paws/tests/test_transfer.py"}
 ```
 
 ## Speed on the server
