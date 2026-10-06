@@ -110,6 +110,8 @@ website:
             contents:
               - href: chapters/Backend/02-1-dashboard.qmd
                 text: "Graphs"
+              - href: chapters/Backend/02-2-compare.qmd
+                text: "Compare"
 
 date: last-modified
 
