@@ -1,11 +1,11 @@
 # B2 · Dashboard {.unnumbered}
 
-Step B1 stores the data of the station on the server. Step B2 shows it in a dashboard, opened in a browser on a computer or a phone of the home network. This first part builds the page itself:
+Step B1 stores the data of the station on the server. Step B2 shows it in a dashboard, opened in a browser on a computer or a phone of the home network. This first part builds the page itself, and its first tab, Graphs:
 
 - the last measurement, and the health of the station (BF3 · Dashboard, BF4 · Health of the station);
-- the graphs of temperature, humidity and pressure over 24 hours, 7 days, 30 days or 1 year, with the minimum, average and maximum of each day over a year (BF3).
+- the graphs of temperature, humidity and pressure, from a few hours to several years, with the minimum, average and maximum of each day over long periods (BF3).
 
-The comparison of several periods (BF6), the export (BF5) and the manual upload (BF7) come in the next parts of B2.
+The second tab, Compare, draws two periods over each other (BF6): it is the subject of the [next chapter](02-2-compare.qmd). The export (BF5) and the manual upload (BF7) come in the last part of B2.
 
 > **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/backend/paws)
 
@@ -15,20 +15,19 @@ The comparison of several periods (BF6), the export (BF5) and the manual upload 
 
 From the top to the bottom:
 
+- **The tabs**, Graphs and Compare, and the button that switches between a dark and a light theme; the browser remembers the theme.
 - **The last measurement**: a dot, green while the station sends its data, and the time of the last row, then one card per quantity with its value. The station measures every 15 minutes: the cards show the last measurement, not the weather of this very second.
 - **A red warning**, only when the station is silent: after 2 hours without a new row, a red band appears below the title, for example "No new measurement for 3 h 05 min: check the station." The station uploads every hour: 2 hours without data mean that it missed an upload.
-- **The period**: 24 hours, 7 days, 30 days or 1 year. Up to 30 days, each row of the database is a point of the curves; over a year, each day is drawn as its average, inside a band that goes from its minimum to its maximum.
+- **The period**: 24 hours, 7 days, 30 days or 1 year, and **Today**, which comes back to the present.
 - **The graphs**, one per quantity, one above the other, sharing the same time axis. A dotted line marks each midnight.
 
-To move in time:
+To move in time, **drag the graphs** to the left or to the right: the three graphs move together, and the values keep their scale. **The mouse wheel** zooms in or out in time, around the mouse. Neither goes beyond the data: not before the oldest row, not after the present. The period buttons then only set the length shown again.
 
-- **drag the graphs** to the left or to the right: the three graphs move together, and the values keep their scale;
-- **◀ and ▶** move the graphs by one period back or forth; **Today** comes back to the present;
-- **Ctrl + mouse wheel** zooms in time, and a double click comes back to the period chosen.
+The points depend on the length shown: every row up to 2 days, the average of each hour up to 3 months, then the minimum, average and maximum of each day, drawn as the average inside a band that goes from the minimum to the maximum. The screen shows no more detail, and the page stays light.
 
-While the graphs show the present, the page asks for new data every 5 minutes. The button at the top right switches between a dark and a light theme; the browser remembers the choice.
+While the graphs show the present, the page asks for new data every 5 minutes.
 
-On a phone, the cards and the buttons take the width of the screen:
+On a phone, everything above the graphs is made smaller, and the periods are written in short (24h, 7d, 30d, 1y), so that the graphs and their time axis fit on the screen:
 
 ![The same page on a phone](../../assets/images/B2-1_dashboard_phone.png){width=300}
 
@@ -50,15 +49,18 @@ Dash runs on Flask, an older kind of Python web application, called *WSGI*; Fast
 
 ## The queries
 
-The dashboard reads the database with four new functions:
+The dashboard reads the database with five new functions:
 
 ```{.python include="../../../backend/paws/paws_server/database.py"}
 ```
 
 - **`last_row()`** gives the last measurement, for the cards and the health of the station.
-- **`first_timestamp()`** gives the oldest row: ◀ is disabled when the graphs already show it.
-- **`rows_between()`** gives the rows of a period, for the views up to 30 days. SQLite also gives the time of each row in the local time of the server (`datetime(timestamp, 'localtime')`): the database stores UTC, but the graphs show the time of the house.
-- **`daily_summary()`** gives the minimum, average and maximum of each day, for the view over a year, in a single SQL query: `GROUP BY` gathers the rows of the same day, and `MIN()`, `AVG()` and `MAX()` compute their values. A missing value (`NULL`) is ignored by these functions.
+- **`first_local_time()`** gives the time of the oldest row: the graphs cannot go before it.
+- **`rows_between()`** gives the rows of a period, up to 2 days. SQLite also gives the time of each row in the local time of the server (`datetime(timestamp, 'localtime')`): the database stores UTC, but the graphs show the time of the house.
+- **`hourly_summary()`** gives the average of each hour, up to 3 months, placed at the middle of the hour.
+- **`daily_summary()`** gives the minimum, average and maximum of each day, beyond 3 months.
+
+Each summary is a single SQL query: `GROUP BY` gathers the rows of the same hour or day, and `MIN()`, `AVG()` and `MAX()` compute their values. A missing value (`NULL`) is ignored by these functions.
 
 Only the rows with a valid time (`time_valid = 1`) are shown: a row measured while the clock was not reliable may carry a wrong date, such as `2000-01-01`.
 
@@ -71,13 +73,15 @@ The days of `daily_summary()` are days in UTC: the first ten characters of the t
 ```{.python include="../../../backend/paws/paws_server/dashboard.py"}
 ```
 
-It is organized in four parts.
+It is organized in five parts; this chapter explains four of them, the [next one](02-2-compare.qmd) the Compare tab.
 
-**Navigation in time.** The page keeps the end of the period shown, in a `dcc.Store`: a value kept in the browser, without anything on the screen. It is `None` while the page shows the present. `window()` computes the period shown from the period chosen and this end, and `shift()` moves it by one period for ◀ and ▶.
+**Navigation in time.** The page keeps the period shown in a `dcc.Store`, a value kept in the browser, without anything on the screen: its length, and its end, which is `None` while the page shows the present. `shown()` computes the start and the end of the period from it.
 
-When the graphs are dragged, Plotly tells the callback the new limits of the time axis, once the mouse is released (`relayoutData`). `end_after_drag()` turns them into a new end: the graphs are loaded again around the new position. A zoom also changes the limits of the axis, but changes the length of the period shown: it is ignored, and the graphs stay as the visitor zoomed them.
+The drag and the zoom are done by Plotly itself, in the browser (`"dragmode": "pan"` and the `scrollZoom` option). After each move, Plotly tells the page the new limits of the time axes (`relayoutData`): `shown_limits()` reads them, and `view_after_move()` turns them into the new period shown. The page then loads the data around the new position, at the resolution of the new length (`resolution()`).
 
-To show the data right away while the graphs are dragged, they hold more than the period shown: a margin on each side (`MARGINS`), for example 7 days on each side of a 24-hour period. The data beyond the margin appears once the mouse is released.
+To show the data right away while the graphs are dragged, they hold more than the period shown: as much again on each side. The data beyond appears once the mouse is released.
+
+The limits of the data are given to the time axes (`"minallowed"` and `"maxallowed"`): Plotly stops a drag or a zoom at them. At a limit, Plotly stops the edge that reached it, and lets the other one move on: the graphs then show a shorter period.
 
 **Health and last measurement.** `health()` computes the age of the last row and decides whether the station is silent (more than 2 hours); `cards()` builds one card per quantity.
 
@@ -92,9 +96,10 @@ Over a year, each quantity has three curves: the minimum, drawn without a line, 
 
 **The page.** `create_dashboard()` writes the layout and the callbacks:
 
-- `navigate()` is called on a click on ◀, ▶ or Today, or after a drag; `ctx.triggered_id` tells which element changed. It returns the new end of the period;
+- `show_tab()` shows the tab chosen and hides the other one;
+- `navigate()` is called on a click on a period or on Today, or after a drag or a zoom; `ctx.triggered_id` tells which element changed. It returns the new period shown;
 - `switch_theme()` is called on a click on the theme button;
-- `update()` is called when the page opens, when the period, its end or the theme changes, and every 5 minutes (`dcc.Interval`). It reads the database and returns everything the page shows.
+- `update()` is called when the page opens, when the period shown or the theme changes, and every 5 minutes (`dcc.Interval`). It reads the database and returns everything the Graphs tab shows.
 
 `update()` delegates the work to `build_view()`, which takes the database and the current time as parameters: the tests call it directly, without a browser.
 
@@ -111,19 +116,14 @@ In an f-string, what follows `:` inside the braces is a *format*: `f"{value:.1f}
 The colors, sizes and layout of the page are in a style sheet, `assets/style.css`. Dash adds every file of the `assets` folder to the page, next to the application.
 
 ::: {.callout-note collapse="true"}
-## style.css and ctrl_zoom.js
+## style.css
 
 ```{.css include="../../../backend/paws/paws_server/assets/style.css"}
 ```
 
-The two themes only differ by the values of a few *CSS variables*, such as `--background` or `--card`, given by the class of the outermost element (`root dark` or `root light`). The rules below use these variables, and the callback only changes this class.
+The two themes only differ by the values of a few *CSS variables*, such as `--background` or `--card`, given by the class of the outermost element (`root dark` or `root light`). The rules below use these variables, and the callback only changes this class. The components of Dash, such as its lists, take their colors from variables of their own (`--Dash-…`), set from the same values.
 
-The rules inside `@media (max-width: 600px)` only apply to a narrow screen, such as a phone.
-
-```{.js include="../../../backend/paws/paws_server/assets/ctrl_zoom.js"}
-```
-
-Plotly zooms on every turn of the mouse wheel over the graphs, which would also catch the wheel while scrolling the page. This small script stops the turns of the wheel without Ctrl before they reach Plotly.
+The rules inside `@media (max-width: 600px)` only apply to a narrow screen, such as a phone. Each period button holds a long and a short label; the style shows one or the other.
 :::
 
 ## Speed on the server
@@ -135,9 +135,10 @@ The first version of the dashboard built its figure with the figure objects of P
 | 24 hours | 2.7 s | 0.14 s |
 | 7 days | 16 s | 0.5 s |
 | 30 days | 69 s | 1.1 s |
-| 1 year | - | 1.25 s |
 
-A 30-day view with its margins holds about 8,600 rows: the figure objects checked each of their 26,000 values, and the dotted lines one by one, on a processor much slower than the one of the development computer. Written as a dictionary, the figure is sent as it is: Plotly checks it in the browser anyway. The local time of each row is also given by SQLite, three times faster than Python on the server.
+A 30-day view with its margins held about 8,600 rows: the figure objects checked each of their 26,000 values, and the dotted lines one by one, on a processor much slower than the one of the development computer. Written as a dictionary, the figure is sent as it is: Plotly checks it in the browser anyway. The local time of each row is also given by SQLite, three times faster than Python on the server.
+
+The averages of each hour and of each day then cut the number of points. With the current code, the server builds each view in 0.02 s (24 hours), 0.06 s (7 days), 0.23 s (30 days) and 1.2 s (1 year), with three years of data.
 
 Measuring on the real server, and with realistic amounts of data, showed the problem; the development computer hid it.
 
@@ -149,9 +150,9 @@ The tests of the dashboard call its functions directly, with a temporary databas
 ```
 
 - **The health**: no data, a recent row, and a row older than 2 hours.
-- **The navigation**: the period ends now by default; ◀ and ▶ move by one period, and coming back to the present follows the new data again; a drag moves the period, a zoom or a double click does not.
-- **The queries**: the rows outside the period and those with an invalid time are left out; the minimum, average and maximum of a day ignore the missing values.
-- **The view**: one curve per quantity over a day, three over a year (minimum, band, average), the margin on each side, and ◀ disabled at the first row.
+- **The navigation**: the period ends now by default; the limits that Plotly reports for its three time axes are read; a drag or a zoom sets the period shown, and coming back to the present follows the new data again; the resolution follows the length shown.
+- **The queries**: the rows outside the period and those with an invalid time are left out; the averages of each hour, and the minimum, average and maximum of each day, ignore the missing values.
+- **The view**: one curve per quantity over a day, three over a year (minimum, band, average), the margin on each side, and the limits of the data on the three time axes.
 
 The dashboard shows local time, which depends on the computer running the tests. The fixture `utc_local_time` sets the local time to UTC during each test (the `TZ` environment variable, then `time.tzset()` to apply it): the results are the same on any computer, and in the CI.
 
@@ -192,9 +193,10 @@ On our server, the service now uses about 47 MB of memory for the backend itself
 |---------|---------------|
 | The page stays white | The browser cannot load the scripts of the page: reload it. If it stays white, `journalctl -u paws-backend -n 50` on the server shows the errors of the callbacks. |
 | The graphs are empty | No row in the period shown: press **Today**, or choose a longer period. Rows written while the clock was not reliable (`time_valid = 0`) are never shown. |
+| The graphs shrink when dragged | They reached the oldest row or the present: Plotly stops that edge, and the other one moves on. Press a period button to show its length again. |
 | The dot is red after a deployment | The deployment does not change the data: the station has not uploaded for 2 hours. Check its log on the maintenance page, or `station.log` on the server. |
 | The times are one or two hours off | The server is not set to the local time zone: `timedatectl` on the server shows it, `sudo timedatectl set-timezone Europe/Paris` sets it. |
 
 ## Next Steps
 
-The next part of B2 adds the comparison of several periods on one graph: several weeks, months or years, aligned on their start.
+The [next chapter](02-2-compare.qmd) describes the Compare tab, which draws two days, weeks, months or years over each other.
