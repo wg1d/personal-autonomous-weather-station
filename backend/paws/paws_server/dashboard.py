@@ -4,13 +4,16 @@ File: backend/paws/paws_server/dashboard.py
 
 Description:
 The dashboard: the health of the station, the last measurement, and the
-graphs of temperature, humidity and pressure. Two tabs:
+graphs of temperature, humidity and pressure. Three tabs:
 
 - Graphs: the graphs over a period chosen with the buttons (24 hours,
   7 days, 30 days, 1 year), then moved by dragging the graphs and zoomed
   with the mouse wheel;
 - Compare: two days, weeks, months or years drawn over each other,
-  aligned on their start, then dragged and zoomed together.
+  aligned on their start, then dragged and zoomed together;
+- Data: the export of all the measurements, and the upload by hand of
+  the files downloaded from the maintenance page of the station (see
+  transfer.py).
 
 Over a long period, the graphs show the minimum, average and maximum of
 each day. A button switches between a dark and a light theme.
@@ -26,13 +29,14 @@ time of the server.
 Dependencies: dash (which includes plotly).
 """
 
+import base64
 import calendar
 from datetime import date, datetime, timedelta, timezone
 
 import plotly.io as pio
 from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
 
-from . import database
+from . import database, transfer
 from .protocol import TIMESTAMP_FORMAT
 
 # The periods of the buttons of the Graphs tab, and their length
@@ -590,11 +594,35 @@ SUNFLOWER_ICON = (
     "font-size='90'>&#127803;</text></svg>\">")
 
 
-def create_dashboard(open_database):
+def stored_text(connection):
+    """Describes the measurements stored, for the Data tab."""
+    count, oldest, newest = database.summary(connection)
+    if count == 0:
+        return "No measurement stored yet."
+    first, last = (to_local(parse_timestamp(text)) for text in (oldest,
+                                                                newest))
+    # 105121 is written "105 121"
+    number = f"{count:,}".replace(",", " ")
+    return (f"Stored: {number} measurements, from {first:%d %b %Y} "
+            f"to {last:%d %b %Y}.")
+
+
+def decode_upload(contents):
+    """The text of a file sent by the upload area of Dash.
+
+    Dash gives the file as "data:<type>;base64,<content>": the content,
+    encoded in base64 (bytes written as text), follows the comma.
+    """
+    encoded = contents.split(",", 1)[1]
+    return base64.b64decode(encoded).decode("utf-8", errors="replace")
+
+
+def create_dashboard(open_database, log_path):
     """Creates the Dash application.
 
-    open_database is the function that opens the database: the dashboard
-    receives it from main.py, which knows where the data lives.
+    open_database is the function that opens the database, and log_path
+    the one that gives the path of the log of the station: the dashboard
+    receives them from main.py, which knows where the data lives.
     """
     # The dashboard is served under /dashboard/ (see main.py): the page
     # must ask for its files and its updates under this address. The
@@ -648,7 +676,8 @@ def create_dashboard(open_database):
                 dcc.RadioItems(
                     id="tab", value="graphs", className="periods",
                     options=[{"label": "Graphs", "value": "graphs"},
-                             {"label": "Compare", "value": "compare"}]),
+                             {"label": "Compare", "value": "compare"},
+                             {"label": "Data", "value": "data"}]),
                 html.Button("☀", id="theme-button",
                             title="Dark or light theme"),
             ]),
@@ -690,8 +719,22 @@ def create_dashboard(open_database):
             ]),
             graph("compare-graph"),
         ]),
-        html.P("Drag the graphs to move in time, turn the mouse wheel over "
-               "them to zoom.", className="hint"),
+        html.Div(id="data-tab", style={"display": "none"}, children=[
+            html.P(id="stored", className="stored"),
+            html.Button("⬇ Download all measurements (CSV)", id="export"),
+            dcc.Download(id="download"),
+            # The files are read by the browser and sent to the page;
+            # several can be chosen at once
+            dcc.Upload(id="upload", multiple=True, className="upload",
+                       children=html.Div([
+                           "Drop here, or click to choose, the files "
+                           "downloaded from the maintenance page of the "
+                           "station: the measurements (CSV) and the log."])),
+            html.Ul(id="upload-result", className="upload-result"),
+        ]),
+        html.P(id="hint", className="hint",
+               children="Drag the graphs to move in time, turn the mouse "
+                        "wheel over them to zoom."),
         # The period shown in the Graphs tab (see shown())
         dcc.Store(id="view", data={"length": 86400, "end": None}),
         # The periods of the Compare tab (see compare_dates())
@@ -705,10 +748,54 @@ def create_dashboard(open_database):
 
     @app.callback(
         Output("graphs-tab", "style"), Output("compare-tab", "style"),
+        Output("data-tab", "style"), Output("hint", "style"),
         Input("tab", "value"))
     def show_tab(tab):
+        # The tab chosen is shown, the others hidden; the hint about the
+        # graphs is only shown with graphs
         hidden = {"display": "none"}
-        return (hidden, {}) if tab == "compare" else ({}, hidden)
+        return ({} if tab == "graphs" else hidden,
+                {} if tab == "compare" else hidden,
+                {} if tab == "data" else hidden,
+                hidden if tab == "data" else {})
+
+    @app.callback(
+        Output("download", "data"),
+        Input("export", "n_clicks"), prevent_initial_call=True)
+    def export(_clicks):
+        # Sends the file to the browser, which saves it
+        connection = open_database()
+        try:
+            text = transfer.export_csv(connection)
+        finally:
+            connection.close()
+        name = f"paws_measurements_{datetime.now():%Y-%m-%d}.csv"
+        return dcc.send_string(text, name)
+
+    @app.callback(
+        Output("stored", "children"), Output("upload-result", "children"),
+        Output("upload", "contents"),
+        Input("tab", "value"), Input("upload", "contents"),
+        State("upload", "filename"))
+    def show_data(_tab, contents, names):
+        # Called when a tab is chosen, and when files are uploaded: stores
+        # them, then describes the measurements stored. The files are then
+        # forgotten by the upload area, so that the same file can be sent
+        # again
+        connection = open_database()
+        try:
+            results = no_update
+            if ctx.triggered_id == "upload" and contents:
+                results = []
+                for name, content in zip(names, contents):
+                    success, text = transfer.import_file(
+                        connection, log_path(), name,
+                        decode_upload(content))
+                    results.append(html.Li(("✔ " if success else "✘ ")
+                                           + text))
+            return stored_text(connection), results, None
+        finally:
+            connection.close()
 
     @app.callback(
         Output("view", "data"), Output("period", "value"),

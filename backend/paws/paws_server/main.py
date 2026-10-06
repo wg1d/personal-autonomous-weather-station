@@ -24,7 +24,7 @@ from a2wsgi import WSGIMiddleware
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
-from . import database
+from . import database, logs
 from .dashboard import create_dashboard
 from .protocol import FormatError, parse_rows
 
@@ -41,6 +41,11 @@ def data_dir():
 def open_database():
     """Opens the database of the measurements, in the data folder."""
     return database.connect(data_dir() / "measurements.db")
+
+
+def log_path():
+    """Returns the path of the log of the station, in the data folder."""
+    return data_dir() / "station.log"
 
 
 @app.post("/api/v1/measurements")
@@ -69,11 +74,7 @@ async def receive_measurements(request: Request):
 async def receive_log(request: Request):
     """Appends the log lines sent by the station to station.log."""
     text = (await request.body()).decode("utf-8", errors="replace")
-    if text and not text.endswith("\n"):
-        text += "\n"
-    with open(data_dir() / "station.log", "a", encoding="utf-8") as log:
-        log.write(text)
-    return {"received": text.count("\n")}
+    return {"received": logs.append(log_path(), text)}
 
 
 @app.get("/api/v1/measurements")
@@ -95,4 +96,5 @@ def home():
 # Dash runs on Flask, a WSGI application (the older standard of the Python
 # web servers), and FastAPI is an ASGI application: WSGIMiddleware lets
 # FastAPI serve Dash under /dashboard, on the same port
-app.mount("/dashboard", WSGIMiddleware(create_dashboard(open_database).server))
+app.mount("/dashboard", WSGIMiddleware(
+    create_dashboard(open_database, log_path).server))
