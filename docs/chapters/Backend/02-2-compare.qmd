@@ -56,4 +56,4 @@ With three years of made-up data, the server builds the comparison of two months
 
 ## Next Steps
 
-The last part of B2 adds the export of the measurements as a CSV file (BF5), and the manual upload of the files downloaded from the maintenance page of the station (BF7).
+The [last part of B2](02-3-data.qmd) adds the Data tab: the export of the measurements as a CSV file (BF5), and the manual upload of the files downloaded from the maintenance page of the station (BF7).

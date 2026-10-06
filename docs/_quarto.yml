@@ -112,6 +112,8 @@ website:
                 text: "Graphs"
               - href: chapters/Backend/02-2-compare.qmd
                 text: "Compare"
+              - href: chapters/Backend/02-3-data.qmd
+                text: "Data"
 
 date: last-modified
 

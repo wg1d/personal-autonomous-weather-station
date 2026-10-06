@@ -5,7 +5,7 @@ Step B1 stores the data of the station on the server. Step B2 shows it in a dash
 - the last measurement, and the health of the station (BF3 · Dashboard, BF4 · Health of the station);
 - the graphs of temperature, humidity and pressure, from a few hours to several years, with the minimum, average and maximum of each day over long periods (BF3).
 
-The second tab, Compare, draws two periods over each other (BF6): it is the subject of the [next chapter](02-2-compare.qmd). The export (BF5) and the manual upload (BF7) come in the last part of B2.
+The second tab, Compare, draws two periods over each other (BF6): it is the subject of the [next chapter](02-2-compare.qmd). The third one, [Data](02-3-data.qmd), exports the measurements (BF5) and receives the files of the station uploaded by hand (BF7).
 
 > **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/backend/paws)
 
@@ -15,7 +15,7 @@ The second tab, Compare, draws two periods over each other (BF6): it is the subj
 
 From the top to the bottom:
 
-- **The tabs**, Graphs and Compare, and the button that switches between a dark and a light theme; the browser remembers the theme.
+- **The tabs**, Graphs, Compare and Data, and the button that switches between a dark and a light theme; the browser remembers the theme.
 - **The last measurement**: a dot, green while the station sends its data, and the time of the last row, then one card per quantity with its value. The station measures every 15 minutes: the cards show the last measurement, not the weather of this very second.
 - **A red warning**, only when the station is silent: after 2 hours without a new row, a red band appears below the title, for example "No new measurement for 3 h 05 min: check the station." The station uploads every hour: 2 hours without data mean that it missed an upload.
 - **The period**: 24 hours, 7 days, 30 days or 1 year, and **Today**, which comes back to the present.
@@ -73,7 +73,7 @@ The days of `daily_summary()` are days in UTC: the first ten characters of the t
 ```{.python include="../../../backend/paws/paws_server/dashboard.py"}
 ```
 
-It is organized in five parts; this chapter explains four of them, the [next one](02-2-compare.qmd) the Compare tab.
+It is organized in five parts; this chapter explains four of them, the [next one](02-2-compare.qmd) the Compare tab. The callbacks of the Data tab are described [with it](02-3-data.qmd#in-the-dashboard).
 
 **Navigation in time.** The page keeps the period shown in a `dcc.Store`, a value kept in the browser, without anything on the screen: its length, and its end, which is `None` while the page shows the present. `shown()` computes the start and the end of the period from it.
 
