@@ -65,11 +65,11 @@ def last_row(connection):
     return dict(zip(COLUMNS, rows[0])) if rows else None
 
 
-def first_timestamp(connection):
-    """Returns the oldest timestamp with a valid time, or None."""
+def first_local_time(connection):
+    """Returns the time of the oldest valid row, in local time, or None."""
     return connection.execute(
-        "SELECT MIN(timestamp) FROM measurements WHERE time_valid = 1"
-    ).fetchone()[0]
+        "SELECT datetime(MIN(timestamp), 'localtime') FROM measurements "
+        "WHERE time_valid = 1").fetchone()[0]
 
 
 def rows_between(connection, start, end):
@@ -89,6 +89,28 @@ def rows_between(connection, start, end):
         "WHERE time_valid = 1 AND timestamp >= ? AND timestamp < ? "
         "ORDER BY timestamp", (start, end)).fetchall()
     return [dict(zip(COLUMNS + ["local_time"], row)) for row in rows]
+
+
+def hourly_summary(connection, start, end):
+    """Returns the average of each hour, from start to end, oldest first.
+
+    Used for the long periods of the dashboard, where a point every 15
+    minutes would be more than the screen can show: four times fewer
+    points to send to the browser. Each average is placed at the middle
+    of its hour ('+30 minutes'), in the local time of the server. Returns
+    one dictionary per hour, with the keys "local_time" and one per
+    quantity, as rows_between().
+    """
+    quantities = COLUMNS[2:]
+    columns = ", ".join(f"ROUND(AVG({q}), 2)" for q in quantities)
+    rows = connection.execute(
+        "SELECT datetime(substr(timestamp, 1, 13) || ':00:00', "
+        f"'+30 minutes', 'localtime'), {columns} "
+        "FROM measurements WHERE time_valid = 1 "
+        "AND timestamp >= ? AND timestamp < ? "
+        "GROUP BY substr(timestamp, 1, 13) ORDER BY timestamp",
+        (start, end)).fetchall()
+    return [dict(zip(["local_time"] + quantities, row)) for row in rows]
 
 
 def daily_summary(connection, start, end):

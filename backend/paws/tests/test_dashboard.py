@@ -1,18 +1,23 @@
-"""Tests of the dashboard: health, navigation and daily summary."""
+"""Tests of the dashboard: health, navigation, queries, views and
+comparison."""
 
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 import pytest
 
 from paws_server import database
-from dash import no_update
-
-from paws_server.dashboard import (build_view, end_after_drag, format_age,
-                                   health, midnights, shift, to_timestamp,
-                                   window)
+from paws_server.dashboard import (build_comparison, build_view,
+                                   compare_after_move,
+                                   compare_dates, format_age, health,
+                                   midnights, resolution, shown,
+                                   parts_of, shown_limits, start_of,
+                                   view_after_move)
 
 NOW = datetime(2026, 10, 5, 12, 0, tzinfo=timezone.utc)
+
+# The period of the Graphs tab when the page opens: the last 24 hours
+DAY = {"length": 86400, "end": None}
 
 
 @pytest.fixture(autouse=True)
@@ -40,6 +45,8 @@ def row(timestamp, temperature, time_valid=1):
     return (timestamp, time_valid, temperature, 50.0, 1013.0)
 
 
+# --- Health ------------------------------------------------------------------
+
 def test_health_without_data_warns():
     stale, status, alert = health(None, NOW)
     assert stale
@@ -63,37 +70,40 @@ def test_long_silence_is_counted_in_days():
     assert format_age(timedelta(days=4, hours=3)) == "4 days"
 
 
-def test_window_ends_now_by_default():
-    start, stop = window("7d", None, NOW)
-    assert (to_timestamp(start), stop) == ("2026-09-28T12:00:00Z", NOW)
+# --- Navigation ----------------------------------------------------------------
+
+def test_period_shown_ends_now_by_default():
+    start, stop = shown({"length": 7 * 86400, "end": None}, NOW)
+    assert (start, stop) == (NOW - timedelta(days=7), NOW)
 
 
-def test_back_and_forth_move_by_one_period():
-    end = shift("24h", None, NOW, -1)
-    assert end == "2026-10-04T12:00:00Z"
-    assert shift("24h", end, NOW, -1) == "2026-10-03T12:00:00Z"
-    # Back to the present: the page follows the new data again
-    assert shift("24h", end, NOW, +1) is None
+def test_drag_or_zoom_sets_the_period_shown():
+    # In UTC (see utc_local_time): 6 hours, ending 2 hours ago
+    limits = ["2026-10-05 04:00:00", "2026-10-05 10:00:00"]
+    assert view_after_move(limits, NOW) == {
+        "length": 6 * 3600, "end": "2026-10-05T10:00:00Z"}
 
 
-def test_drag_moves_the_period():
-    # In UTC (see utc_local_time), dragged two hours back in time
-    relayout = {"xaxis3.range[0]": "2026-10-04 10:00:00",
-                "xaxis3.range[1]": "2026-10-05 10:00:00"}
-    assert end_after_drag(relayout, "24h", NOW) == "2026-10-05T10:00:00Z"
+def test_limits_reported_by_plotly_for_the_three_axes():
+    relayout = {f"xaxis{suffix}.range[{bound}]": value
+                for suffix in ["", "2", "3"]
+                for bound, value in [(0, "2026-10-04 10:00:00"),
+                                     (1, "2026-10-05 10:00:00")]}
+    assert shown_limits(relayout) == ["2026-10-04 10:00:00",
+                                      "2026-10-05 10:00:00"]
+    # A click in the legend changes no time axis
+    assert shown_limits({"legend.x": 0.1}) is None
 
 
-def test_drag_to_the_present_follows_the_new_data():
-    relayout = {"xaxis.range[0]": "2026-10-04 13:00:00",
-                "xaxis.range[1]": "2026-10-05 13:00:00"}
-    assert end_after_drag(relayout, "24h", NOW) is None
+def test_back_to_the_present_follows_the_new_data():
+    limits = ["2026-10-04 12:00:00", "2026-10-05 12:00:00"]
+    assert view_after_move(limits, NOW)["end"] is None
 
 
-def test_zoom_and_reset_do_not_move_the_period():
-    zoom = {"xaxis.range[0]": "2026-10-05 08:00:00",
-            "xaxis.range[1]": "2026-10-05 10:00:00"}
-    assert end_after_drag(zoom, "24h", NOW) is no_update
-    assert end_after_drag({"xaxis.autorange": True}, "24h", NOW) is no_update
+def test_resolution_follows_the_length_shown():
+    assert resolution(timedelta(hours=24)) == "rows"
+    assert resolution(timedelta(days=30)) == "hours"
+    assert resolution(timedelta(days=365)) == "days"
 
 
 def test_midnights_between_two_times():
@@ -102,6 +112,8 @@ def test_midnights_between_two_times():
     assert midnights(first, last) == [datetime(2026, 10, 4),
                                       datetime(2026, 10, 5)]
 
+
+# --- Queries -------------------------------------------------------------------
 
 def test_rows_between_skips_rows_outside_and_invalid(connection):
     database.insert_rows(connection, [
@@ -114,6 +126,18 @@ def test_rows_between_skips_rows_outside_and_invalid(connection):
     rows = database.rows_between(connection, "2026-10-04T12:00:00Z",
                                  "2026-10-05T12:00:00Z")
     assert [r["temperature_c"] for r in rows] == [11.0, 12.0]
+
+
+def test_hourly_summary(connection):
+    database.insert_rows(connection, [
+        row("2026-10-05T10:00:00Z", 10.0),
+        row("2026-10-05T10:45:00Z", 11.0),
+        row("2026-10-05T11:00:00Z", 20.0),
+    ])
+    hours = database.hourly_summary(connection, "2026-10-05T00:00:00Z",
+                                    "2026-10-06T00:00:00Z")
+    assert [(h["local_time"], h["temperature_c"]) for h in hours] == [
+        ("2026-10-05 10:30:00", 10.5), ("2026-10-05 11:30:00", 20.0)]
 
 
 def test_daily_summary(connection):
@@ -131,33 +155,91 @@ def test_daily_summary(connection):
             first["temperature_c_max"]) == (10.0, 15.0, 20.0)
 
 
+# --- Graphs tab ----------------------------------------------------------------
+
 def test_view_of_a_day_shows_every_row(connection):
     database.insert_rows(connection, [row("2026-10-05T11:45:00Z", 12.0)])
-    view = build_view(connection, "24h", None, NOW)
-    temperature = view["figure"]["data"][0]
-    assert temperature["y"] == [12.0]
-    assert temperature["x"] == ["2026-10-05 11:45:00"]
-    assert len(view["figure"]["data"]) == 3         # one line per quantity
+    figure = build_view(connection, DAY, NOW)["figure"]
+    assert figure["data"][0]["y"] == [12.0]
+    assert len(figure["data"]) == 3                 # one line per quantity
 
 
-def test_view_holds_a_margin_on_each_side(connection):
+def test_view_holds_as_much_again_on_each_side(connection):
     database.insert_rows(connection, [
-        row("2026-09-27T12:00:00Z", 10.0),          # 8 days before: kept
-        row("2026-09-27T11:45:00Z", 9.0),           # too old: not loaded
+        row("2026-10-03T12:00:00Z", 10.0),          # 2 days before: kept
+        row("2026-10-03T11:45:00Z", 9.0),           # too old: not loaded
     ])
-    view = build_view(connection, "24h", None, NOW)
-    assert view["figure"]["data"][0]["y"] == [10.0]
+    figure = build_view(connection, DAY, NOW)["figure"]
+    assert figure["data"][0]["y"] == [10.0]
 
 
 def test_view_of_a_year_shows_min_average_max(connection):
     database.insert_rows(connection, [row("2026-10-05T11:45:00Z", 12.0)])
-    view = build_view(connection, "1y", None, NOW)
-    names = [trace.get("name") for trace in view["figure"]["data"][:3]]
-    assert names == [None, "Temperature: daily min – max",
-                     "Temperature: daily average"]
+    view = {"length": 365 * 86400, "end": None}
+    names = [trace.get("name")
+             for trace in build_view(connection, view, NOW)["figure"]["data"]]
+    assert names[:3] == [None, "Temperature: daily min – max",
+                         "Temperature: daily average"]
 
 
-def test_back_is_disabled_before_the_first_row(connection):
+def test_figure_holds_the_limits_of_the_data(connection):
     database.insert_rows(connection, [row("2026-10-01T00:00:00Z", 12.0)])
-    assert not build_view(connection, "24h", None, NOW)["at_start"]
-    assert build_view(connection, "7d", None, NOW)["at_start"]
+    layout = build_view(connection, DAY, NOW)["figure"]["layout"]
+    # On the three time axes, which move together
+    for axis in ["xaxis", "xaxis2", "xaxis3"]:
+        assert layout[axis]["minallowed"] == "2026-10-01 00:00:00"
+        assert layout[axis]["maxallowed"] == "2026-10-05 12:00:00"
+
+
+# --- Compare tab ---------------------------------------------------------------
+
+def test_any_day_chooses_its_whole_period():
+    # Wednesday 14 October 2026 and Monday 7 December 2025
+    for unit, starts in [("day", ("2026-10-14", "2025-12-07")),
+                         ("week", ("2026-10-12", "2025-12-01")),
+                         ("month", ("2026-10-01", "2025-12-01")),
+                         ("year", ("2026-01-01", "2025-01-01"))]:
+        compared = compare_dates(unit, "2026-10-14", "2025-12-07")
+        assert (compared["reference"][:10],
+                compared["comparison"][:10]) == starts
+
+
+def test_period_from_the_two_lists():
+    assert start_of("day", 2026, 10, 14) == date(2026, 10, 14)
+    # February has no 31st: its last day instead
+    assert start_of("day", 2026, 2, 31) == date(2026, 2, 28)
+    assert start_of("month", 2025, 10) == date(2025, 10, 1)
+    assert start_of("week", 2026, 41) == date(2026, 10, 5)
+    # 2026 has 53 weeks, 2025 only 52: its week 53 is its last week
+    assert start_of("week", 2025, 53) == date(2025, 12, 22)
+    assert start_of("year", 2025) == date(2025, 1, 1)
+    assert parts_of("week", date(2026, 10, 5)) == (2026, 41, None)
+    assert parts_of("day", date(2026, 10, 14)) == (2026, 10, 14)
+
+
+def test_month_is_compared_with_another_month(connection):
+    database.insert_rows(connection, [
+        row("2026-10-01T01:00:00Z", 15.0),          # October
+        row("2025-12-01T01:00:00Z", 2.0),           # December
+    ])
+    compared = compare_dates("month", "2026-10-01", "2025-12-01")
+    assert compared["length"] == 31 * 86400
+    data = build_comparison(connection, compared, NOW)["data"]
+    reference, comparison = data[:2]
+    assert reference["name"] == "October 2026"
+    assert comparison["name"] == "December 2025"
+    # One hour after the start of each month: drawn at the same place
+    # (the middle of the hour, see hourly_summary())
+    assert reference["x"] == comparison["x"] == ["2026-10-01 01:30:00"]
+    assert comparison["y"] == [2.0]
+
+
+def test_drag_moves_both_periods_together():
+    compared = compare_dates("month", "2026-10-01", "2025-12-01")
+    # The reference dragged to start 6 days later
+    limits = ["2026-10-07 00:00:00", "2026-11-07 00:00:00"]
+    moved = compare_after_move(limits, compared)
+    assert (moved["reference"], moved["comparison"]) == (
+        "2026-10-07T00:00:00Z", "2025-12-07T00:00:00Z")
+    # The legend now gives the exact dates shown
+    assert not moved["chosen"]
