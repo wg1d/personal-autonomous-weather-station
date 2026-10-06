@@ -57,6 +57,20 @@ def last_rows(connection, count):
     return [dict(zip(COLUMNS, row)) for row in rows]
 
 
+def all_rows(connection):
+    """Returns every row, oldest first, as tuples in the order of COLUMNS."""
+    return connection.execute(
+        "SELECT * FROM measurements ORDER BY timestamp").fetchall()
+
+
+def summary(connection):
+    """Returns (number of rows, oldest timestamp, newest timestamp) of the
+    rows with a valid time; the timestamps are None without rows."""
+    return connection.execute(
+        "SELECT COUNT(*), MIN(timestamp), MAX(timestamp) FROM measurements "
+        "WHERE time_valid = 1").fetchone()
+
+
 def last_row(connection):
     """Returns the newest row with a valid time, or None if there is none."""
     rows = connection.execute(

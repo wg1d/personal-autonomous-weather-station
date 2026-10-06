@@ -187,6 +187,7 @@ button {
     padding: 6px 12px;
     cursor: pointer;
     font-size: 1rem;
+    font-family: inherit;
 }
 
 button:disabled {
@@ -245,6 +246,27 @@ button:disabled {
 
 .compare .dash-dropdown-trigger {
     font-weight: 600;
+}
+
+/* The Data tab: the button of the export, then the area where files are
+   dropped, and what became of each file */
+.stored {
+    color: var(--muted);
+}
+
+.upload {
+    margin: 16px 0;
+    padding: 28px 16px;
+    border: 2px dashed var(--accent);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--muted);
+    text-align: center;
+    cursor: pointer;
+}
+
+.upload-result {
+    padding-left: 20px;
 }
 
 /* The graphs, on a card like the values */
