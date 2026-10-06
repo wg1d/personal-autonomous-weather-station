@@ -19,6 +19,19 @@
     --shadow: rgba(0, 0, 0, 0.1);
 }
 
+/* The components of Dash, such as the calendars of the Compare tab, take
+   their colors from variables of their own: they follow the theme */
+.root {
+    --Dash-Fill-Inverse-Strong: var(--card);
+    --Dash-Text-Strong: var(--text);
+    --Dash-Text-Primary: var(--text);
+    --Dash-Text-Weak: var(--muted);
+    --Dash-Fill-Interactive-Strong: var(--accent);
+    --Dash-Fill-Interactive-Weak: var(--background);
+    --Dash-Stroke-Strong: var(--muted);
+    --Dash-Stroke-Weak: var(--shadow);
+}
+
 body {
     margin: 0;
     font-family: system-ui, sans-serif;
@@ -36,8 +49,9 @@ body {
     padding: 16px;
 }
 
-/* Title on the left, theme button on the right */
-.header {
+/* Title on the left; tabs and theme button on the right */
+.header,
+.header-right {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -126,7 +140,7 @@ body {
     font-weight: 400;
 }
 
-/* Period buttons on the left, navigation in time on the right */
+/* Period buttons on the left, Today on the right */
 .controls {
     display: flex;
     flex-wrap: wrap;
@@ -165,12 +179,6 @@ body {
     color: var(--card);
 }
 
-.navigation {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
 button {
     border: 1px solid var(--accent);
     background: var(--card);
@@ -186,54 +194,197 @@ button:disabled {
     cursor: default;
 }
 
+/* The short labels of the periods are only shown on a phone */
+.short {
+    display: none;
+}
+
+/* The two periods of the Compare tab: for each one, its line in the
+   graphs, its name, then its lists */
+.compare {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 28px;
+    margin-bottom: 12px;
+}
+
+.period-choice {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.swatch {
+    width: 28px;
+    border-top: 3px solid var(--text);
+}
+
+.swatch.dashed {
+    border-top-style: dashed;
+    opacity: 0.7;
+}
+
+.choice-label {
+    color: var(--muted);
+    margin-right: 4px;
+}
+
+.short-list {
+    width: 100px;
+}
+
+.short-list[id$="-day-box"] {
+    width: 70px;
+}
+
+/* The lists drawn like the buttons of the page: their border takes the
+   color of the buttons */
+.compare {
+    --Dash-Stroke-Strong: var(--accent);
+}
+
+.compare .dash-dropdown-trigger {
+    font-weight: 600;
+}
+
 /* The graphs, on a card like the values */
-#graph {
+#graph,
+#compare-graph {
     background: var(--card);
     border-radius: 10px;
     box-shadow: 0 1px 3px var(--shadow);
     overflow: hidden;
 }
 
-/* On a phone: the period buttons and the navigation take the whole
+/* On a phone: the rows of buttons take the whole
    width, one above the other, and the title is smaller */
+/* On a phone: everything above the graphs is made smaller, so that the
+   graphs and their time axis fit on the screen at a glance */
 @media (max-width: 600px) {
+    .page {
+        padding: 8px;
+    }
+
     .header h1 {
-        font-size: 1.5rem;
+        font-size: 1.3rem;
+    }
+
+    .subtitle,
+    .hint {
+        display: none;
+    }
+
+    .header-right {
+        gap: 6px;
+    }
+
+    .header button,
+    .header .periods label {
+        padding: 4px 8px;
+        font-size: 0.85rem;
+    }
+
+    .status {
+        margin-top: 6px;
+        font-size: 0.85rem;
     }
 
     .cards {
         gap: 6px;
+        margin: 4px 0 8px;
     }
 
     .card {
-        padding: 4px 8px;
+        padding: 2px 8px;
         border-left-width: 4px;
     }
 
     .card-name {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
     }
 
     .card-value {
-        font-size: 1.1rem;
+        font-size: 1.05rem;
     }
 
     .card-unit {
-        font-size: 0.75rem;
+        font-size: 0.7rem;
     }
 
     .controls {
-        flex-direction: column;
-        align-items: stretch;
+        flex-wrap: nowrap;
+        gap: 6px;
+        margin-bottom: 6px;
     }
 
     .periods label {
-        flex: 1;
-        padding: 6px 4px;
-        text-align: center;
+        padding: 4px 10px;
     }
 
-    .navigation {
-        justify-content: flex-end;
+    .long {
+        display: none;
+    }
+
+    .short {
+        display: inline;
+    }
+
+    #today {
+        padding: 4px 8px;
+    }
+
+    /* The two periods share the line, without their names */
+    .compare {
+        flex-wrap: nowrap;
+        gap: 10px;
+    }
+
+    .period-choice {
+        flex: 1;
+        min-width: 0;
+        gap: 3px;
+    }
+
+    .choice-label {
+        display: none;
+    }
+
+    .swatch {
+        width: 18px;
+        flex: none;
+    }
+
+    .short-list {
+        width: auto;
+        flex: 1;
+        min-width: 0;
+    }
+
+    /* The day takes less room than the year */
+    .short-list[id$="-day-box"] {
+        width: auto;
+        flex: 0.6;
+    }
+
+    .short-list[id$="-year-box"] {
+        flex: 1.3;
+    }
+
+    /* Smaller lists, without their arrow, so that "2026" fits */
+    .compare .dash-dropdown-trigger {
+        padding: 4px;
+        font-size: 0.8rem;
+        min-height: 0;
+    }
+
+    .compare .dash-dropdown-trigger-icon {
+        display: none;
+    }
+
+    /* The graphs take the height left on the screen */
+    #graph,
+    #compare-graph {
+        height: calc(100svh - 220px) !important;
+        min-height: 380px;
     }
 }
