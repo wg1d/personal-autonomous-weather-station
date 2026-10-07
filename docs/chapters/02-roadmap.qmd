@@ -25,15 +25,19 @@ Once you understand *how* the hardware works from the PoC, we rebuild the firmwa
 Once the production firmware is reliable, we shift our focus away from the ESP32.
 
 *   **Phase 5: Backend MVP**
-    We will deploy a time-series database on a Single Board Computer to replace our dummy server and display our measurements in a dashboard.
-*   **Phase 6: Basic Forecasting**
-    We will introduce basic Machine Learning (LSTM) on our initial data to predict weather trends.
+    We deploy a server on a small computer that stays on at home, with a database, a dashboard and a daily backup, to replace our test server.
+*   **Phase 6: Outdoor Station**
+    The station leaves the breadboard and the desk: a soldered board, a weatherproof enclosure, a radiation shield (a Stevenson screen) so that the sun does not heat the sensor, a Wi-Fi link that reaches the garden, and its own power: a battery charged by a small solar panel, since there is no socket outdoors, with its charge measured and sent with the data.
+*   **Phase 7: Data Collection**
+    The station runs outdoors for months. We watch how reliable it is: its power through the seasons, short winter days included, the failures, the values that make no sense.
+*   **Phase 8: Basic Forecasting**
+    With months of real measurements, we introduce basic Machine Learning (LSTM) to predict weather trends. A forecast can only learn from the data it is given: this is why the station goes outdoors first.
 
 ---
 
 # Future Expansions (Ideas) {.unnumbered}
 
-While Phases 1 through 6 represent the core project (from data collection to forecasting), the following sections are purely optional ideas to expand the station's capabilities if we decide to take it further.
+While Phases 1 through 8 represent the core project (from data collection to forecasting), the following sections are purely optional ideas to expand the station's capabilities if we decide to take it further.
 
 ## A Single Definition of the Data Format (Idea)
 The CSV format of the measurements is written twice: in C++ in the firmware, which writes the rows, and in Python in the backend, which reads them. A single reference file could describe the columns (name, type, unit), and a small script could generate the code of both sides from it, so that they can never disagree. This becomes more useful as new sensors add columns to the format.
@@ -52,9 +56,3 @@ Adding an anemometer and wind vane to measure wind speed and direction would be 
 
 ## Advanced ML & Watering (Idea)
 With all sensors active, we will retrain our ML models and add a Random Forest model specifically to optimize the watering schedule of the plants based on the new local data.
-
-## Solar & Power Management (Idea)
-Making the station solar-powered would allow us to deploy it in the field for extended periods of time without human intervention.
-
-## Stevenson Screen & Deployment (Idea)
-In order to put it outside, the station should be protected from the elements. A Stevenson screen would be a good solution for that. It would allow us to measure temperature, humidity, rainfall, wind speed, and direction without interference from direct sunlight or precipitation.

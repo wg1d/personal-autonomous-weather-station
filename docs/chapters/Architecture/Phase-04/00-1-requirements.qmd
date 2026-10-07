@@ -24,7 +24,7 @@ Each requirement has an identifier, a short name, and the reason why it exists. 
 
 | ID | Name | Requirement | Why |
 |----|----------|--------------------------------|--------------------------------|
-| F1 | Periodic measurement | Measure temperature, humidity and pressure every 15 minutes, on a fixed UTC grid (`:00`, `:15`, `:30`, `:45`). | Regular, aligned measurements are what the dashboard and the forecasting model (Phase 6) expect, and they make days easy to compare. |
+| F1 | Periodic measurement | Measure temperature, humidity and pressure every 15 minutes, on a fixed UTC grid (`:00`, `:15`, `:30`, `:45`). | Regular, aligned measurements are what the dashboard and the forecasting model (Phase 8) expect, and they make days easy to compare. |
 | F2 | Store first | Append every measurement to the SD card before any network activity. | The SD card is the source of truth. If the upload fails or the firmware crashes during the Wi-Fi connection, the measurement is already safe. |
 | F3 | Hourly upload | Once per hour, upload the rows that the server has not received yet, over the home Wi-Fi. | The dashboard and the short-term forecast need data less than one hour old, and uploading more often would cost too much energy (see N3). |
 | F4 | Daily time sync | Synchronize the RTC with NTP once every 24 hours, reusing an upload connection. | The DS3231 drifts by about one minute per year. A daily correction is more than enough, and reusing an existing connection costs almost nothing. |
