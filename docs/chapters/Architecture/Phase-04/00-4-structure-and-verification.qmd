@@ -95,7 +95,7 @@ This table gives, for each requirement, its acceptance criterion and the level o
 | N2 · Always wake up again | In every scenario, including an RTC failure, the station goes to sleep with the safety timer armed, in addition to the RTC alarm when the RTC works. | Scenario |
 | N3 · Energy | Over a simulated day with a valid clock, at most 24 Wi-Fi connections are opened. On the board, the awake time printed by the firmware before sleeping (measured with `millis()`, no instrument needed) stays below 1.5 seconds for a measurement-only wake-up. | Scenario (simulated day) + board |
 | N4 · Testability | The core logic compiles for the computer without any Arduino header, and all tests run automatically on every pull request. | CI |
-| N5 · Extensibility | When the first new sensor is added (Phase 7), no file of the state machine is modified. | Review (Phase 7) |
+| N5 · Extensibility | When the first new sensor is added (Phase 9), no file of the state machine is modified. | Review (Phase 9) |
 
 Most criteria are checked by scenario tests on the computer. Only F5 (which needs the access point and a phone) and part of N3 (the real awake time) require the board, and N5 can only be checked when a new sensor is actually added.
 
