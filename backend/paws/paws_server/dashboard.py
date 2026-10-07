@@ -607,6 +607,29 @@ def stored_text(connection):
             f"to {last:%d %b %Y}.")
 
 
+# A backup older than this is late: the timer or the copy no longer works
+BACKUP_LATE = timedelta(days=2)
+
+
+def backup_text(status, now):
+    """Describes the last backup, for the Data tab; returns (late, text).
+
+    late is True when the last backup failed or is older than BACKUP_LATE:
+    the Data tab then shows it in red.
+    """
+    if status is None:
+        return False, "No backup yet."
+    made = datetime.fromisoformat(status["time"])
+    text = f"Last backup: {to_local(made):%d %b, %H:%M}"
+    if not status["ok"]:
+        return True, f"{text}, failed: {status['error']}"
+    if status["remote"]:
+        text += f", copied to {status['remote']}"
+    if now - made > BACKUP_LATE:
+        return True, f"{text}: late, no backup since then."
+    return False, text + "."
+
+
 def decode_upload(contents):
     """The text of a file sent by the upload area of Dash.
 
@@ -617,11 +640,12 @@ def decode_upload(contents):
     return base64.b64decode(encoded).decode("utf-8", errors="replace")
 
 
-def create_dashboard(open_database, log_path):
+def create_dashboard(open_database, log_path, backup_status):
     """Creates the Dash application.
 
-    open_database is the function that opens the database, and log_path
-    the one that gives the path of the log of the station: the dashboard
+    open_database is the function that opens the database, log_path the
+    one that gives the path of the log of the station, and backup_status
+    the one that gives the result of the last backup: the dashboard
     receives them from main.py, which knows where the data lives.
     """
     # The dashboard is served under /dashboard/ (see main.py): the page
@@ -721,6 +745,7 @@ def create_dashboard(open_database, log_path):
         ]),
         html.Div(id="data-tab", style={"display": "none"}, children=[
             html.P(id="stored", className="stored"),
+            html.P(id="backup", className="backup"),
             html.Button("⬇ Download all measurements (CSV)", id="export"),
             dcc.Download(id="download"),
             # The files are read by the browser and sent to the page;
@@ -773,8 +798,9 @@ def create_dashboard(open_database, log_path):
         return dcc.send_string(text, name)
 
     @app.callback(
-        Output("stored", "children"), Output("upload-result", "children"),
-        Output("upload", "contents"),
+        Output("stored", "children"), Output("backup", "children"),
+        Output("backup", "className"),
+        Output("upload-result", "children"), Output("upload", "contents"),
         Input("tab", "value"), Input("upload", "contents"),
         State("upload", "filename"))
     def show_data(_tab, contents, names):
@@ -793,7 +819,10 @@ def create_dashboard(open_database, log_path):
                         decode_upload(content))
                     results.append(html.Li(("✔ " if success else "✘ ")
                                            + text))
-            return stored_text(connection), results, None
+            late, text = backup_text(backup_status(),
+                                     datetime.now(timezone.utc))
+            return (stored_text(connection), text,
+                    "backup late" if late else "backup", results, None)
         finally:
             connection.close()
 

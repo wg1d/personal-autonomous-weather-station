@@ -1,7 +1,6 @@
 """Tests of the dashboard: health, navigation, queries, views and
 comparison."""
 
-import time
 from datetime import date, datetime, timedelta, timezone
 
 import pytest
@@ -18,20 +17,6 @@ NOW = datetime(2026, 10, 5, 12, 0, tzinfo=timezone.utc)
 
 # The period of the Graphs tab when the page opens: the last 24 hours
 DAY = {"length": 86400, "end": None}
-
-
-@pytest.fixture(autouse=True)
-def utc_local_time(monkeypatch):
-    """Runs every test with the local time set to UTC.
-
-    The dashboard shows the local time of the server, which depends on the
-    computer running the tests: in UTC, the results are the same anywhere.
-    """
-    monkeypatch.setenv("TZ", "UTC")
-    time.tzset()
-    yield
-    monkeypatch.undo()
-    time.tzset()
 
 
 @pytest.fixture

@@ -250,8 +250,15 @@ button:disabled {
 
 /* The Data tab: the button of the export, then the area where files are
    dropped, and what became of each file */
-.stored {
+.stored,
+.backup {
     color: var(--muted);
+}
+
+/* A backup that failed, or is late */
+.backup.late {
+    color: #e53935;
+    font-weight: 600;
 }
 
 .upload {

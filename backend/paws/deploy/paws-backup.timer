@@ -1,0 +1,13 @@
+# systemd timer of the daily backup: starts paws-backup.service every
+# night at 03:30, local time of the server.
+
+[Unit]
+Description=Daily backup of the PAWS database
+
+[Timer]
+OnCalendar=*-*-* 03:30:00
+# If the server was off at 03:30, the backup is made as soon as it starts
+Persistent=true
+
+[Install]
+WantedBy=timers.target
