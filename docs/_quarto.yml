@@ -114,6 +114,8 @@ website:
                 text: "Compare"
               - href: chapters/Backend/02-3-data.qmd
                 text: "Data"
+          - href: chapters/Backend/03-1-operations.qmd
+            text: "B3 – Operations"
 
 date: last-modified
 

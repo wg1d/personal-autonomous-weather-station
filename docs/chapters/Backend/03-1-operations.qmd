@@ -1,0 +1,129 @@
+# B3 · Operations {.unnumbered}
+
+Once the station sends its data to the server, the server holds the only copy outside the SD card of the station: the rows it acknowledged are never sent again. Step B3 makes this copy safe (BN1 · No data loss):
+
+- a **backup** of the database every night, kept on the server and copied outside the house, to a cloud storage;
+- a **restore** in one command, from the server or from the cloud storage;
+- the **state of the backup**, shown by the dashboard, so that a backup that stopped working does not go unnoticed.
+
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/backend/paws)
+
+## What can go wrong
+
+| Problem | How it shows | What brings the data back |
+|---------|--------------|---------------------------|
+| The SD card of the server fails: SD cards wear out with the writes, and this is the most likely failure | The dashboard no longer answers; the server may not start any more | The backup in the cloud storage, on a server installed again |
+| The database is damaged, for example by a power cut during a write | The dashboard shows an error, or empty graphs | The backup of the night, on the server |
+| A human error: a wrong file uploaded by hand, test data mixed with the real one, the data folder deleted | Strange curves, or values that do not belong there | A backup made before the error: several days are kept |
+
+The rows sent between the last backup and the failure, at most one day, are not lost: the station keeps every row on its own SD card. After a restore, the file downloaded from its [maintenance page](../Architecture/Phase-04/05-1-maintenance-mode.qmd) and uploaded in the [Data tab](02-3-data.qmd) adds the missing rows, and only them.
+
+## The backup
+
+Each night at 03:30, the server runs `python -m paws_server.backup`:
+
+1. it copies the database with the *backup function* of SQLite: the copy is made page by page, without stopping the server, and matches one moment, even if a row is written during the copy. Copying the file itself could catch it in the middle of a write;
+2. it copies the log of the station;
+3. both copies are compressed with gzip, and named after the day: `measurements-2026-10-07.db.gz`, `station-2026-10-07.log.gz`, in `~/paws/data/backups`;
+4. only the copies of the last 7 days are kept;
+5. the folder is copied to the cloud storage with [rclone](https://rclone.org/), Proton Drive on our server, where the copies older than 7 days are deleted;
+6. the result is written to `last_backup.json`, which the dashboard reads.
+
+```{.python include="../../../backend/paws/paws_server/backup.py"}
+```
+
+The CSV export of the dashboard holds the same rows, but the database is the reference: it is what the server needs to start again.
+
+### How much room
+
+A year of measurements, about 35,000 rows, takes about 3 MB in the database, and 0.7 MB compressed: a backup is about four times smaller than the database. With 7 copies kept, the cloud storage holds about 5 MB after a year, 15 MB after three, and less than 50 MB after ten.
+
+A copy is made every night, even when nothing changed: the room stays bounded by the 7 copies. Skipping the unchanged days would not be safe with this rule, since the copies on the cloud storage are deleted by their age: a station switched off for two weeks would leave no copy at all.
+
+### The timer
+
+*systemd*, which already starts the backend, also starts the backup: a *timer* starts a service at given times, like a planned task.
+
+```{.ini include="../../../backend/paws/deploy/paws-backup.timer"}
+```
+
+```{.ini include="../../../backend/paws/deploy/paws-backup.service"}
+```
+
+- `OnCalendar=*-*-* 03:30:00`: every day at 03:30, in the local time of the server.
+- `Persistent=true`: if the server was off at 03:30, the backup is made as soon as it starts again.
+- `Type=oneshot`: the service runs once and stops, unlike the backend which runs all the time.
+- The service runs as the user that owns the data, whose configuration of rclone holds the access to the cloud storage. `PAWS_BACKUP_REMOTE` names the folder there.
+
+The deployment installs and enables the timer, with the backend ([deploy/install.sh](01-ingestion.qmd#deployment)). The first time it copies a backup, rclone creates the folder in the cloud storage by itself.
+
+### Seeing that it works
+
+The Data tab of the dashboard shows the last backup, such as "Last backup: 07 Oct, 03:30, copied to Proton:paws_backup.", in red when it failed, with the message of the error, or when it is older than 2 days. A backup can also be made at any time from the development computer:
+
+```bash
+pixi run backup-backend
+```
+
+On our server, the first backup took a few seconds, and created the folder `paws_backup` on Proton Drive, with the database and the log.
+
+## The restore
+
+A single command, from the development computer, puts back a backup:
+
+```bash
+pixi run restore-backend              # the newest backup
+pixi run restore-backend 2026-10-07   # the backup of a day
+```
+
+It runs `deploy/restore.sh` on the server:
+
+```{.bash include="../../../backend/paws/deploy/restore.sh"}
+```
+
+1. it looks for the backup on the server, and, when it is not there, for example on a server installed again after a failure of its SD card, takes it from the cloud storage;
+2. it stops the backend, keeps the database it replaces as `measurements.db.before-restore`, uncompresses the backup in its place, and starts the backend again.
+
+Both cases were checked on our server: the restore from the backup of the server, then from Proton Drive after the backups of the server were set aside. Each time, the database had the same rows as before, and the dashboard answered again within seconds.
+
+After a failure of the SD card of the server, the whole recovery is:
+
+1. install the system on a new card, then install uv and rclone, and configure rclone with the access to the cloud storage;
+2. deploy the backend: `pixi run deploy-backend`;
+3. put back the newest backup: `pixi run restore-backend`;
+4. upload in the Data tab the file of measurements downloaded from the maintenance page of the station, for the rows of the last day.
+
+## Keeping the server healthy
+
+The SD card is the weak point of a small server: each write wears it a little, and a power cut during a write can damage its file system. A few habits make a failure both rarer and easier to recover from:
+
+- **a high-endurance SD card**, made for continuous writes, and a good power supply (5 V, 2.5 A for a Raspberry Pi 2): an undervoltage can freeze the computer during a write;
+- **fewer writes**: the logs of the system kept in memory (log2ram) and a journal of limited size;
+- **never cutting the power of a server that works**: a restart that seems frozen may only be slow, and is better waited for;
+- **a copy of the whole SD card** from time to time, on another computer: after a failure, writing it to a new card brings back the whole server, its other services included, in minutes.
+
+## The tests
+
+`test_backup.py` checks that:
+
+- a backup holds the database, which once uncompressed has the same rows, and the log;
+- only the copies of the last 7 days are kept;
+- a failure of the copy outside, for example when rclone cannot be started, is recorded, while the backup stays on the server;
+- the Data tab tells the state of the backup: made, late, failed, or none yet.
+
+```{.python include="../../../backend/paws/tests/test_backup.py"}
+```
+
+The backup and the dashboard use the local time of the server; the fixture `utc_local_time`, now in `tests/conftest.py`, a file that pytest reads before the tests, sets it to UTC for all the tests.
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+|---------|---------------|
+| "Last backup … failed" in the Data tab | The message gives the cause: often the network, or the access of rclone to the cloud storage. `rclone lsd Proton:` on the server checks the access. |
+| "late, no backup since then" | The timer no longer runs: `systemctl list-timers paws-backup.timer` on the server shows it; a deployment installs it again. |
+| `No backup found` during a restore | Neither the server nor the cloud storage holds a backup of that day: `rclone ls Proton:paws_backup` lists those of the cloud storage. |
+
+## Next Steps
+
+With the backup and the restore, the backend keeps the data of the station safe, outside the house too. The last check of Phase 5 is the behavior of the server after a reboot: the backend and the timer of the backup start again by themselves. The station and the backend then work together, on their own: version 1.0.0.
