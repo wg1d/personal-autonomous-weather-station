@@ -1,0 +1,22 @@
+# systemd service of the daily backup of the PAWS backend.
+#
+# Started by paws-backup.timer, or by hand with
+# "sudo systemctl start paws-backup". Template: the deployment script
+# replaces @USER@ and @HOME@.
+
+[Unit]
+Description=PAWS backup of the database (Personal Autonomous Weather Station)
+# rclone needs the network to copy the backups outside
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+# Runs once, then stops
+Type=oneshot
+# The user that owns the data, and the configuration of rclone
+User=@USER@
+WorkingDirectory=@HOME@/paws/backend
+Environment=PAWS_DATA_DIR=@HOME@/paws/data
+Environment=UV_PROJECT_ENVIRONMENT=@HOME@/paws/venv
+Environment=PAWS_BACKUP_REMOTE=Proton:paws_backup
+ExecStart=@HOME@/.local/bin/uv run --frozen --no-dev python -m paws_server.backup

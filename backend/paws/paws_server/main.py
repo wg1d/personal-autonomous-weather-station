@@ -24,7 +24,7 @@ from a2wsgi import WSGIMiddleware
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
-from . import database, logs
+from . import backup, database, logs
 from .dashboard import create_dashboard
 from .protocol import FormatError, parse_rows
 
@@ -46,6 +46,11 @@ def open_database():
 def log_path():
     """Returns the path of the log of the station, in the data folder."""
     return data_dir() / "station.log"
+
+
+def backup_status():
+    """Returns the result of the last backup (see backup.py), or None."""
+    return backup.last_status(data_dir())
 
 
 @app.post("/api/v1/measurements")
@@ -97,4 +102,4 @@ def home():
 # web servers), and FastAPI is an ASGI application: WSGIMiddleware lets
 # FastAPI serve Dash under /dashboard, on the same port
 app.mount("/dashboard", WSGIMiddleware(
-    create_dashboard(open_database, log_path).server))
+    create_dashboard(open_database, log_path, backup_status).server))

@@ -5,7 +5,8 @@
 # ~/paws/
 # ├── backend/   the running version, replaced by backend.new
 # ├── venv/      the Python environment, updated by uv sync
-# └── data/      the database and the log, never touched here
+# └── data/      the database, the log and their backups, never touched
+#                here
 set -euo pipefail
 
 cd ~/paws
@@ -22,12 +23,16 @@ cd ..
 rm -rf backend
 mv backend.new backend
 
-# Install the service, with the user and home folder of this server
-sed -e "s|@USER@|$USER|g" -e "s|@HOME@|$HOME|g" \
-    backend/deploy/paws-backend.service \
-    | sudo tee /etc/systemd/system/paws-backend.service > /dev/null
+# Install the services and the timer of the backup, with the user and
+# home folder of this server
+for unit in paws-backend.service paws-backup.service paws-backup.timer; do
+    sed -e "s|@USER@|$USER|g" -e "s|@HOME@|$HOME|g" \
+        "backend/deploy/$unit" \
+        | sudo tee "/etc/systemd/system/$unit" > /dev/null
+done
 sudo systemctl daemon-reload
 sudo systemctl enable --quiet paws-backend
+sudo systemctl enable --quiet --now paws-backup.timer
 sudo systemctl restart paws-backend
 
 # Check that the server answers (it needs a few seconds to start)

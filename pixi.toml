@@ -13,6 +13,8 @@
 #   pixi run backend-demo     # the same, with 3 years of made-up data
 #   pixi run backend-test     # run the tests of the backend
 #   pixi run deploy-backend   # deploy the committed backend to the server
+#   pixi run backup-backend   # make a backup on the server now
+#   pixi run restore-backend  # put back a backup on the server [day]
 #
 # Not managed here: LaTeX (texlive with circuitikz, latexmk, pdf2svg),
 # only needed to regenerate the wiring diagrams (docs/assets/diagrams-src).
@@ -46,6 +48,8 @@ backend = { cmd = "uv run uvicorn paws_server.main:app --host 0.0.0.0 --port 808
 backend-demo = { cmd = "uv run python dev/make_test_data.py && uv run uvicorn paws_server.main:app --host 0.0.0.0 --port 8080 --reload", cwd = "backend/paws", env = { PAWS_DATA_DIR = "dev/data" } }
 backend-test = { cmd = "uv run --locked pytest", cwd = "backend/paws" }
 deploy-backend = "bash scripts/deploy-backend.sh"
+backup-backend = "ssh pi 'sudo systemctl start paws-backup; cat ~/paws/data/backups/last_backup.json'"
+restore-backend = "bash scripts/restore-backend.sh"
 
 # Backend: a separate environment, because PlatformIO requires an old
 # version of uvicorn (for its own web interface) that FastAPI cannot use
