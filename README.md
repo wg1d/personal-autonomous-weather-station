@@ -132,7 +132,7 @@ Regenerating the wiring diagrams requires a LaTeX distribution with `circuitikz`
 
 ## Roadmap
 
-The primary goal of this project is to build a full, end-to-end **Proof of Concept (PoC)**, spanning from initial data collection (Phase 1) up through basic Machine Learning forecasting (Phase 6). Once this core foundation is proven, the remaining items are logged as optional future ideas to expand the station over time.
+The primary goal of this project is to build a full, end-to-end weather station, spanning from initial data collection (Phase 1) up through basic Machine Learning forecasting (Phase 8). Forecasting needs months of real measurements: the station first moves outdoors (Phase 6) and collects data (Phase 7). The remaining items are logged as optional future ideas to expand the station over time.
 
 | Phase | Name | Key addition | Status |
 |-------|------|-------------|--------|
@@ -140,16 +140,15 @@ The primary goal of this project is to build a full, end-to-end **Proof of Conce
 | 2 | Power Management | ESP32 deep sleep + peripheral power cycling + RTC alarms | 🟢 Done |
 | 3 | Wi-Fi & Data Transmission | ESP32 automated Wi-Fi push + phone-based gateway fallback | 🟢 Done |
 | 4 | Firmware Architecture | State machine design + modular firmware rewrite with host tests | 🟢 Done |
-| 5 | Backend MVP | SBC deployment + time-series database + online dashboard | 🟡 In progress |
-| 6 | Forecasting — basic | LSTM on temp/pressure/humidity | ⬜ Planned |
-| 7 | Sensors: BH1750 + VEML6075 | Light + UV sensors | 💭 Idea |
-| 8 | Sensor: Soil moisture | Capacitive sensor | 💭 Idea |
-| 9 | Sensor: Rain gauge | Tipping bucket | 💭 Idea |
-| 10 | Sensor: Wind | Anemometer + wind vane | 💭 Idea |
-| 11 | Model retrain + watering | Expanded LSTM + Random Forest watering model | 💭 Idea |
-| 12 | Power: Solar + battery | Solar panel + battery monitoring | 💭 Idea |
-| 13 | Stevenson screen + outdoor deployment | Final assembly into a Stevenson screen | 💭 Idea |
-
+| 5 | Backend MVP | Server at home + SQLite database + dashboard + daily backup | 🟡 In progress |
+| 6 | Outdoor station | Soldered board, weatherproof enclosure, radiation shield (Stevenson screen), solar panel + battery, Wi-Fi range | ⬜ Planned |
+| 7 | Data collection | The station outdoors for months: power through the seasons, failures, outliers | ⬜ Planned |
+| 8 | Forecasting — basic | LSTM on temp/pressure/humidity, trained on the real data | ⬜ Planned |
+| 9 | Sensors: BH1750 + VEML6075 | Light + UV sensors | 💭 Idea |
+| 10 | Sensor: Soil moisture | Capacitive sensor | 💭 Idea |
+| 11 | Sensor: Rain gauge | Tipping bucket | 💭 Idea |
+| 12 | Sensor: Wind | Anemometer + wind vane | 💭 Idea |
+| 13 | Model retrain + watering | Expanded LSTM + Random Forest watering model | 💭 Idea |
 
 ## Related projects
 
