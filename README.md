@@ -42,6 +42,8 @@ pixi run backend          # start the backend on this computer (port 8080)
 pixi run backend-demo     # the same, with 3 years of made-up data
 pixi run backend-test     # run the backend tests
 pixi run deploy-backend   # deploy the committed backend to the server
+pixi run backup-backend   # make a backup of the data on the server now
+pixi run restore-backend  # put back a backup on the server (optional: a day)
 ```
 
 The first build downloads the ESP32 toolchain into `.pio-core/` (about 1.5 GB), inside the repository, so it does not interfere with an existing `~/.platformio`.
@@ -95,6 +97,25 @@ ssh pi 'journalctl -u paws-backend -n 50'
 ```
 
 The station sends its data to the address set by `kServerUrl` in `firmware/paws/include/secrets.h`, for example `http://192.168.1.28:8080`.
+
+### 5. Backups
+
+Every night at 03:30, the timer `paws-backup.timer` copies the database and the log of the station, compressed, into `~/paws/data/backups` on the server, and to the cloud storage set by `PAWS_BACKUP_REMOTE` in `backend/paws/deploy/paws-backup.service` (`Proton:paws_backup` by default, a remote of [rclone](https://rclone.org/), which must be configured on the server). The last 7 days are kept on both sides. The Data tab of the dashboard shows the last backup, in red when it failed or is late.
+
+```bash
+pixi run backup-backend               # make a backup now
+pixi run restore-backend              # put back the newest backup
+pixi run restore-backend 2026-10-07   # put back the backup of a day
+```
+
+The restore takes the backup from the server, or from the cloud storage when the server no longer has it (a server installed again). The database it replaces is kept as `~/paws/data/measurements.db.before-restore`.
+
+To start again from an empty database, for example to remove test data before the real station starts (this deletes the data on the server and its backups):
+
+```bash
+ssh pi 'sudo systemctl stop paws-backend && rm -f ~/paws/data/measurements.db ~/paws/data/station.log ~/paws/data/backups/* && sudo systemctl start paws-backend'
+ssh pi 'rclone delete Proton:paws_backup'
+```
 
 ### Environments
 
