@@ -44,17 +44,17 @@
      \scriptsize power switch\\\scriptsize Wi-Fi antenna (U.FL)};
 
 \node[hub] (hubA) at (7.0,4.4) {I2C splitter\\(Grove hub)};
-\node[module=blue!20] (rtc) at (7.8,6.9) {\textbf{DS3231 module}\\\scriptsize clock, CR2032};
-\node[module=green!20] (ina) at (7.8,-1.8) {\textbf{INA219 module}\\\scriptsize battery monitor};
+\node[module=blue!20] (rtc) at (7.8,6.9) {\textbf{DS3231 module}\\\scriptsize clock, of the bench};
+\node[module=green!20] (ina) at (7.8,-1.8) {\textbf{INA219}\\\scriptsize battery monitor};
 
 \node[module=orange!25, minimum height=2.2cm] (charger) at (-3.8,1.6)
     {\textbf{bq24074}\\solar charger};
-\node[module=gray!15] (battery) at (-3.8,-4.6) {\textbf{Battery}\\\scriptsize 18650 Li-ion cell, protected};
-\node[module=gray!15] (panel) at (-3.8,10.0) {\textbf{Solar panel}\\\scriptsize 6 V, 3 W, flat on the roof};
+\node[module=gray!15] (battery) at (-3.8,-4.6) {\textbf{LiPo battery}\\\scriptsize 1000 mAh, protected};
+\node[module=gray!15] (panel) at (-3.8,10.0) {\textbf{Solar panel SOL3W}\\\scriptsize 3 W, flat on the roof};
 
 \node[hub] (hubB) at (13.4,3.2) {I2C splitter\\(Grove hub)};
-\node[module=cyan!20] (sht) at (15.8,1.4) {\textbf{SHT31 module}\\\scriptsize temperature, humidity};
-\node[module=cyan!20] (bmp) at (15.8,4.8) {\textbf{BMP280 module}\\\scriptsize pressure};
+\node[module=cyan!20] (sht) at (15.8,1.4) {\textbf{BME280 module}\\\scriptsize temp., humidity, pressure};
+\node[module=gray!10, dashed] (bmp) at (15.8,4.8) {\textbf{later: SHT31}\\\scriptsize or other sensors};
 \node[module=yellow!30] (reed) at (15.2,-1.2) {\textbf{Reed switch}\\\scriptsize maintenance};
 \node[module=cyan!20] (probe) at (14.6,9.2) {\textbf{DFRobot SEN0562}\\\scriptsize light, IP68 probe};
 
@@ -81,17 +81,17 @@
 \draw[wireI2c] (i2cA) -- (5.2,5.4) |- (hubA.west);
 \draw[wireI2c] (hubA.north) -- (7.0,6.4);
 \draw[wireI2c] (hubA.south) -- (7.0,-1.3);
-\node[note, right] at (7.0,-0.4) {Grove to\\female jumpers};
+\node[note, right] at (7.0,-0.4) {STEMMA QT\\to Grove};
 \draw[reserved] (i2cB) -- (5.0,4.2);
 \node[note, right] at (5.0,4.2) {spare};
 
 % ---------------------------------------------------------------- I2C, in the shelter
 \draw[wireI2c] (hubA.east) -- (10.9,4.4) |- (hubB.west);
-\node[note, above] at (10.0,4.4) {Grove, 50 cm,\\through a membrane};
+\node[note, above] at (10.0,4.4) {Grove, 30 cm,\\through a membrane};
 \draw[wireI2c] (hubB.south) |- (sht.west);
-\draw[wireI2c] ($(hubB.north)+(0.6,0)$) |- (bmp.west);
+\draw[reserved] ($(hubB.north)+(0.6,0)$) |- (bmp.west);
 \draw[wireI2c] ($(hubB.north)+(-0.6,0)$) |- (probe.west);
-\node[note, right] at (12.9,7.5) {its own cable, 1 m:\\adapter to Grove};
+\node[note, right] at (12.9,7.5) {its own cable, 1 m, into a\\Grove screw terminal module};
 \node[note, left] at (13.3,2.1) {free ports:\\later sensors};
 
 % ---------------------------------------------------------------- wake-up signals
@@ -100,7 +100,7 @@
 \node[note, right] at (8.4,3.3) {SQW};
 % The reed switch closes D2 to ground when the magnet is near
 \draw[wireSignal] (pD2) -- (11.0,1.4) |- (reed.west);
-\node[note, below] at (12.3,-1.2) {Grove cable,\\soldered};
+\node[note, below] at (12.3,-1.2) {Grove screw\\terminal module};
 
 % ---------------------------------------------------------------- reserved
 \draw[reserved] (pD8) -- (5.6,0.8);
@@ -110,7 +110,7 @@
 
 % ---------------------------------------------------------------- power
 \draw[wirePower] (panel.south) -- (charger.north);
-\node[note, right] at (-3.8,6.6) {DC jack 5.5 × 2.1 mm, through a membrane};
+\node[note, right] at (-3.8,6.6) {DC plug adapter, through a membrane};
 
 % LOAD output -> battery pads of the shield
 \draw[wirePower] (charger.east |- bat) -- (bat);
@@ -126,7 +126,7 @@
 
 % Thermistor taped against the battery, wired to the charger only
 % (its THERM pad and its ground)
-\node[module=orange!10, minimum width=2.2cm] (ntc) at (-1.4,-3.4) {\textbf{Thermistor}\\\scriptsize NTC 103AT};
+\node[module=orange!10, minimum width=2.2cm] (ntc) at (-1.4,-3.4) {\textbf{Thermistor}\\\scriptsize NTC 10 k$\Omega$};
 \draw[thick, dashed] ($(charger.south west)+(0.3,0)$) |- (ntc.west);
 \node[note, right] at (-0.2,-3.4) {taped against\\the battery};
 

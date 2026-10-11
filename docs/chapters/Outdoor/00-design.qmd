@@ -70,7 +70,7 @@ The station needs a smaller and more frugal board than the development board of 
 - Its **deep sleep current** is five times lower, and the station sleeps more than 99 % of the time.
 - Its **external antenna** is included: it helps for the 30 m to the access point (H4).
 - It belongs to the same family of chips as the current board (ESP32-S3 instead of ESP32): it wakes up on a pin or a timer in the same way, and the firmware keeps its architecture; only the pins and the build environment change.
-- Its two rows of 7 pins come apart: they are soldered once, to plug it into the board below.
+- It is sold with its two rows of 7 pins already soldered, ready to plug into the board below.
 
 ### The Grove Shield
 
@@ -90,6 +90,8 @@ A pin that wakes the station up must be one of the pins that stay powered in dee
 
 The Grove Shield also receives the power of the solar charger on its battery pads, and gives the 3.3 V of the XIAO and of the modules (see [Power](01-power.qmd#from-the-charger-to-the-board)).
 
+Under the Grove Shield, small spring contacts touch pads under the XIAO, to debug the XIAO boards built around an ARM chip with a probe (SWD). The ESP32-S3 is programmed and debugged through its USB port instead: these contacts are not used, and the rest of the Grove Shield works with it.
+
 ## Storing the measurements
 
 The outdoor station has **no SD card**: the measurements are kept in the flash memory of the XIAO, in a file system.
@@ -104,14 +106,15 @@ Without an SD card, there is no card reader to wire and to power, and no card to
 
 | Quantity | Sensor | Why |
 |----------|--------|-----|
-| Temperature and humidity | **SHT31** module | ±0.3 °C and ±2 % RH; also used by 3D-PAWS |
-| Pressure | **BMP280** module | ±1 hPa, enough to follow the weather; its successor, the BMP390 of 3D-PAWS, is more accurate but costs five times more |
+| Temperature, humidity and pressure | **BME280** module, the one of the bench | It measures the three quantities: ±1 °C, ±3 % RH, ±1 hPa |
 | Light | **DFRobot SEN0562**, a waterproof probe | IP68: it goes outdoors as it is |
-| Battery | **INA219** module | Voltage and current of the battery (see [Power](01-power.qmd#the-battery-monitor)) |
-| Time | **DS3231** module | Its alarm wakes the station up |
+| Battery | **INA219** module of Adafruit | Voltage and current of the battery (see [Power](01-power.qmd#the-battery-monitor)) |
+| Time | **DS3231** module, the one of the bench | Its alarm wakes the station up |
 | UV, wind, rain, soil | Reserved for later steps | See [Later sensors](#later-sensors) |
 
-The modules are generic boards: the sensor chip, a few components, and a row of pins to solder. All of them are on the **I2C bus**, where each one answers at its own address: 0x44 (SHT31), 0x76 or 0x77 (BMP280, depending on the module), 0x23 (light probe), 0x40 (INA219), 0x68 (DS3231) and 0x57 (the memory chip of the DS3231 module).
+The station starts with the BME280 and the clock of the breadboard. A **SHT31** (±0.3 °C, ±2 % RH, the sensor of 3D-PAWS) can later replace the BME280 for the temperature and the humidity, about three times more accurate: it plugs into the same hub.
+
+All of them are on the **I2C bus**, where each one answers at its own address: 0x76 or 0x77 (BME280, depending on the module), 0x23 (light probe), 0x40 (INA219), 0x68 (DS3231) and 0x57 (the memory chip of the DS3231 module).
 
 ### The clock
 
@@ -124,7 +127,9 @@ The DS3231 module keeps the time with a coin cell, and wakes the station up with
 
 The [SEN0562 of DFRobot](https://wiki.dfrobot.com/sen0562/) is a BH1750 light sensor in a waterproof probe (IP68), with a 1 m cable. It measures from 1 to 65,535 lux, and draws about 1 µA. It is screwed through a 26 mm hole in the roof.
 
-DFRobot gives it a 5 V supply, while the Grove connectors give 3.3 V. Its BH1750 chip itself works from 2.4 to 3.6 V, and the probe is reported to work at 3.3 V: this is checked on the bench before it is mounted. The end of its cable is adapted to a Grove connector, minding the order of the wires.
+DFRobot gives it a 5 V supply, while the Grove connectors give 3.3 V. Its BH1750 chip itself works from 2.4 to 3.6 V, and the probe is reported to work at 3.3 V: this is checked on the bench before it is mounted.
+
+The connector at the end of its cable is cut off: its four wires go into a **Grove module with screw terminals** (see [Connections](#connections)), red to VCC, blue to GND, yellow (SCL) to the first signal terminal, green (SDA) to the second.
 
 ### Later sensors
 
@@ -141,23 +146,23 @@ DFRobot gives it a 5 V supply, while the Grove connectors give 3.3 V. Its BH1750
 
 Every link is a cable with connectors at both ends, or a wire held by a screw terminal (HN5):
 
-- **The I2C bus** goes from the Grove Shield to a **Grove I2C hub** in the sealed box, a small board that repeats the bus on 6 connectors: the clock and the battery monitor plug into it. A 50 cm Grove cable goes out of the box to a second hub, in the shelter, for the air sensors and the light probe; its free connectors wait for the later sensors.
-- **The modules** have pins, not Grove connectors: each one connects to its hub with a cable that has a Grove connector at one end and four female connectors at the other, which plug onto the pins of the module.
-- **The alarm of the clock** comes with the same kind of cable, from the D0/D1 connector: its yellow wire plugs onto the SQW pin of the clock, its black wire onto GND.
-- **The maintenance switch** is a **reed switch**: a contact sealed in a small glass tube, which closes when a magnet comes near. It is a door sensor in a plastic case, screwed on a corner batten in the shelter, behind a grille: the magnet held against the grille, outside, wakes the station up in maintenance mode, without opening anything (H6). Its two wires are soldered to a Grove cable, and close D2 to the ground.
-- **The power wires** go through JST connectors and the screw terminal of the INA219 (see [Power](01-power.qmd)).
+- **The I2C bus** goes from the Grove Shield to a **Grove I2C hub** in the sealed box, a small board that repeats the bus on 6 connectors: the clock and the battery monitor plug into it. A 30 cm Grove cable goes out of the box to a second hub, in the shelter, for the BME280 and the light probe; its free connectors wait for the later sensors.
+- **The clock and the BME280** have pins, not Grove connectors: each one connects to its hub with a cable that has a Grove connector at one end and four female connectors at the other, which plug onto the pins of the module.
+- **The INA219** of Adafruit has a STEMMA QT connector, a smaller connector of the same bus: a STEMMA QT to Grove cable connects it.
+- **The alarm of the clock** comes with a Grove to female connectors cable, from the D0/D1 connector: its yellow wire plugs onto the SQW pin of the clock, its black wire onto GND.
+- **The light probe** and **the maintenance switch** connect through a **Grove module with screw terminals**: a Grove connector on one side, four screw terminals on the other (VCC, GND, and the two signals of the connector), which hold bare wires.
+- **The maintenance switch** is a **reed switch**: a contact sealed in a small glass tube, which closes when a magnet comes near. It is fixed on a corner batten in the shelter, behind a grille: a magnet held against the grille, outside, wakes the station up in maintenance mode, without opening anything (H6). Two wires soldered to its legs go into the screw terminals of the D2/D3 connector, and close D2 to the ground.
+- **The power wires** go through JST connectors, screw terminals and a lever connector (see [Power](01-power.qmd#wiring)).
 
 The I2C bus is about 2 m long with the cable of the light probe, which is long for an I2C bus: the firmware uses a lower clock rate, 100 kHz or below.
 
 ### What is soldered
 
-Only pin headers and a few wires (HN3):
+Only a few wires (HN3):
 
-- the **two rows of pins of the XIAO**;
-- the **pin headers** of the modules that come without them;
 - **two wires on the battery pads** of the Grove Shield, which bring the power of the solar charger;
-- the **thermistor** on the solar charger (see [Power](01-power.qmd#the-charger));
-- the **reed switch** on its Grove cable;
+- the **thermistor** on the solar charger, and the **battery plug** (see [Power](01-power.qmd#wiring));
+- **two wires on the reed switch**;
 - on the clock module, the **power LED** to remove.
 
 ## Wi-Fi range
@@ -174,7 +179,7 @@ A Stevenson screen, the shelter of official weather stations, keeps the sensors 
 - **The bottom**: a board of 24 × 24 cm, drilled with holes of 20 mm around the box, so that the air also comes in from below.
 - **The double roof**: two boards of 30 × 30 cm, separated by spacers cut from the batten. In the sun, the upper board heats up, the more so under the solar panel; the air that goes between the two boards takes this heat away, and the lower board stays close to the temperature of the air. The upper board leans to the south, on one spacer at the front and two stacked at the back: the rain runs off away from the trellis.
 - **The lid**: the lower board of the roof, with everything on it, is held by two wood screws in two opposite corner battens.
-- **The air sensors** are screwed under the lower board, on nylon standoffs of 1 cm: they touch no wall, and the air goes all around them.
+- **The air sensors** are screwed under the lower board, on two M3 screws, with nuts as spacers of about 1 cm: they touch no wall, and the air goes all around them.
 - **On the upper board**: the solar panel, flat, and the light probe on the south side, where the panel never shades it. The cable of the probe goes down through a small hole of the lower board, sheltered by the upper one.
 - **The sealed box**: a junction box of 115 × 115 × 60 mm (IP55), on two spacers at the bottom. Its cables go through the rubber membranes of its entries, at the bottom of the box; around a thin cable, a turn of self-amalgamating tape, which fuses into a watertight sleeve, closes the passage. A bag of silica gel absorbs the condensation.
 - **The support**: a wooden garden trellis, about 1.65 m high, standing in a planter, 3 m from a wall. The shelter is screwed on a vertical upright of the trellis, not on its thin slats: with the panel on its roof, it catches the wind. Two angle brackets carry the bottom board, two more hold the top of the back battens, screwed through the back grille. The sensors are at about 1.7 to 2 m, within the usual height of weather stations.
@@ -186,44 +191,43 @@ All the wood is painted white, which reflects the sun.
 
 The outdoor station changes the software in four ways:
 
-- **new adapters**: the SHT31, the BMP280, the light probe, the INA219, the reed switch, and the pins of the XIAO, in a new build environment. The state machine does not change: this is what the [ports and adapters](../Architecture/Phase-04/00-4-structure-and-verification.qmd) were designed for;
+- **new adapters**: the BME280 (already written for the bench station, with new pins), the light probe, the INA219, the reed switch, and the pins of the XIAO, in a new build environment. The state machine does not change: this is what the [ports and adapters](../Architecture/Phase-04/00-4-structure-and-verification.qmd) were designed for;
 - **the storage** moves from the SD card to the flash memory, and deletes the oldest acknowledged rows when it is full;
 - **new columns**: light, battery voltage, battery current, and the strength of the Wi-Fi signal. The CSV format and the upload protocol move to a version 2, and the backend learns it, while still accepting the version 1;
 - **the dashboard** shows the new quantities, and the state of the battery.
 
 ## Parts and cost
 
-The parts come from three shops: [Botland](https://botland.store), a European shop that sells Seeed Studio boards, Grove cables and generic modules; Amazon, for the modules and the charger that Botland does not have, or sells for more; and DFRobot, the only seller of the light probe.
+The electronics come from a single French shop, [Gotronic](https://www.gotronic.fr), which sells the Seeed Studio, Adafruit and DFRobot boards. The BME280, the DS3231 module and the USB-C cable are those of the bench.
 
 ### Electronics
 
-| Part | Shop | Price |
-|------|------|-------|
-| [XIAO ESP32-S3](https://botland.store/esp32-wifi-and-bt-modules/22878-seeed-xiao-esp32-s3-wifibluetooth-seeedstudio-113991114.html) | Botland | 8.00 € |
-| [Grove Shield for XIAO](https://botland.store/grove-base-hats/17041-grove-shield-for-seeeduino-xiao-seeedstudio-103020312-5903351247085.html) | Botland | 4.50 € |
-| [SHT31 module](https://www.amazon.fr/-/en/DAOKAI-Temperature-Humidity-SHT31-D-Interface/dp/B0CZHTWLJZ) | Amazon | 8.99 € |
-| [BMP280 module](https://botland.store/pressure-sensors/7245-bmp280-digital-barometer-pressure-sensor-110kpa-i2cspi-33v-5904422310042.html) | Botland | 2.50 € |
-| [Light probe SEN0562](https://wiki.dfrobot.com/sen0562/) | DFRobot | about 8 € |
-| [DS3231 module](https://www.amazon.fr/yasoe-DHorloge-Pr%C3%A9cision-Temp%C3%A9rature-Portable/dp/B0DDPN3MQ4) and a CR2032 cell | Amazon | 3.88 € + about 1 € |
-| [INA219 module](https://www.amazon.fr/DollaTek-capteur-Courant-Alternatif-bidirectionnel/dp/B07DK7Y35Q) | Amazon | 5.99 € |
-| [Charger bq24074](https://www.amazon.fr/Adafruit-Industries-Chargeur-universel-polym%C3%A8re/dp/B0929F5ZHW) | Amazon | 22 to 29 € |
-| [Thermistor 103AT](https://www.amazon.fr/1PCS-Thermistance-103AT-11-Temp%C3%A9rature-60cm/dp/B0CD2FNYKS) | Amazon | a few euros |
-| [18650 cell, 2600 mAh, protected](https://botland.store/li-ion-batteries/9067-power-cell-18650-li-ion-xtar-2600mah-6952918340263.html) and its [holder](https://botland.store/battery-holders/5242-cell-holder-for-1x-18650-5904422333393.html) | Botland | 6.50 € + 0.90 € |
-| [Solar panel 6 V, 3 W, with a 5.5 × 2.1 mm plug](https://www.amazon.fr/Monocristallin-Ext%C3%A9rieur-Stratifi%C3%A9e-T%C3%A9l%C3%A9phone-14-5Cmx14-5Cm/dp/B08G8TT5Q7) | Amazon | about 12 € |
-| [Reed switch with its magnet](https://botland.store/magnetic-sensors/10159-magnetic-sensor-doorwindow-reed-switch.html) | Botland | 1.50 € |
-| Nylon standoffs, 4 | Botland | about 1 € |
-| **Total** | | **about 95 €** |
+| Qty | Part | Price |
+|-----|------|-------|
+| 1 | [XIAO ESP32-S3, pins soldered](https://www.gotronic.fr/art-carte-xiao-esp32s3-soude-47619.htm) | 10.50 € |
+| 1 | [Grove Shield for XIAO](https://www.gotronic.fr/art-shield-grove-xiao-103020312-32393.htm) | 4.90 € |
+| 1 | [Charger bq24074 (Adafruit 4755)](https://www.gotronic.fr/art-chargeur-d-accu-lipo-3-7-vcc-ada4755-33478.htm) | 17.90 € |
+| 1 | [Light probe SEN0562](https://www.gotronic.fr/art-capteur-de-lumiere-etanche-sen0562-37146.htm) | 10.70 € |
+| 1 | [INA219 (Adafruit 904)](https://www.gotronic.fr/art-capteur-de-courant-ina219b-ada904-20701.htm) | 13.30 € |
+| 1 | [Solar panel SOL3W, 3 W](https://www.gotronic.fr/art-cellule-solaire-sol3w-18996.htm) | 19.00 € |
+| 1 | [DC plug to screw terminal adapter PCM10](https://www.gotronic.fr/art-adaptateur-pcm10-17048.htm) | 1.80 € |
+| 1 | [LiPo battery, 1000 mAh, JST-PH](https://www.gotronic.fr/art-accu-lipo-3-7-vcc-1000-mah-pr523450-5813.htm) | 9.90 € |
+| 1 | [Thermistor NTC 10 kΩ](https://www.gotronic.fr/art-thermistance-ctn-10k-8486-3739.htm) | 0.80 € |
+| 1 | [Reed switch](https://www.gotronic.fr/art-interrupteur-ils-boitier-19991.htm) and its [magnet](https://www.gotronic.fr/art-aimant-O8-x-3-mm-17973.htm) | 2.45 € |
+| 1 | [CR2032 coin cells, 5](https://www.gotronic.fr/cat-piles-lithium-1036.htm) | 3.20 € |
 
 ### Cables
 
-| Cable | Use | Shop | Price |
-|-------|-----|------|-------|
-| [Grove I2C hub, 6 ports](https://botland.store/grove-converters/15856-grove-i2c-hub-6-ports-seeedstudio-103020272-5904422324872.html), 2, each with a Grove cable | Box and shelter | Botland | 2 × 1.90 € |
-| [Grove to female jumpers, 30 cm, set of 5](https://botland.store/grove-cables/4401-grove-a-set-of-5-wires-4-pin-2mm-female-wires-254mm30cm.html) | Clock, its alarm, INA219, SHT31, BMP280 | Botland | 3.90 € |
-| [Grove, 50 cm, set of 2](https://botland.store/grove-cables/18096-grove-a-set-of-2-female-female-4-pin-50cm-6972934171412.html) | Box to shelter; reed switch | Botland | 2.50 € |
-| [JST 2-pin cable](https://botland.store/wires-and-power-connectors/4394-power-cord-jst-2-pin-10cm-5904422365714.html), 2 | Charger to INA219; charger to Grove Shield | Botland | 2 × 0.50 € |
-| Adapter for the light probe | Its cable to Grove | — | to choose |
-| **Total** | | | **about 11 €** |
+| Qty | Cable | Use | Price |
+|-----|-------|-----|-------|
+| 2 | [Grove I2C hub, 6 ports](https://www.gotronic.fr/art-hub-6-ports-i2c-grove-103020272-31348.htm) | Box and shelter | 3.80 € |
+| 2 | [Grove cables, 30 cm, set of 5](https://www.gotronic.fr/art-lot-de-5-cables-grove-30-cm-22557.htm) | Shield to hub, hub to hub, screw terminal modules, and spares for the later sensors | 6.60 € |
+| 1 | [Grove to female connectors cables, 30 cm, set of 5](https://www.gotronic.fr/art-5-cables-30-cm-grove-4-contacts-femelles-19069.htm) | Clock, its alarm, BME280 | 4.20 € |
+| 1 | [STEMMA QT to Grove cables, set of 2](https://www.gotronic.fr/art-cordons-qwiic-stemma-grove-114992154-32000.htm) | INA219 | 2.50 € |
+| 2 | [Grove module with screw terminals](https://www.gotronic.fr/art-module-de-connexion-grove-103020007-19008.htm) | Light probe, reed switch | 6.70 € |
+| 2 | [JST-PH 2-pin cable, with its plug](https://www.gotronic.fr/art-cordon-jst-ph-femelle-2-cts-jst2-21318.htm) | Charger to Grove Shield; charger to INA219 and battery | 2.70 € |
+
+All in all, **about 121 €**, without the shipping costs. From a DIY store: a small lever connector (Wago type), thick double-sided foam tape for the battery, and two M3 screws of 30 mm with their nuts.
 
 ### Shelter
 
