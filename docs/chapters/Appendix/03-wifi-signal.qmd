@@ -1,0 +1,73 @@
+# Wi-Fi Signal Test {.unnumbered}
+
+The outdoor station uploads its data from the garden, about 30 m from the Wi-Fi access point (H4 in the [design of the outdoor station](../Outdoor/00-design.qmd#requirements)). Before anything is bought or built, this small program measures the strength of the Wi-Fi signal at the place of the station, to know whether the antenna is enough (step O0 of the [implementation plan](../Outdoor/00-design.qmd#implementation-plan)).
+
+> **Ready-to-use project:** The complete code is available in the repository here: [`firmware/tools/wifi_signal`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/tools/wifi_signal)
+
+## The signal strength
+
+The strength of a Wi-Fi signal received by a board is its **RSSI** (*Received Signal Strength Indicator*), in **dBm**: a negative number, closer to 0 when the signal is stronger. Every 3 dB less is half of the power: −70 dBm is about a thousand times weaker than −40 dBm.
+
+The program sorts the values with common rules of thumb for Wi-Fi, which are not a standard:
+
+| RSSI | Verdict |
+|------|---------|
+| −67 dBm or more | very good |
+| −75 to −67 dBm | good |
+| −85 to −75 dBm | weak, enough for the small uploads of the station |
+| below −85 dBm | too weak: a better antenna or a repeater is needed |
+
+## The program
+
+The program connects the development board of the bench to the home Wi-Fi, with the name and the password of the station, read from `firmware/paws/include/secrets.h`. Then, every second, it reads the RSSI and shows it:
+
+- on the **serial monitor**, which also gives the IP address of the board at start-up;
+- on a **web page** at this address, which reloads itself every second: a phone connected to the same Wi-Fi shows it in the garden.
+
+```{.cpp include="../../../firmware/tools/wifi_signal/wifi_signal.ino"}
+```
+
+- `WiFi.RSSI()` gives the strength of the signal of the access point the board is connected to.
+- `WebServer` answers the requests of the phone; `server.handleClient()`, called at each turn of `loop()`, handles them.
+- The page asks the browser to reload it every second with `<meta http-equiv='refresh' content='1'>`: no script is needed.
+- The strongest and the weakest values since start-up show the range of the signal while the board is moved around.
+
+## Running the test
+
+1. Plug the development board into the computer and run, from the root of the repository:
+
+   ```bash
+   pixi run wifi-signal
+   ```
+
+   The program is built, sent to the board, and the serial monitor shows:
+
+   ```text
+   Connecting to the Wi-Fi.....
+   Connected. Open this address on a phone: http://192.168.1.42
+   -48 dBm: very good
+   ```
+
+   Note the address. Ctrl+C closes the serial monitor.
+2. Unplug the board, and power it with a USB power bank.
+3. Place the board where the station will stand, at about 1.5 m above the ground.
+4. On a phone connected to the same Wi-Fi, open the address noted.
+
+To give the board back its station firmware, build and send it as usual.
+
+## Reading the result
+
+The development board has its antenna printed on its circuit board. The XIAO ESP32-S3 of the outdoor station comes with an external antenna, usually better: the test gives the **least favorable case**. If the signal is enough for the development board, it is enough for the station.
+
+When the signal is too weak:
+
+- a **2.4 GHz Wi-Fi antenna** with a longer cable and a U.FL connector takes the antenna of the XIAO out of the sealed box;
+- or a **Wi-Fi repeater**, near a window on the side of the garden, brings the access point closer.
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+|---------|---------------|
+| The serial monitor stays on `Connecting to the Wi-Fi.....` | The name or the password in `firmware/paws/include/secrets.h` is wrong. |
+| The page does not open on the phone | The phone is not connected to the same Wi-Fi as the board, or uses its mobile data. |
+| `Not connected` in the garden | The signal is too weak for the connection: see [Reading the result](#reading-the-result). |

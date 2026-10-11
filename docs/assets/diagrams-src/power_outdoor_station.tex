@@ -1,0 +1,70 @@
+\documentclass[border = 2mm]{standalone}
+\usepackage[utf8]{inputenc}
+\usepackage{tikz}
+\usetikzlibrary{calc}
+
+% Power of the outdoor station: panel -> charger -> battery, through the
+% battery monitor, and charger -> Grove Shield. The thermistor is taped
+% against the battery, and wired to the charger only.
+
+\tikzset{
+    module/.style={draw, thick, rounded corners=2pt, fill=#1, align=center,
+        font=\sffamily\small, minimum height=1.2cm, minimum width=3cm},
+    module/.default=gray!15,
+    port/.style={font=\sffamily\tiny, inner sep=1pt},
+    wirePower/.style={red!80!black, very thick},
+    wireGround/.style={black, very thick},
+    wireI2c/.style={blue!70!black, very thick},
+    wireNtc/.style={orange!80!black, thick},
+    note/.style={font=\sffamily\scriptsize, align=center},
+}
+
+\begin{document}
+\begin{tikzpicture}
+
+% ---------------------------------------------------------------- modules
+\node[module=gray!15] (panel) at (0,7) {\textbf{Solar panel}\\\scriptsize 6 V, 3 W};
+\node[module=orange!25, minimum height=2.2cm] (charger) at (0,3.5) {\textbf{Charger}\\bq24074};
+\node[module=yellow!15, minimum height=2.2cm] (shield) at (8,3.5) {\textbf{Grove Shield}\\\scriptsize with the XIAO};
+\node[module=green!20] (ina) at (4,0) {\textbf{INA219}\\\scriptsize battery monitor};
+\node[module=gray!15] (battery) at (0,-3.4) {\textbf{Battery}\\\scriptsize 18650 cell, 3.7 V};
+\node[module=orange!10, minimum width=2cm, minimum height=1cm] (ntc) at (-2.5,-3.4) {\textbf{Thermistor}\\\scriptsize NTC 103AT};
+
+% ---------------------------------------------------------------- panel -> charger
+\draw[wirePower] (panel.south) -- (charger.north);
+\node[note, right] at (0,5.3) {DC jack};
+
+% ---------------------------------------------------------------- charger -> board
+\draw[wirePower] ($(charger.east)+(0,0.4)$) -- ($(shield.west)+(0,0.4)$);
+\draw[wireGround] ($(charger.east)+(0,-0.4)$) -- ($(shield.west)+(0,-0.4)$);
+\node[note, above] at (4,3.9) {LOAD +, JST cable};
+\node[note, below] at (4,3.1) {LOAD $-$};
+\node[port, anchor=south east] at ($(shield.west)+(0,0.4)$) {BAT+};
+\node[port, anchor=north east] at ($(shield.west)+(0,-0.4)$) {BAT$-$};
+
+% ---------------------------------------------------------------- charger -> INA219 -> battery
+% The + of the battery goes through the INA219; the - goes straight back
+\draw[wirePower] ($(charger.south)+(0.6,0)$) |- (ina.west);
+\node[note, above] at (1.5,0) {BATT +};
+\node[port, anchor=north east] at (ina.west) {VIN+};
+\draw[wirePower] (ina.south) |- (2.6,-1.8) -| ($(battery.north)+(0.6,0)$);
+\node[port, anchor=north west] at (ina.south) {VIN$-$};
+\node[note, right] at (2.6,-2.2) {battery +};
+\draw[wireGround] ($(charger.south)+(-0.6,0)$) -- ($(battery.north)+(-0.6,0)$);
+\node[note, left] at (-0.6,-1.0) {BATT $-$\\battery $-$};
+
+% INA219 -> board, on the I2C bus
+\draw[wireI2c] (ina.east) -| (shield.south);
+\node[note, right] at (8,1.2) {I2C, through\\the splitter};
+
+% ---------------------------------------------------------------- thermistor
+% Two wires to the charger: its THERM pad and its ground
+\draw[wireNtc] ($(ntc.north)+(-0.3,0)$) |- ($(charger.west)+(0,0.4)$);
+\draw[wireNtc] ($(ntc.north)+(0.3,0)$) |- ($(charger.west)+(0,-0.4)$);
+\node[port, anchor=south east] at ($(charger.west)+(0,0.4)$) {THERM};
+\node[port, anchor=north east] at ($(charger.west)+(0,-0.4)$) {GND};
+% Taped against the cell: a thermal contact, not an electrical one
+\node[note, below] at (-1.6,-4.0) {taped against the cell:\\no electrical link with it};
+
+\end{tikzpicture}
+\end{document}
