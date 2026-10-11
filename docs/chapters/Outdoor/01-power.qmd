@@ -2,9 +2,7 @@
 
 On the desk, the station draws its power from a USB cable. In the garden, there is no socket (H2): the station lives on a battery, which a solar panel charges during the day. This chapter explains how this works, from what the station consumes to the battery monitor that reports its state with every measurement. The [design chapter](00-design.qmd) gives the list of the parts and how they connect.
 
-![Power of the outdoor station](../../assets/diagrams/power_outdoor_station.svg)
-
-The **solar panel** charges the **battery** through the **charger**; the charger powers the **Grove Shield**, the board that carries the XIAO; the **battery monitor** (INA219), on the + wire between the charger and the battery, measures what goes in and out. The **thermistor** is taped against the battery, but wired to the charger only.
+The **solar panel** charges the **battery** through the **charger**; the charger powers the **Grove Shield**, the board that carries the XIAO; the **battery monitor** (INA219), on the + wire between the charger and the battery, measures what goes in and out. The **thermistor** is taped against the battery, but wired to the charger only. The [wiring](#wiring) shows each connection.
 
 ## What the station consumes
 
@@ -22,13 +20,13 @@ These add about 0.05 mA. On the other side, the XIAO sleeps with 14 µA, much le
 
 ## The battery
 
-A lithium-ion battery stores the energy for the night and for the days without sun. The station uses an **18650 cell**, the cylindrical cell of laptop batteries and flashlights, 18 mm in diameter and 65 mm long:
+A lithium battery stores the energy for the night and for the days without sun. The station uses a **lithium polymer (LiPo) battery**: a flat pouch of 52 × 35 × 6 mm, with a short cable and a JST-PH plug.
 
 - **3.7 V nominal**: 4.2 V when full, about 3.0 V when empty;
-- **2600 mAh**: with 12 mAh a day, it would hold **more than six months without any sun** on paper. Winter reduces this: a lithium battery gives less of its capacity in the cold. The margin stays very large;
-- **protected**: a small circuit at the end of the cell disconnects it when its voltage falls too low, when it is overcharged, or on a short circuit. An empty lithium cell, discharged further, is damaged for good: the protection prevents it, even if everything else fails.
+- **1000 mAh**: with 12 mAh a day, it would hold **more than two months without any sun** on paper. Winter reduces this: a lithium battery gives less of its capacity in the cold. The margin stays large;
+- **protected**: a small circuit in the pouch disconnects the battery when its voltage falls too low, when it is overcharged, or on a short circuit. An empty lithium battery, discharged further, is damaged for good: the protection prevents it, even if everything else fails.
 
-The cell sits in a **holder** with two wires.
+A LiPo pouch is not screwed: it is stuck to the bottom of the sealed box with thick double-sided foam tape. It must never be pierced, folded or squeezed, nor touch a sharp edge or a screw.
 
 ### Lithium and the cold
 
@@ -40,8 +38,10 @@ In winter, a sunny morning can follow a night of frost: the panel gives current 
 
 The panel turns light into current. It is described by two values, measured in full sun (1000 W per square metre):
 
-- its **voltage**, 6 V: it must be higher than the voltage of the full battery, 4.2 V, with a margin, for the charger to work;
-- its **power**, 3 W: about 0.5 A at 6 V in full sun.
+- its **voltage**, 5.5 V under load, and up to 8.2 V without load, according to its seller: it must be higher than the voltage of the full battery, 4.2 V, with a margin, for the charger to work. The charger accepts 5 to 10 V;
+- its **power**, 3 W: about 0.54 A in full sun.
+
+The station uses the SOL3W panel, 160 × 138 mm, coated with resin for outdoor use.
 
 The panel lies **flat on the roof** of the shelter. A flat panel receives less light than a panel facing south, tilted, mostly in winter, when the sun stays low: in December, about two to three times less. Even so, the margin is large. In December, in France, a horizontal surface receives on average roughly 0.6 kWh of sunlight per square metre per day in the north, and up to about 2 kWh in the south: the same energy as 0.6 to 2 hours of full sun. A 3 W panel then gives about 2 to 6 Wh a day. Even if half of it is lost, in the charger and on grey days, 1 Wh is about **250 mAh** at the voltage of the battery: twenty times the 12 mAh the station needs.
 
@@ -52,9 +52,11 @@ A lithium battery is never connected directly to a panel: the charger stands bet
 1. **It charges the battery safely**: first with a constant current, then, near 4.2 V, with a constant voltage while the current decreases, and it stops when the battery is full. A lithium battery charged above 4.2 V is damaged, and can catch fire.
 2. **It powers the station while it charges** (*power path*): its **LOAD** output gives the station what it needs, from the panel when there is sun, from the battery otherwise. The station never stops when the sun comes or goes.
 3. **It adapts to the panel**: when the light is weak, the panel cannot give much current, and its voltage drops if more is drawn. The charger then lowers its current, to keep the voltage of the panel up and to draw as much as the panel can give.
-4. **It checks the temperature of the battery**, with a **thermistor**: a resistor whose value changes with the temperature, taped against the cell. With the thermistor named in its datasheet, a 10 kΩ NTC of the 103AT type, the bq24074 only charges between **0 °C and 50 °C**, with a hysteresis of 3 °C ([TI datasheet](https://www.ti.com/lit/ds/symlink/bq24074.pdf)). Outside this range, it suspends the charge, and the station keeps running on its battery.
+4. **It checks the temperature of the battery**, with a **thermistor**: a resistor whose value changes with the temperature, taped against the battery. With the thermistor named in its datasheet, a 10 kΩ NTC of the 103AT type, the bq24074 only charges between **0 °C and 50 °C**, with a hysteresis of 3 °C ([TI datasheet](https://www.ti.com/lit/ds/symlink/bq24074.pdf)). Outside this range, it suspends the charge, and the station keeps running on its battery.
 
-The thermistor is a small component at the end of two wires. It has no electrical link with the battery: it is only taped against it, to take its temperature. Its two wires go to the charger: on the board of Adafruit, one is soldered to the **THERM** pad, the other to the ground, after a small jumper marked THERM is cut. The panel plugs into the DC jack of the charger, the battery and the station into its two JST connectors, LOAD and BATT. At night, without input, the charger draws about 4 µA from the battery.
+The station uses a common 10 kΩ NTC, whose resistance changes a little faster with the temperature (its *B* constant is 4300, against about 3435 for the 103AT). The charger compares the same resistances, so the range moves: calculated from the B constant, it charges between about **+5 °C and +44 °C**, a few degrees more or less with the ±10 % tolerance of the thermistor. Starting the charge a few degrees above 0 °C is on the safe side for the battery.
+
+The thermistor is a small component with two legs. It has no electrical link with the battery: it is only taped against it, to take its temperature. Two wires bring it to the charger (see [Wiring](#wiring)). At night, without input, the charger draws about 4 µA from the battery.
 
 Cheaper charger modules exist, built around the TP4056 or the CN3791. Their chip also has a temperature input, but on the modules sold, this input is connected to the ground, which disables it ([TP4056](https://wiki.adom.inc/ray/tp4056)): they would charge the battery in the frost. Enabling it means cutting a trace of the module and adding resistors.
 
@@ -62,9 +64,20 @@ Cheaper charger modules exist, built around the TP4056 or the CN3791. Their chip
 
 The LOAD output of the charger goes to the **battery pads of the Grove Shield**, the board that carries the XIAO. The Grove Shield has its own charger, made for a battery charged from the USB port, and a converter that gives the 3.3 V of the XIAO and of the modules. For the Grove Shield, the solar charger takes the place of its battery: its charger lets the current through to the converter. Together, they draw about 35 µA.
 
-The charger of the Grove Shield cannot replace the bq24074: its input is made for the 5 V of a USB port and is protected by components that limit it to about 5 V, while a 6 V panel exceeds 7 V without load; and it has no thermistor input.
+The charger of the Grove Shield cannot replace the bq24074: its input is made for the 5 V of a USB port and is protected by components that limit it to about 5 V, while the panel exceeds 8 V without load; and it has no thermistor input.
 
 One rule follows: **the power switch of the Grove Shield is set to OFF before the USB cable is plugged in**, to program the XIAO. Otherwise, the charger of the Grove Shield would charge its "battery", which is the output of the solar charger.
+
+## Wiring
+
+![Power of the outdoor station](../../assets/diagrams/power_outdoor_station.svg)
+
+- **Panel to charger**: the JST plug of the panel is cut off, and its two wires go into the screw terminal of a DC plug adapter (5.5 × 2.1 mm), the + to the centre of the plug, which plugs into the DC jack of the charger.
+- **Charger to Grove Shield**: a JST-PH cable plugs into the LOAD connector of the charger; its two wires are soldered to the battery pads of the Grove Shield, red to +, black to −.
+- **Charger to battery, through the INA219**: a second JST-PH cable plugs into the BATT connector of the charger. Its red wire goes into the VIN+ terminal of the INA219; the VIN− terminal goes to the + of the battery. The battery plugs into the small JST-PH socket supplied with the cable, with two wires soldered to it. The two black wires, of the charger and of the battery, are joined in a lever connector: the − of the battery goes straight back to the charger.
+- **Thermistor**: on the board of Adafruit, a small jumper marked THERM is cut, then two wires are soldered, one to the **THERM** pad, the other to the ground; their other ends are soldered to the legs of the thermistor, taped against the battery.
+
+The INA219 shares the ground of the station through its I2C cable: it measures the voltage of the battery against this ground.
 
 ## The battery monitor
 
@@ -102,9 +115,9 @@ Between two measurements, the firmware puts it in power-down mode, where it draw
 
 | Part | Role |
 |------|------|
-| Solar panel, 6 V, 3 W | Turns the light into current, about 250 mAh a day in winter, at least |
+| Solar panel SOL3W, 3 W | Turns the light into current, about 250 mAh a day in winter, at least |
 | bq24074 charger | Charges the battery safely, powers the station, adapts to the panel |
-| Thermistor 103AT | Stops the charge below 0 °C |
-| 18650 cell, 2600 mAh, protected | Holds the energy: months without sun on paper |
+| Thermistor NTC 10 kΩ | Stops the charge below about +5 °C |
+| LiPo battery, 1000 mAh, protected | Holds the energy: two months without sun on paper |
 | INA219 | Measures the voltage and the current of the battery at each wake-up |
 | Grove Shield | Receives the power of the charger on its battery pads, and gives the 3.3 V |
