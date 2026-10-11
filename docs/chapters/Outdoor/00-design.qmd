@@ -18,7 +18,7 @@ The identifiers start with **H**, for hardware.
 
 | ID | Name | Requirement | Why |
 |----|------|-------------|-----|
-| H1 | Outdoor air | Measure the temperature and the humidity of the outdoor air in a ventilated shelter, in the shade, about 1.5 m above the ground; measure the pressure. | In the sun, a sensor measures its own heating, not the air. The height follows the practice of official weather stations. |
+| H1 | Outdoor air | Measure the temperature and the humidity of the outdoor air in a ventilated shelter, in the shade, between 1.25 and 2 m above the ground, as recommended by the World Meteorological Organization; measure the pressure. | In the sun, a sensor measures its own heating, not the air. The height follows the practice of official weather stations. |
 | H2 | Own power | Run all year, winter included, from a solar panel and a battery, without a socket. | There is no socket in the garden. |
 | H3 | Power monitoring | Measure the voltage of the battery and the current that charges or discharges it, and send them with the measurements. | To see a power failure coming, and to learn the real behavior of the battery. |
 | H4 | Garden range | Upload from the garden, about 30 m from the Wi-Fi access point, and log the strength of the Wi-Fi signal (RSSI). | The range decides where the antenna goes. |
@@ -46,9 +46,9 @@ The identifiers start with **H**, for hardware.
 
 ## Overview
 
-The outdoor station is a small wooden shelter on a post. Everything is in it or on it:
+The outdoor station is a small wooden shelter, screwed on a wooden garden trellis. Everything is in it or on it:
 
-![The shelter: front view from the south, and side view on the post](../../assets/diagrams/shelter_assembly.svg)
+![The shelter: front view from the south, and side view on the trellis](../../assets/diagrams/shelter_assembly.svg)
 
 - **The walls** are four louvered vent grilles: the air goes through, the sun and the rain do not.
 - **The electronics** are in a sealed box at the bottom: the board, the clock, the battery, its charger and its monitor.
@@ -164,18 +164,21 @@ Only pin headers and a few wires (HN3):
 
 The XIAO comes with an external antenna, which stays in the sealed box: plastic and wood let the Wi-Fi through. Before anything is bought, the [Wi-Fi signal test](../Appendix/03-wifi-signal.qmd), run on the development board at the place of the station, shows the strength of the signal every second, and tells whether this antenna is enough.
 
+At the place chosen for the station, the test measured about −68 dBm, and −74 dBm at the weakest, with the development board: a good signal, since the station only sends a few rows at a time. The XIAO, with its external antenna, receives at least as well: no extra antenna and no repeater are needed.
+
 ## The shelter
 
 A Stevenson screen, the shelter of official weather stations, keeps the sensors in the shade and in moving air. This one is built from vent grilles and pine, with simple tools.
 
 - **The walls**: four louvered vent grilles in ABS, 23 × 23 cm, screwed on four corner battens of 21 × 21 mm, cut to 23 cm. ABS turns yellow and brittle in the sun over the years: a coat of white paint for plastics protects it.
 - **The bottom**: a board of 24 × 24 cm, drilled with holes of 20 mm around the box, so that the air also comes in from below.
-- **The double roof**: two boards of 30 × 30 cm, separated by spacers cut from the batten. In the sun, the upper board heats up, the more so under the solar panel; the air that goes between the two boards takes this heat away, and the lower board stays close to the temperature of the air. The upper board leans to the south, on one spacer at the front and two stacked at the back: the rain runs off away from the post.
+- **The double roof**: two boards of 30 × 30 cm, separated by spacers cut from the batten. In the sun, the upper board heats up, the more so under the solar panel; the air that goes between the two boards takes this heat away, and the lower board stays close to the temperature of the air. The upper board leans to the south, on one spacer at the front and two stacked at the back: the rain runs off away from the trellis.
 - **The lid**: the lower board of the roof, with everything on it, is held by two wood screws in two opposite corner battens.
 - **The air sensors** are screwed under the lower board, on nylon standoffs of 1 cm: they touch no wall, and the air goes all around them.
 - **On the upper board**: the solar panel, flat, and the light probe on the south side, where the panel never shades it. The cable of the probe goes down through a small hole of the lower board, sheltered by the upper one.
 - **The sealed box**: a junction box of 115 × 115 × 60 mm (IP55), on two spacers at the bottom. Its cables go through the rubber membranes of its entries, at the bottom of the box; around a thin cable, a turn of self-amalgamating tape, which fuses into a watertight sleeve, closes the passage. A bag of silica gel absorbs the condensation.
-- **The post**: a post of treated wood, 7 × 7 cm, on the north side of the shelter, so that it never shades it. Two angle brackets carry the bottom board, two more hold the top of the back battens, screwed through the back grille. The sensors are at about 1.5 m.
+- **The support**: a wooden garden trellis, about 1.65 m high, standing in a planter, 3 m from a wall. The shelter is screwed on a vertical upright of the trellis, not on its thin slats: with the panel on its roof, it catches the wind. Two angle brackets carry the bottom board, two more hold the top of the back battens, screwed through the back grille. The sensors are at about 1.7 to 2 m, within the usual height of weather stations.
+- **The climbing plant** of the trellis stays a few tens of centimetres below the shelter, and is trimmed so that it never grows into it: plants release humidity and cool the air around them. Watering the planter can also raise the humidity measured for a while.
 
 All the wood is painted white, which reflects the sun.
 
@@ -231,14 +234,14 @@ The parts come from three shops: [Botland](https://botland.store), a European sh
 | Pine shelf board 200 × 30 cm, 18 mm | about 11.50 € |
 | Junction box 115 × 115 × 60 mm, IP55 | about 3 € |
 | White paint for wood, 0.5 L, and a primer for plastics | 17 to 30 €, to price |
-| Treated post 7 × 7 cm, 4 angle brackets, stainless screws | to price |
+| 4 angle brackets, stainless screws | to price |
 | Self-amalgamating tape, silica gel | to price |
 
 ## Implementation plan
 
 | Step | Content |
 |------|---------|
-| O0 | Wi-Fi range: the [Wi-Fi signal test](../Appendix/03-wifi-signal.qmd), run in the garden, tells whether the antenna is enough. |
+| O0 | Wi-Fi range: the [Wi-Fi signal test](../Appendix/03-wifi-signal.qmd), run in the garden, tells whether the antenna is enough. Done: see [Wi-Fi range](#wi-fi-range). |
 | O1 | Parts: final list, order. |
 | O2 | Bench: the solderings, the modules connected with their cables on the desk, the light probe tested at 3.3 V. |
 | O3 | Firmware: the XIAO, the new sensors, the battery monitor, the flash storage; protocol version 2, and the backend. |
