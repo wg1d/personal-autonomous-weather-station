@@ -6,7 +6,7 @@ The [previous chapter](04-1-wifi-and-time-sync.qmd) connected the station to the
 - the cursor moves forward only after the server confirmed the reception, so that no row is ever lost (N1 · No data loss);
 - the server ignores the rows it already has, so that sending a row twice is harmless.
 
-The chapter also adds a small test server, to receive the rows on a computer of the home network.
+The rows are received on a computer of the home network by a small [test server](../../Appendix/02-test-server.qmd).
 
 > **Ready-to-use project:** The complete code of this step is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v0.5.0/firmware/paws)
 
@@ -107,22 +107,13 @@ The address of the server is a setting of the home network, so it lives in `incl
 
 ## The test server
 
-The test server implements the server side of the protocol, in about 120 lines of Python with [FastAPI](https://fastapi.tiangolo.com/):
-
-```{.python include="../../../_versions/v0.5.0/backend/Phase-04/test_server/main.py"}
-```
-
-- `POST /api/v1/measurements` checks the header line, stores each row in a SQLite database, and answers with the number of rows received, inserted and ignored as duplicates. The timestamp is the primary key of the table: `INSERT OR IGNORE` skips a row whose timestamp is already stored, which makes repeated uploads harmless.
-- `GET /` shows the last rows received in a table, with the total number of rows, to check the uploads from a browser.
-- `GET /api/v1/measurements` returns the same rows as JSON, for programs.
-
-It is a bench tool, kept short on purpose: the backend of Phase 5 will replace it. Start it from the root of the repository:
+To receive the uploads on the bench, the [test server](../../Appendix/02-test-server.qmd) implements the server side of the protocol on the development computer. Start it from the root of the repository:
 
 ```bash
 pixi run test-server
 ```
 
-It listens on port 8080 (`--port` chooses another one), on every network interface, so that the station can reach it over the Wi-Fi. In `include/secrets.h`, `kServerUrl` must contain the IP address of the computer running it.
+In `include/secrets.h`, `kServerUrl` must contain the IP address of the computer running it, such as `http://192.168.1.15:8080`. Its page, at `http://localhost:8080`, shows the rows received. The [Test Server](../../Appendix/02-test-server.qmd) appendix describes its code and its addresses.
 
 ## main.cpp
 

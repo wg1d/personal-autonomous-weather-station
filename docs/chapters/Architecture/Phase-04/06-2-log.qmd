@@ -65,12 +65,7 @@ Two scenario tests check the log on the computer: it is sent with the measuremen
 
 ## The test server
 
-The test server receives the log on `POST /api/v1/logs`, appends it to the file `station.log`, and shows its last 200 lines at `http://localhost:8080/log`:
-
-```{.python include="../../../../backend/Phase-04/test_server/main.py"}
-```
-
-The lines are inserted in the page with `html.escape()`, so that a character such as `<` in a log line cannot break the page.
+The [test server](../../Appendix/02-test-server.qmd) receives the log on `POST /api/v1/logs`, appends it to the file `station.log`, and shows its last 200 lines at `http://localhost:8080/log`. The [Test Server](../../Appendix/02-test-server.qmd) appendix gives its code.
 
 ## The maintenance page
 

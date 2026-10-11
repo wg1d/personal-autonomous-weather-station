@@ -116,6 +116,16 @@ website:
                 text: "Data"
           - href: chapters/Backend/03-1-operations.qmd
             text: "B3 – Operations"
+      - section: "Appendices"
+        contents:
+          - section: "Electronics Notes"
+            contents:
+              - href: chapters/Appendix/01-pull-resistors.qmd
+                text: "Pull-Up and Pull-Down"
+          - section: "Tools"
+            contents:
+              - href: chapters/Appendix/02-test-server.qmd
+                text: "Test Server"
 
 date: last-modified
 

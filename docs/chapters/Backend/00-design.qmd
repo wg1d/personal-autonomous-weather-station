@@ -1,6 +1,6 @@
 # Backend Design {.unnumbered}
 
-The station now uploads its data once per hour, following the [Upload Protocol](../Architecture/Phase-04/00-3-data-and-upload.qmd#upload-protocol). On the bench, a [test server](../Architecture/Phase-04/04-2-upload.qmd#the-test-server) running on a development computer receives them. The backend replaces it with a server that stays on at home, keeps the data safely, and shows it in a dashboard.
+The station now uploads its data once per hour, following the [Upload Protocol](../Architecture/Phase-04/00-3-data-and-upload.qmd#upload-protocol). On the bench, a [test server](../Appendix/02-test-server.qmd) running on a development computer receives them. The backend replaces it with a server that stays on at home, keeps the data safely, and shows it in a dashboard.
 
 As for the firmware, this chapter designs the backend before any code: what it must do, the technical choices, how it is deployed and checked, and the steps that build it. The backend is much smaller than the firmware, so the design fits in one chapter.
 
