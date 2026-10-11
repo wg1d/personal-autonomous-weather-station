@@ -1,0 +1,41 @@
+# Test Server {.unnumbered}
+
+The station uploads its rows and its log to a server, following the [Upload Protocol](../Architecture/Phase-04/00-3-data-and-upload.qmd#upload-protocol). To test the uploads on the bench, during Phase 4, the test server implements the server side of this protocol on the development computer. It is a bench tool, kept short on purpose: the [backend](../Backend/00-design.qmd) of Phase 5 replaces it, with the same protocol.
+
+> **Ready-to-use project:** The complete code is available in the repository here: [`backend/Phase-04/test_server`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/backend/Phase-04/test_server)
+
+## Running it
+
+Start it from the root of the repository:
+
+```bash
+pixi run test-server
+```
+
+It listens on port 8080 (`--port` chooses another one), on every network interface, so that the station can reach it over the Wi-Fi. In `firmware/paws/include/secrets.h`, `kServerUrl` must contain the IP address of the computer running it, such as `http://192.168.1.15:8080`.
+
+## What it does
+
+The test server is written in Python with [FastAPI](https://fastapi.tiangolo.com/), in a single file:
+
+- **`POST /api/v1/measurements`** checks the header line, stores each row in a SQLite database, and answers with the number of rows received, inserted and ignored as duplicates. The timestamp is the primary key of the table: `INSERT OR IGNORE` skips a row whose timestamp is already stored, which makes repeated uploads harmless.
+- **`POST /api/v1/logs`** appends the lines of the log to the file `station.log`.
+- **`GET /`** shows the last rows received in a table, with the total number of rows, to check the uploads from a browser.
+- **`GET /log`** shows the last 200 lines of the log. The lines are inserted in the page with `html.escape()`, so that a character such as `<` in a log line cannot break the page.
+- **`GET /api/v1/measurements`** returns the last rows as JSON, for programs.
+
+```{.python include="../../../backend/Phase-04/test_server/main.py"}
+```
+
+## Where it is used
+
+- [A4 · Upload](../Architecture/Phase-04/04-2-upload.qmd): the station sends its rows to it.
+- [A6 · Log](../Architecture/Phase-04/06-2-log.qmd): the station also sends its log.
+- [B1 · Ingestion](../Backend/01-ingestion.qmd): the backend starts from its logic.
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+|---------|---------------|
+| The station logs an upload error | `kServerUrl` does not contain the address of the computer, or a firewall of the computer blocks the port 8080. |
+| `Address already in use` at start-up | Another program, such as the backend run with `pixi run backend`, already uses the port 8080: stop it, or choose another port with `--port`. |

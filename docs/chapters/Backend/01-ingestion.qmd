@@ -2,7 +2,7 @@
 
 Step B1 builds the part of the backend that receives the data of the station: the server side of the [Upload Protocol](../Architecture/Phase-04/00-3-data-and-upload.qmd#upload-protocol) (BF1 · Receive the measurements, BF2 · Receive the log). By the end of the step, the backend runs on the Raspberry Pi as a service of its own (BN3 · Always available), it is tested on the development computer and deployed with one command (BN4 · Testable and deployable), and the station uploads to it.
 
-The [test server](../Architecture/Phase-04/04-2-upload.qmd#the-test-server) of Phase 4 already implements the protocol, in a single file. The backend keeps its logic, split into small modules with automatic tests, and checks the format of the requests more strictly.
+The [test server](../Appendix/02-test-server.qmd) of Phase 4 already implements the protocol, in a single file. The backend keeps its logic, split into small modules with automatic tests, and checks the format of the requests more strictly.
 
 > **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v0.8.0/backend/paws)
 
