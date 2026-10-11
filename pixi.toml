@@ -7,6 +7,7 @@
 #   pixi run book             # render the book (fails on missing includes)
 #   pixi run api-docs         # firmware API documentation (after the book)
 #   pixi run preview          # live preview of the book in the browser
+#   pixi run wifi-signal      # flash the Wi-Fi signal test on the bench board
 #   pixi run dummy-server     # start the Phase 3 dummy backend server
 #   pixi run test-server      # start the Phase 4 test server (upload v1)
 #   pixi run backend          # start the backend on this computer (port 8080)
@@ -42,6 +43,7 @@ test = "pio test -d firmware/paws -e native"
 book = "bash scripts/render-book.sh"
 api-docs = { cmd = "doxygen Doxyfile", cwd = "firmware/paws" }
 preview = { cmd = "quarto preview", cwd = "docs" }
+wifi-signal = "pio run -d firmware/tools/wifi_signal -t upload -t monitor"
 # Backend (backend/paws): uv installs its Python and packages from uv.lock,
 # as on the server
 backend = { cmd = "uv run uvicorn paws_server.main:app --host 0.0.0.0 --port 8080 --reload", cwd = "backend/paws" }
