@@ -116,6 +116,12 @@ website:
                 text: "Data"
           - href: chapters/Backend/03-1-operations.qmd
             text: "B3 – Operations"
+      - section: "Outdoor Station"
+        contents:
+          - href: chapters/Outdoor/00-design.qmd
+            text: "Design"
+          - href: chapters/Outdoor/01-power.qmd
+            text: "Power"
       - section: "Appendices"
         contents:
           - section: "Electronics Notes"
@@ -126,6 +132,8 @@ website:
             contents:
               - href: chapters/Appendix/02-test-server.qmd
                 text: "Test Server"
+              - href: chapters/Appendix/03-wifi-signal.qmd
+                text: "Wi-Fi Signal Test"
 
 date: last-modified
 
