@@ -48,7 +48,7 @@ uvicorn exists with optional extras (`uvicorn[standard]`), which make it a littl
 
 `parse_rows()` checks, for each row:
 
-- the five columns of the [CSV format v1](../Architecture/Phase-04/00-3-data-and-upload.qmd#csv-format);
+- the five columns of the [CSV format v1](../Architecture/Phase-04/00-3-data-and-upload.qmd#data-format-v1);
 - the timestamp, in UTC with the `Z` suffix: `datetime.strptime()` refuses any other format, and dates that do not exist, such as a 13th month;
 - the validity flag, `0` or `1`;
 - the values: a number, or an empty field when the sensor did not answer. An empty field becomes `None`, stored as `NULL`, never as `0`: a temperature of 0 °C is a real value.

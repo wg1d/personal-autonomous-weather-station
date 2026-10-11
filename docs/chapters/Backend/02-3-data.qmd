@@ -17,7 +17,7 @@ The third tab of the [dashboard](02-1-dashboard.qmd), Data, takes the measuremen
 
 ## The export
 
-`export_csv()` writes all the measurements, oldest first, in the format of the station ([CSV format v1](../Architecture/Phase-04/00-3-data-and-upload.qmd#csv-format)): the same header, two decimals, and an empty field for a missing value. A file exported by the dashboard can therefore be uploaded again: exporting three years of made-up data, starting again from an empty database and uploading the file gave back the same 105,123 rows, and a second export the same file.
+`export_csv()` writes all the measurements, oldest first, in the format of the station ([CSV format v1](../Architecture/Phase-04/00-3-data-and-upload.qmd#data-format-v1)): the same header, two decimals, and an empty field for a missing value. A file exported by the dashboard can therefore be uploaded again: exporting three years of made-up data, starting again from an empty database and uploading the file gave back the same 105,123 rows, and a second export the same file.
 
 ## The manual upload
 
