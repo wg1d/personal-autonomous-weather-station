@@ -23,7 +23,7 @@
 \begin{tikzpicture}
 
 % ---------------------------------------------------------------- modules
-\node[module=gray!15] (panel) at (0,7) {\textbf{Solar panel}\\\scriptsize SOL3W, 3 W};
+\node[module=gray!15] (panel) at (0,7) {\textbf{Solar panel}\\\scriptsize 6 V, 3 W};
 \node[module=orange!25, minimum height=2.2cm] (charger) at (0,3.5) {\textbf{Charger}\\bq24074};
 \node[module=yellow!15, minimum height=2.2cm] (shield) at (8,3.5) {\textbf{Grove Shield}\\\scriptsize with the XIAO};
 \node[module=green!20] (ina) at (4,0) {\textbf{INA219}\\\scriptsize battery monitor};
@@ -32,7 +32,7 @@
 
 % ---------------------------------------------------------------- panel -> charger
 \draw[wirePower] (panel.south) -- (charger.north);
-\node[note, right] at (0,5.3) {DC plug adapter};
+\node[note, right] at (0,5.3) {DC plug 5.5 × 2.1 mm};
 
 % ---------------------------------------------------------------- charger -> board
 \draw[wirePower] ($(charger.east)+(0,0.4)$) -- ($(shield.west)+(0,0.4)$);
