@@ -5,31 +5,33 @@
  * Description:
  * Maintenance mode (F5): the ESP32 starts its own Wi-Fi network (an
  * access point) and a web page, to download or delete the measurements
- * of the SD card, or download its log, from a phone, for a limited time.
+ * kept in the flash memory, or download the log, from a phone, for a
+ * limited time.
  *
- * Wiring: none (Wi-Fi is built into the ESP32; SD card: see SdCard.h).
- * Dependencies: ESP32 Arduino core (WiFi, WebServer, SD), lib/core (CSV
- * file name), SdCard.h.
+ * Wiring: none (Wi-Fi and the flash memory are part of the ESP32 module).
+ * Dependencies: ESP32 Arduino core (WiFi, WebServer, LittleFS), lib/core
+ * (CSV file names), FlashVolume.h.
  */
 
 #pragma once
 
 #include <Arduino.h>
-#include <SD.h>
+#include <LittleFS.h>
 #include <WebServer.h>
 #include <WiFi.h>
 
 #include "Console.h"
 #include "CsvFormat.h"
 #include "IMaintenance.h"
-#include "SdCard.h"
+#include "FlashVolume.h"
 
 /// The maintenance page. The style gives large buttons for a phone, and
 /// the icon is a sunflower drawn from an emoji, so that no image file is
 /// needed. The %s and %lu are filled by sendPage(): a message, the state
-/// of the card, "disabled" twice when there is nothing to download or
-/// delete, "disabled" once more when there is no log, the firmware
-/// version, then twice the time left, which a small script counts down;
+/// of the files, "disabled" when there are no measurements to download,
+/// when there are no previous measurements, when there is no log, and
+/// when there is nothing to delete, the firmware version, then twice the
+/// time left, which a small script counts down;
 /// at 0, it tells that the access point is closed. The script also puts
 /// the address back to "/", so that a message such as "Measurements
 /// deleted." is not shown again when the page is reloaded.
@@ -53,6 +55,9 @@ const char kMaintenancePage[] =
     "<form action='/download'>"
     "<button class='download' %s>Download the measurements</button>"
     "</form>"
+    "<form action='/previous'>"
+    "<button class='download' %s>Download the previous measurements"
+    "</button></form>"
     "<form action='/log'>"
     "<button class='log' %s>Download the log</button></form>"
     "<form action='/delete' method='POST' onsubmit=\"return confirm("
@@ -82,19 +87,23 @@ public:
     /**
      * @brief Creates the maintenance mode with its Wi-Fi network.
      *
-     * @param[in,out] card The SD card module, shared with the storage.
+     * @param[in,out] volume The flash file system, shared with the
+     *                storage.
      * @param[in] ssid Name of the network started by the station.
      * @param[in] password Its password, at least 8 characters (WPA2).
      * @param[in] version Firmware version, shown on the page.
      */
-    AccessPointMaintenance(SdCard& card, const char* ssid,
+    AccessPointMaintenance(FlashVolume& volume, const char* ssid,
                            const char* password, const char* version)
-        : card_(card), ssid_(ssid), password_(password), version_(version) {}
+        : volume_(volume),
+          ssid_(ssid),
+          password_(password),
+          version_(version) {}
 
     void run(uint32_t durationS) override {
-        // The card stays powered for the whole session, and until the end
-        // of the wake-up: the storage uses it right after
-        cardReady_ = card_.mount();
+        // The file system stays mounted for the whole session, and until
+        // the end of the wake-up: the storage uses it right after
+        filesReady_ = volume_.mount();
 
         WiFi.mode(WIFI_AP);
         WiFi.softAP(ssid_, password_);
@@ -119,7 +128,11 @@ public:
             }
         });
         server.on("/download", HTTP_GET, [this, &server]() {
-            sendMeasurements(server);
+            sendMeasurements(server, kCsvFileName, "measurements_v1.csv");
+        });
+        server.on("/previous", HTTP_GET, [this, &server]() {
+            sendMeasurements(server, kOldCsvFileName,
+                             "measurements_v1_old.csv");
         });
         server.on("/log", HTTP_GET, [this, &server]() {
             sendLog(server);
@@ -147,69 +160,69 @@ public:
     }
 
 private:
-    // Size of the measurement file, 0 if there is none
-    size_t fileSize() {
-        if (!cardReady_ || !SD.exists(kCsvFileName)) {
-            return 0;
-        }
-        File file = SD.open(kCsvFileName, FILE_READ);
-        size_t size = file.size();
-        file.close();
-        return size;
+    // Size of a file, 0 if there is none or if the files are not usable
+    uint32_t fileSize(const char* fileName) {
+        return filesReady_ ? volume_.fileSize(fileName) : 0;
     }
 
     void sendPage(WebServer& server, const char* message) {
-        // What is on the card, and how much the server does not have yet:
-        // the bytes after the upload cursor
+        // What the station keeps, and how much the server does not have
+        // yet: the bytes after the upload cursor of the current file
         char state[96];
-        size_t size = fileSize();
-        bool empty = size == 0;
-        if (!cardReady_) {
-            snprintf(state, sizeof(state), "SD card not found.");
-        } else if (empty) {
-            snprintf(state, sizeof(state), "No measurements on the card.");
+        uint32_t size = fileSize(kCsvFileName);
+        uint32_t oldSize = fileSize(kOldCsvFileName);
+        if (!filesReady_) {
+            snprintf(state, sizeof(state), "Flash memory not available.");
+        } else if (size == 0 && oldSize == 0) {
+            snprintf(state, sizeof(state), "No measurements stored.");
         } else {
-            uint32_t cursor = card_.loadCursor(kCursorFileName);
-            size_t unsent = cursor < size ? size - cursor : 0;
+            uint32_t cursor = volume_.loadCursor(kCursorFileName);
+            uint32_t unsent = cursor < size ? size - cursor : 0;
             snprintf(state, sizeof(state),
-                     "%lu KB of measurements on the card, %lu KB not "
+                     "%lu KB of measurements stored, %lu KB not "
                      "uploaded yet.",
-                     static_cast<unsigned long>((size + 1023) / 1024),
+                     static_cast<unsigned long>((size + oldSize + 1023) /
+                                                1024),
                      static_cast<unsigned long>((unsent + 1023) / 1024));
         }
 
         unsigned long secondsLeft = (durationMs_ - (millis() - start_)) / 1000;
-        const char* disabled = empty ? "disabled" : "";
-        bool noLog = !cardReady_ || !SD.exists(kLogFileName);
-        const char* logDisabled = noLog ? "disabled" : "";
+        const char* noCurrent = size == 0 ? "disabled" : "";
+        const char* noPrevious = oldSize == 0 ? "disabled" : "";
+        const char* noLog = fileSize(kLogFileName) == 0 ? "disabled" : "";
+        const char* nothing = size == 0 && oldSize == 0 ? "disabled" : "";
 
         char page[sizeof(kMaintenancePage) + 200];
         snprintf(page, sizeof(page), kMaintenancePage, message, state,
-                 disabled, logDisabled, disabled, secondsLeft, version_,
-                 secondsLeft);
+                 noCurrent, noPrevious, noLog, nothing, secondsLeft,
+                 version_, secondsLeft);
         server.send(200, "text/html", page);
     }
 
-    void sendMeasurements(WebServer& server) {
-        if (fileSize() == 0) {
+    // Sends a measurement file, the current or the previous one
+    void sendMeasurements(WebServer& server, const char* fileName,
+                          const char* downloadName) {
+        if (fileSize(fileName) == 0) {
             sendPage(server, "No measurements to download.");
             return;
         }
-        File file = SD.open(kCsvFileName, FILE_READ);
+        File file = LittleFS.open(fileName, FILE_READ);
         // "attachment": the phone saves the file instead of showing it
-        server.sendHeader("Content-Disposition",
-                          "attachment; filename=measurements_v1.csv");
+        char header[64];
+        snprintf(header, sizeof(header), "attachment; filename=%s",
+                 downloadName);
+        server.sendHeader("Content-Disposition", header);
         server.streamFile(file, "text/csv");
         file.close();
-        console.println("   measurements downloaded");
+        console.printf("   %s downloaded\n", downloadName);
     }
 
     void sendLog(WebServer& server) {
-        if (!cardReady_ || !SD.exists(kLogFileName)) {
-            sendPage(server, "No log on the card.");
+        if (fileSize(kLogFileName) == 0) {
+            sendPage(server, "No log stored.");
             return;
         }
-        File file = SD.open(kLogFileName, FILE_READ);
+        File file = LittleFS.open(kLogFileName, FILE_READ);
         server.sendHeader("Content-Disposition",
                           "attachment; filename=log.txt");
         server.streamFile(file, "text/plain");
@@ -219,10 +232,11 @@ private:
 
     void deleteMeasurements(WebServer& server) {
         bool deleted = false;
-        if (fileSize() > 0) {
+        if (fileSize(kCsvFileName) > 0 || fileSize(kOldCsvFileName) > 0) {
             // Remove the cursor too: it points into the deleted file
-            SD.remove(kCsvFileName);
-            SD.remove(kCursorFileName);
+            LittleFS.remove(kCsvFileName);
+            LittleFS.remove(kOldCsvFileName);
+            LittleFS.remove(kCursorFileName);
             deleted = true;
             console.println("   measurements deleted");
         }
@@ -234,11 +248,11 @@ private:
         server.send(303);
     }
 
-    SdCard& card_;
+    FlashVolume& volume_;
     const char* ssid_;
     const char* password_;
     const char* version_;
-    bool cardReady_ = false;
+    bool filesReady_ = false;
     uint32_t start_ = 0;       // millis() when the session started
     uint32_t durationMs_ = 0;  // length of the session
 };

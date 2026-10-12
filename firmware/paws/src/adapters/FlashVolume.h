@@ -1,38 +1,23 @@
 /*
  * Project: Personal Autonomous Weather Station
- * File: src/adapters/SdCard.h
+ * File: src/adapters/FlashVolume.h
  *
  * Description:
- * The SD card module, shared by the storage adapter and the maintenance
- * mode: its pins, its files, and its power. The card is mounted at its
- * first use in a wake-up, and stays mounted until the end of the
- * wake-up, so that it is initialized only once.
+ * The file system in the flash memory of the ESP32, shared by the
+ * storage adapter and the maintenance mode: its files, and the size of
+ * each one. It is mounted at its first use in a wake-up, and stays
+ * mounted until the end of the wake-up.
  *
- * Wiring:
- * - SD card: 5V -> VCC, GND -> GND, Pin 19 -> MISO, Pin 23 -> MOSI,
- *            Pin 18 -> SCLK, Pin 5 -> CS,
- *            Pin 13 -> OFF (10k pull-down resistor to GND)
- * Dependencies: ESP32 Arduino core (SD, FS).
+ * Wiring: none (the flash memory is part of the ESP32 module).
+ * Dependencies: ESP32 Arduino core (LittleFS, FS).
  */
 
 #pragma once
 
 #include <Arduino.h>
-#include <SD.h>
+#include <LittleFS.h>
 
 #include "Console.h"
-
-/// Chip select of the SD card module (SPI)
-const uint8_t kSdCsPin = 5;
-
-/// Power switch of the SD card module: HIGH turns it on
-const uint8_t kSdPowerPin = 13;
-
-/// Time for the card to power up before it can be used. The SD
-/// specification allows up to 35 ms of supply ramp-up, then 1 ms of
-/// stable supply; the module adds a regulator and capacitors, with no
-/// datasheet. 100 ms is a margin, kept from the PoC, not a measured value.
-const uint32_t kSdPowerUpMs = 100;
 
 /// File holding the upload cursor of the measurements: the position, in
 /// bytes, of the first row of the CSV file that the server has not
@@ -49,30 +34,27 @@ const char kOldLogFileName[] = "/log.old";
 const char kLogCursorFileName[] = "/log.idx";
 
 /**
- * @brief The SD card module: power and mounting.
+ * @brief The file system in the flash memory: mounting and sizes.
  *
  * One object is created by main.cpp and given to the adapters that use
- * the card, so that they share its state.
+ * the files, so that they share its state.
  */
-class SdCard {
+class FlashVolume {
 public:
     /**
-     * @brief Powers the module on and mounts the card, if not done yet.
+     * @brief Mounts the file system, if not done yet.
      *
-     * The module stays off during deep sleep, to save the battery.
+     * The very first time, the flash memory holds no file system yet:
+     * LittleFS formats it (true), then mounts it.
      *
-     * @return true if the card is ready; false if it is missing.
+     * @return true if the files can be used.
      */
     bool mount() {
         if (mounted_) {
             return true;
         }
-        pinMode(kSdPowerPin, OUTPUT);
-        digitalWrite(kSdPowerPin, HIGH);
-        delay(kSdPowerUpMs);
-        if (!SD.begin(kSdCsPin)) {
-            console.println("   SD card not found");
-            digitalWrite(kSdPowerPin, LOW);
+        if (!LittleFS.begin(true)) {
+            console.println("   flash file system not mounted");
             return false;
         }
         mounted_ = true;
@@ -80,25 +62,59 @@ public:
     }
 
     /**
-     * @brief Unmounts the card and powers the module off.
+     * @brief Unmounts the file system, before the deep sleep.
      */
     void unmount() {
         if (mounted_) {
-            SD.end();
+            LittleFS.end();
             mounted_ = false;
         }
-        digitalWrite(kSdPowerPin, LOW);
     }
 
     /**
-     * @brief Tells whether the card is mounted.
+     * @brief Tells whether the file system is mounted.
      *
      * @return true between a successful mount() and unmount().
      */
     bool isMounted() const { return mounted_; }
 
     /**
-     * @brief Reads an upload cursor from the card, which must be mounted.
+     * @brief Size of a file, which must be mounted.
+     *
+     * @param[in] fileName The file, such as kLogFileName.
+     * @return Its size in bytes; 0 if it does not exist.
+     */
+    uint32_t fileSize(const char* fileName) {
+        // Check first: opening a missing file prints an error of the
+        // library, although it is a normal case here
+        if (!LittleFS.exists(fileName)) {
+            return 0;
+        }
+        File file = LittleFS.open(fileName, FILE_READ);
+        uint32_t size = file.size();
+        file.close();
+        return size;
+    }
+
+    /**
+     * @brief Maximum size of each data file, before it starts again.
+     *
+     * The flash memory holds two files of measurements (the current and
+     * the previous one) and two log files. A quarter of the space for each
+     * file of measurements and an eighth for each log file use three
+     * quarters of it, and leave room for the cursors and for a file that
+     * keeps growing while the server cannot be reached.
+     *
+     * @param[in] isLog true for the log, false for the measurements.
+     * @return The size in bytes.
+     */
+    uint32_t maxFileSize(bool isLog) {
+        uint32_t total = LittleFS.totalBytes();
+        return isLog ? total / 8 : total / 4;
+    }
+
+    /**
+     * @brief Reads an upload cursor; the file system must be mounted.
      *
      * A missing file means that nothing was sent yet: everything is sent
      * again, and the server ignores the rows it already has.
@@ -108,10 +124,10 @@ public:
      *         none.
      */
     uint32_t loadCursor(const char* fileName) {
-        if (!SD.exists(fileName)) {
+        if (!LittleFS.exists(fileName)) {
             return 0;
         }
-        File file = SD.open(fileName, FILE_READ);
+        File file = LittleFS.open(fileName, FILE_READ);
         if (!file) {
             return 0;
         }

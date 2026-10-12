@@ -87,7 +87,7 @@ void StateMachine::onStore() {
 }
 
 void StateMachine::onUpload() {
-    // On failure, nothing is sent: the rows stay on the SD card for the
+    // On failure, nothing is sent: the rows stay in the storage for the
     // next try
     conditions_.connected = ports_.network.connect(config_.wifiTimeoutS);
     if (conditions_.connected) {
