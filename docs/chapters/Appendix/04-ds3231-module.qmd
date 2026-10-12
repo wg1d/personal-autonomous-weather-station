@@ -8,24 +8,30 @@ The most common DS3231 clock module, sold under the name ZS-042, is a blue board
 
 ## What is on the module, and what to do with it
 
-| Part | What it does | What to do |
-|------|--------------|------------|
-| **Power LED**, next to the word POWER printed on the board, with its 1 kΩ resistor | Lights as long as the module is powered | **Remove it** (see below) |
-| **Charging circuit**: a resistor marked 201 (200 Ω) and a small diode | Charges a rechargeable coin cell from the supply | Nothing: at 3.3 V, it charges nothing (see [Why the charging circuit stays](#why-the-charging-circuit-stays)) |
-| **Resistor network**, 4 × 4.7 kΩ, a small black part with four resistors | Pull-up resistors of the I2C bus (SCL, SDA) and of the alarm (SQW) | Nothing: the bus and the alarm need them |
-| **Memory chip** AT24C32, the small 8-pin chip | Extra memory at the I2C address 0x57 | Nothing: the station does not use it |
-| **DS3231**, the large 16-pin chip | The clock itself | Nothing |
+![The DS3231 module of the bench station, powered: its LED (1) is lit](../../assets/images/ds3231-module-parts.jpeg){width=350}
+
+| # | Part | What it does | What to do |
+|---|------|--------------|------------|
+| 1 | **Power LED**, next to the word POWER | Lights as long as the module is powered | **Remove it** (see below) |
+| 2 | Its **resistor**, 1 kΩ (marked 102) | Limits the current of the LED | Nothing: without the LED, no current flows |
+| 3 | **Charging resistor**, 200 Ω (marked 201) | With the diode, charges a rechargeable coin cell from the supply | Nothing: at 3.3 V, it charges nothing (see [Why the charging circuit stays](#why-the-charging-circuit-stays)) |
+| 4 | **Charging diode** | The other part of the charging circuit | Nothing |
+| 5, 6 | **Resistor networks**, 4 × 4.7 kΩ each (marked 472) | Pull-up resistors: of the I2C bus and of the alarm (SQW), and of the address pins of the memory chip | Nothing: the bus and the alarm need them |
+| 7 | **Memory chip** AT24C32 | Extra memory at the I2C address 0x57 | Nothing: the station does not use it |
+| 8 | **DS3231** | The clock itself | Nothing |
+
+The coin cell is on the back of the board. The six pins at the bottom of the photo (32K, SQW, SCL, SDA, VCC, GND) are those the station uses; the four at the top repeat the I2C bus and the power, to chain another module.
 
 Sources: [Arduino forum](https://forum.arduino.cc/t/zs-042-ds3231-rtc-module/268862/1), [hackaday.io](https://hackaday.io/project/164645/log/186609).
 
 ## Removing the LED
 
-1. **Find the LED**: power the module, from the bench station for example. The LED is the small part that lights, next to the word **POWER** printed on the board, close to the six pins.
+1. **Find the LED**: power the module, from the bench station for example. The LED is the small part that lights, next to the word **POWER** printed on the board, close to the six pins (1 on the photo).
 2. **Unpower the module**.
 3. **Remove the LED** with the tip of the soldering iron: heat one of its two pads, then the other, and push the LED aside with the tip. Without a soldering iron, pushing it sideways with the tip of a small screwdriver also breaks it off its pads.
 4. **Check**: power the module again. Nothing lights any more, and the clock works the same.
 
-Removing its 1 kΩ resistor instead has the same effect: the LED and its resistor are in series.
+Removing its 1 kΩ resistor (2) instead has the same effect: the LED and its resistor are in series.
 
 ## How the module connects
 
