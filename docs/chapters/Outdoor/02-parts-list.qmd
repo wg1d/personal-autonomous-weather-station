@@ -1,0 +1,75 @@
+# Outdoor Station Parts List {.unnumbered}
+
+Everything to buy for the outdoor station, shop by shop, as a shopping list. The [design chapter](00-design.qmd) explains the choice of each part, and the [power chapter](01-power.qmd) how the power parts connect.
+
+::: {.callout-note}
+The prices are those of the shops linked, in euros, at the time of writing, without the shipping costs.
+:::
+
+## Gotronic: electronics and cables, about 70 €
+
+[Gotronic](https://www.gotronic.fr) is a French shop that sells the Seeed Studio, Adafruit and DFRobot boards.
+
+| Qty | Part | Price |
+|-----|------|-------|
+| 1 | [XIAO ESP32-S3, pins soldered](https://www.gotronic.fr/art-carte-xiao-esp32s3-soude-47619.htm) | 10.50 € |
+| 1 | [Grove Shield for XIAO](https://www.gotronic.fr/art-shield-grove-xiao-103020312-32393.htm) | 4.90 € |
+| 1 | [Charger bq24074 (Adafruit 4755)](https://www.gotronic.fr/art-chargeur-d-accu-lipo-3-7-vcc-ada4755-33478.htm) | 17.90 € |
+| 1 | [LiPo battery, 1000 mAh, JST-PH](https://www.gotronic.fr/art-accu-lipo-3-7-vcc-1000-mah-pr523450-5813.htm) | 9.90 € |
+| 1 | [Thermistor NTC 10 kΩ](https://www.gotronic.fr/art-thermistance-ctn-10k-8486-3739.htm) | 0.80 € |
+| 1 | [Waterproof push button, IP67, 16 mm](https://www.gotronic.fr/art-bouton-poussoir-bp16039-29350.htm) | 4.60 € |
+| 1 | [CR2032 coin cells, 5](https://www.gotronic.fr/cat-piles-lithium-1036.htm) | 3.20 € |
+| 2 | [Grove I2C hub, 6 ports](https://www.gotronic.fr/art-hub-6-ports-i2c-grove-103020272-31348.htm) | 3.80 € |
+| 1 | [Grove cables, 30 cm, set of 5](https://www.gotronic.fr/art-lot-de-5-cables-grove-30-cm-22557.htm) | 3.30 € |
+| 2 | [Grove to female connectors cables, 30 cm, set of 5](https://www.gotronic.fr/art-5-cables-30-cm-grove-4-contacts-femelles-19069.htm) | 8.40 € |
+| 2 | [JST-PH 2-pin cable, with its plug](https://www.gotronic.fr/art-cordon-jst-ph-femelle-2-cts-jst2-21318.htm) | 2.70 € |
+
+What each cable connects:
+
+- **Grove cables**: the Grove Shield to the hub of the box, and this hub to the hub of the shelter; the others are spares for the later sensors.
+- **Grove to female connectors cables**: the clock, its alarm, the BME280, the INA219 and the maintenance button; the others are spares for the later sensors.
+- **JST-PH cables**: the charger to the Grove Shield, and the charger to the INA219 and the battery.
+
+## Amazon: panel and battery monitor, about 18 €
+
+| Qty | Part | Price |
+|-----|------|-------|
+| 1 | [Solar panel, 6 V, 3 W, with a 5.5 × 2.1 mm plug](https://www.amazon.fr/Monocristallin-Ext%C3%A9rieur-Stratifi%C3%A9e-T%C3%A9l%C3%A9phone-14-5Cmx14-5Cm/dp/B08G8TT5Q7) | about 12 € |
+| 1 | [INA219 module](https://www.amazon.fr/DollaTek-capteur-Courant-Alternatif-bidirectionnel/dp/B07DK7Y35Q) | 5.99 € |
+
+The generic INA219 module copies the design of Adafruit: the same chip and the same 0.1 Ω shunt resistor, marked R100.
+
+## DIY store: the shelter and small parts
+
+| Qty | Part | Price |
+|-----|------|-------|
+| 4 | Louvered vent grilles in ABS, 23 × 23 cm | 4 × 10.90 € |
+| 1 | [Planed pine batten 21 × 21 mm, 2.4 m](https://www.castorama.fr/tasseau-rabote-pin-21-x-21-mm-l-2-4-m/3663602858096_CAFR.prd) | 5.65 € |
+| 1 | Pine shelf board 200 × 30 cm, 18 mm | about 11.50 € |
+| 1 | Junction box 115 × 115 × 60 mm, IP55, with rubber membranes | about 3 € |
+| 1 | White paint for wood, 0.5 L, and a primer for plastics | 17 to 30 € |
+| 4 | Angle brackets, with stainless wood screws | to price |
+| 1 | Self-amalgamating tape, and a bag of silica gel | to price |
+| 1 | Small lever connector (Wago type), for the two black wires of the battery | to price |
+| 2 | Double-sided foam pads, or adhesive hook-and-loop pads, for the battery | to price |
+| 2 | M3 screws of 30 mm with their nuts, for the BME280 | to price |
+
+## Already on the bench
+
+These parts come from the [breadboard station](../Architecture/Phase-04/00-1-requirements.qmd):
+
+- the **BME280** module: temperature, humidity and pressure;
+- the **DS3231** module: the clock, whose LED is removed (see [The clock](00-design.qmd#the-clock));
+- the **USB-C cable**, to program the XIAO;
+- two **male-to-male jumper wires**, for the maintenance button.
+
+## Later
+
+These parts come with later steps, and are not needed for the first outdoor station:
+
+| Part | Use | Price |
+|------|-----|-------|
+| [SHT31 module (DFRobot SEN0331)](https://www.gotronic.fr/art-capteur-de-t-et-d-humidite-sht31-sen0331-32255.htm), Gotronic | A more accurate temperature and humidity: ±0.3 °C, ±2 % RH | 10.30 € |
+| [UV sensor LTR390 (Adafruit 4831)](https://www.gotronic.fr/art-capteur-d-uv-ltr390-ada4831-33490.htm), Gotronic | UV, in a small box with a PTFE window. The LTR390 also measures the ambient light | 6.05 € |
+| [Light probe SEN0562](https://www.gotronic.fr/art-capteur-de-lumiere-etanche-sen0562-37146.htm) and a [Grove module with screw terminals](https://www.gotronic.fr/art-module-de-connexion-grove-103020007-19008.htm), Gotronic | Light, in a waterproof probe | 10.70 € + 3.35 € |
+| Anemometer, rain gauge, wind vane, soil moisture sensor | Wind, rain, soil: chosen in their own steps | — |

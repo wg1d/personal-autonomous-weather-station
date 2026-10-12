@@ -198,46 +198,9 @@ The outdoor station changes the software in four ways:
 
 ## Parts and cost
 
-Most of the electronics come from a French shop, [Gotronic](https://www.gotronic.fr), which sells the Seeed Studio, Adafruit and DFRobot boards. Amazon has two parts for less: a solar panel with the plug of the charger, and a generic INA219 module. The BME280, the DS3231 module and the USB-C cable are those of the bench.
+Most of the electronics come from a French shop, [Gotronic](https://www.gotronic.fr), which sells the Seeed Studio, Adafruit and DFRobot boards. Amazon has two parts for less: a solar panel with the plug of the charger, and a generic INA219 module. The BME280, the DS3231 module and the USB-C cable are those of the bench. The wood, the grilles and the sealed box come from a DIY store.
 
-### Electronics
-
-| Qty | Part | Shop | Price |
-|-----|------|------|-------|
-| 1 | [XIAO ESP32-S3, pins soldered](https://www.gotronic.fr/art-carte-xiao-esp32s3-soude-47619.htm) | Gotronic | 10.50 € |
-| 1 | [Grove Shield for XIAO](https://www.gotronic.fr/art-shield-grove-xiao-103020312-32393.htm) | Gotronic | 4.90 € |
-| 1 | [Charger bq24074 (Adafruit 4755)](https://www.gotronic.fr/art-chargeur-d-accu-lipo-3-7-vcc-ada4755-33478.htm) | Gotronic | 17.90 € |
-| 1 | [LiPo battery, 1000 mAh, JST-PH](https://www.gotronic.fr/art-accu-lipo-3-7-vcc-1000-mah-pr523450-5813.htm) | Gotronic | 9.90 € |
-| 1 | [Thermistor NTC 10 kΩ](https://www.gotronic.fr/art-thermistance-ctn-10k-8486-3739.htm) | Gotronic | 0.80 € |
-| 1 | [Waterproof push button, IP67, 16 mm](https://www.gotronic.fr/art-bouton-poussoir-bp16039-29350.htm) | Gotronic | 4.60 € |
-| 1 | [CR2032 coin cells, 5](https://www.gotronic.fr/cat-piles-lithium-1036.htm) | Gotronic | 3.20 € |
-| 1 | [Solar panel, 6 V, 3 W, with a 5.5 × 2.1 mm plug](https://www.amazon.fr/Monocristallin-Ext%C3%A9rieur-Stratifi%C3%A9e-T%C3%A9l%C3%A9phone-14-5Cmx14-5Cm/dp/B08G8TT5Q7) | Amazon | about 12 € |
-| 1 | [INA219 module](https://www.amazon.fr/DollaTek-capteur-Courant-Alternatif-bidirectionnel/dp/B07DK7Y35Q) | Amazon | 5.99 € |
-
-The generic INA219 module copies the design of Adafruit: the same chip and the same 0.1 Ω shunt resistor, marked R100.
-
-### Cables
-
-| Qty | Cable | Use | Price |
-|-----|-------|-----|-------|
-| 2 | [Grove I2C hub, 6 ports](https://www.gotronic.fr/art-hub-6-ports-i2c-grove-103020272-31348.htm) | Box and shelter | 3.80 € |
-| 1 | [Grove cables, 30 cm, set of 5](https://www.gotronic.fr/art-lot-de-5-cables-grove-30-cm-22557.htm) | Shield to hub, hub to hub, and spares for the later sensors | 3.30 € |
-| 2 | [Grove to female connectors cables, 30 cm, set of 5](https://www.gotronic.fr/art-5-cables-30-cm-grove-4-contacts-femelles-19069.htm) | Clock, its alarm, BME280, INA219, maintenance button, and spares for the later sensors | 8.40 € |
-| 2 | [JST-PH 2-pin cable, with its plug](https://www.gotronic.fr/art-cordon-jst-ph-femelle-2-cts-jst2-21318.htm) | Charger to Grove Shield; charger to INA219 and battery | 2.70 € |
-
-All the cables come from Gotronic. All in all, **about 88 €**, without the shipping costs: about 70 € at Gotronic, and 18 € at Amazon. Two male-to-male jumper wires, such as those of a breadboard, connect the maintenance button. From a DIY store: a small lever connector (Wago type), a few double-sided foam pads or adhesive hook-and-loop pads for the battery, and two M3 screws of 30 mm with their nuts.
-
-### Shelter
-
-| Part | Price |
-|------|-------|
-| 4 louvered vent grilles in ABS, 23 × 23 cm | 4 × 10.90 € |
-| Planed pine batten 21 × 21 mm, 2.4 m | 5.65 € |
-| Pine shelf board 200 × 30 cm, 18 mm | about 11.50 € |
-| Junction box 115 × 115 × 60 mm, IP55 | about 3 € |
-| White paint for wood, 0.5 L, and a primer for plastics | 17 to 30 €, to price |
-| 4 angle brackets, stainless screws | to price |
-| Self-amalgamating tape, silica gel | to price |
+The electronics and the cables cost **about 88 €**, without the shipping costs: about 70 € at Gotronic, and 18 € at Amazon. The [parts list](02-parts-list.qmd) gives every part to buy, shop by shop, with its link and its price, and the parts of the later steps.
 
 ## Implementation plan
 
