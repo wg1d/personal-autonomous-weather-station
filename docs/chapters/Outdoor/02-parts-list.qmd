@@ -64,13 +64,6 @@ These parts come from the [breadboard station](../Architecture/Phase-04/00-1-req
 - the **USB-C cable**, to program the XIAO;
 - two **male-to-male jumper wires**, for the maintenance button.
 
-## Later
+## Later sensors
 
-These parts come with later steps, and are not needed for the first outdoor station:
-
-| Part | Use | Price |
-|------|-----|-------|
-| [SHT31 module (DFRobot SEN0331)](https://www.gotronic.fr/art-capteur-de-t-et-d-humidite-sht31-sen0331-32255.htm), Gotronic | A more accurate temperature and humidity: ±0.3 °C, ±2 % RH | 10.30 € |
-| [UV sensor LTR390 (Adafruit 4831)](https://www.gotronic.fr/art-capteur-d-uv-ltr390-ada4831-33490.htm), Gotronic | UV, in a small box with a PTFE window. The LTR390 also measures the ambient light | 6.05 € |
-| [Light probe SEN0562](https://www.gotronic.fr/art-capteur-de-lumiere-etanche-sen0562-37146.htm) and a [Grove module with screw terminals](https://www.gotronic.fr/art-module-de-connexion-grove-103020007-19008.htm), Gotronic | Light, in a waterproof probe | 10.70 € + 3.35 € |
-| Anemometer, rain gauge, wind vane, soil moisture sensor | Wind, rain, soil: chosen in their own steps | — |
+The parts of the sensors that come later, such as a more accurate SHT31, the light and the UV, the rain gauge, the wind speed and direction, or the soil moisture, are chosen in their own steps. Each step adds its parts to this list. The [design chapter](00-design.qmd#later-sensors) already reserves their place.
