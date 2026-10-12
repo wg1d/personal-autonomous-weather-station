@@ -107,13 +107,14 @@ Without an SD card, there is no card reader to wire and to power, and no card to
 | Quantity | Sensor | Why |
 |----------|--------|-----|
 | Temperature, humidity and pressure | **BME280** module, the one of the bench | It measures the three quantities: ±1 °C, ±3 % RH, ±1 hPa |
+| or: temperature and humidity, pressure | **SHT31** and **BMP280** modules, from scratch | ±0.3 °C, ±2 % RH; ±1 hPa |
 | Battery | **INA219** module | Voltage and current of the battery (see [Power](01-power.qmd#the-battery-monitor)) |
 | Time | **DS3231** module, the one of the bench | Its alarm wakes the station up |
 | Light, UV, wind, rain, soil | Reserved for later steps | See [Later sensors](#later-sensors) |
 
-The station starts with the BME280 and the clock of the breadboard. A **SHT31** (±0.3 °C, ±2 % RH, the sensor of 3D-PAWS) can later replace the BME280 for the temperature and the humidity, about three times more accurate: it plugs into the same hub.
+This station starts with the BME280 and the clock of the breadboard station. Starting from scratch, a **SHT31** (±0.3 °C, ±2 % RH, the sensor of 3D-PAWS), about three times more accurate for the temperature, and a **BMP280** for the pressure are a better choice for the same price; on the bench station, the SHT31 can later replace the BME280. Both configurations plug into the same hub, and the firmware reads either of them (see the [parts list](02-parts-list.qmd#sensors-and-clock-two-options)).
 
-All of them are on the **I2C bus**, where each one answers at its own address: 0x76 or 0x77 (BME280, depending on the module), 0x40 (INA219), 0x68 (DS3231) and 0x57 (the memory chip of the DS3231 module).
+All of them are on the **I2C bus**, where each one answers at its own address: 0x76 or 0x77 (BME280 or BMP280, depending on the module), 0x44 (SHT31), 0x40 (INA219), 0x68 (DS3231) and 0x57 (the memory chip of the DS3231 module).
 
 ### The clock
 
@@ -145,8 +146,8 @@ The connector at the end of its cable will be cut off, and its four wires screwe
 
 Every link is a cable with connectors at both ends, or a wire held by a screw terminal (HN5):
 
-- **The I2C bus** goes from the Grove Shield to a **Grove I2C hub** in the sealed box, a small board that repeats the bus on 6 connectors: the clock and the battery monitor plug into it. A 30 cm Grove cable goes out of the box to a second hub, in the shelter, for the BME280; its free connectors wait for the later sensors.
-- **The clock, the BME280 and the INA219** have pins, not Grove connectors: each one connects to its hub with a cable that has a Grove connector at one end and four female connectors at the other, which plug onto the pins of the module.
+- **The I2C bus** goes from the Grove Shield to a **Grove I2C hub** in the sealed box, a small board that repeats the bus on 6 connectors: the clock and the battery monitor plug into it. A 30 cm Grove cable goes out of the box to a second hub, in the shelter, for the air sensors; its free connectors wait for the later sensors.
+- **The clock, the air sensors and the INA219** have pins, not Grove connectors: each one connects to its hub with a cable that has a Grove connector at one end and four female connectors at the other, which plug onto the pins of the module.
 - **The alarm of the clock** comes with a Grove to female connectors cable, from the D0/D1 connector: its yellow wire plugs onto the SQW pin of the clock, its black wire onto GND.
 - **The maintenance button** is a waterproof push button (IP67), mounted through the bottom board of the shelter and pointing down: it is pressed from below, without opening anything (H6), and the rain does not fall on it. It closes its contact only while it is pressed. Two male-to-male jumper wires go from its screw terminals into a Grove to female connectors cable on the D2/D3 connector, and close D2 to the ground.
 - **The power wires** go through JST connectors, screw terminals and a lever connector (see [Power](01-power.qmd#wiring)).
@@ -188,14 +189,14 @@ All the wood is painted white, which reflects the sun.
 
 The outdoor station changes the software in four ways:
 
-- **new adapters**: the BME280 (already written for the bench station, with new pins), the INA219, the maintenance button on its new pin, and the pins of the XIAO, in a new build environment. The state machine does not change: this is what the [ports and adapters](../Architecture/Phase-04/00-4-structure-and-verification.qmd) were designed for;
+- **new adapters**: the BME280 (already written for the bench station, with new pins) or the SHT31 and the BMP280, the INA219, the maintenance button on its new pin, and the pins of the XIAO, in a new build environment. The state machine does not change: this is what the [ports and adapters](../Architecture/Phase-04/00-4-structure-and-verification.qmd) were designed for;
 - **the storage** moves from the SD card to the flash memory, and deletes the oldest acknowledged rows when it is full;
 - **new columns**: battery voltage, battery current, and the strength of the Wi-Fi signal. The CSV format and the upload protocol move to a version 2, and the backend learns it, while still accepting the version 1;
 - **the dashboard** shows the new quantities, and the state of the battery.
 
 ## Parts and cost
 
-Most of the electronics come from a French shop, [Gotronic](https://www.gotronic.fr), which sells the Seeed Studio, Adafruit and DFRobot boards. Amazon has two parts for less: a solar panel with the plug of the charger, and a generic INA219 module. The BME280, the DS3231 module and the USB-C cable are those of the bench. The wood, the grilles and the sealed box come from a DIY store.
+Most of the electronics come from a French shop, [Gotronic](https://www.gotronic.fr), which sells the Seeed Studio, Adafruit and DFRobot boards. Amazon has two parts for less: a solar panel with the plug of the charger, and a generic INA219 module. The air sensors and the clock depend on the starting point: a SHT31 and a BMP280 from scratch, or the BME280 and the DS3231 module of the bench station. The wood, the grilles and the sealed box come from a DIY store.
 
 The electronics and the cables cost **about 95 €**, without the shipping costs and the parts of the bench station: about 69 € at Gotronic, and 26 € at Amazon. The [parts list](02-parts-list.qmd) gives every part to buy, shop by shop, with its link and its price, including the parts of the bench station.
 

@@ -27,7 +27,7 @@ What each cable connects:
 
 - **Grove I2C hubs**: one in the sealed box, for the clock and the INA219, and one in the shelter, for the BME280 and the later sensors. A single cable goes from the box to the shelter.
 - **Grove cables**: the Grove Shield to the hub of the box, and this hub to the hub of the shelter; the others are spares for the later sensors.
-- **Grove to female connectors cables**: the clock, its alarm, the BME280, the INA219 and the maintenance button use the first set; the second set is for the later sensors, and can wait for them.
+- **Grove to female connectors cables**: the clock, its alarm, the INA219, the maintenance button, and the air sensors (see [Sensors and clock](#sensors-and-clock-two-options)).
 - **JST-PH cables**: the charger to the Grove Shield, and the charger to the INA219 and the battery.
 
 ## Amazon: panel, battery monitor and coin cells, about 26 €
@@ -55,16 +55,27 @@ The generic INA219 module copies the design of Adafruit: the same chip and the s
 | 2 | Double-sided foam pads, or adhesive hook-and-loop pads, for the battery | to price |
 | 2 | M3 screws of 30 mm with their nuts, for the BME280 | to price |
 
-## From the bench station
+## Sensors and clock: two options
 
-The station of the [Phase 4](../Architecture/Phase-04/00-1-requirements.qmd), on its breadboard, already has these parts: they move to the outdoor station. Without that station, they are bought too:
+The air sensors and the clock depend on where you start from.
+
+### Starting from scratch (recommended)
+
+A SHT31 for the temperature and the humidity, the sensor of 3D-PAWS, about three times more accurate than a BME280, and a BMP280 for the pressure. Both plug into the hub of the shelter.
 
 | Qty | Part | Price |
 |-----|------|-------|
-| 1 | BME280 module, 3.3 V: temperature, humidity and pressure. For example the [Pimoroni PIM472](https://www.gotronic.fr/art-module-bme280-39822.htm) at Gotronic, or a [set of 3 AZDelivery modules](https://www.amazon.fr/AZDelivery-Barometric-Temperature-Compatible-Raspberry/dp/B07FS95JXT) at Amazon. Many cheap modules sold as "BME280" carry a BMP280, without humidity: check the description | 16.40 €, or 17.99 € for 3 |
-| 1 | [DS3231 clock module](https://www.gotronic.fr/art-module-rtc-i2c-ds3231-gt584-36063.htm), 38 × 22 mm with a CR2032 holder (the common ZS-042 format), at Gotronic; its LED is removed (see [The DS3231 Module](../Appendix/04-ds3231-module.qmd)) | 7.90 € |
+| 1 | [SHT31 module](https://www.amazon.fr/-/en/DAOKAI-Temperature-Humidity-SHT31-D-Interface/dp/B0CZHTWLJZ), Amazon: ±0.3 °C, ±2 % RH | 8.99 € |
+| 1 | [BMP280 modules, 3.3 V, set of 2](https://www.amazon.fr/TECNOIOT-Barometric-Pressure-dimpression-d%C3%A9rivation/dp/B07HM8WRV3), Amazon: the pressure, ±1 hPa | 7.76 € |
+| 1 | [DS3231 clock module](https://www.gotronic.fr/art-module-rtc-i2c-ds3231-gt584-36063.htm), Gotronic: the common ZS-042 module, with its CR2032 cell; its LED is removed (see [The DS3231 Module](../Appendix/04-ds3231-module.qmd)) | 7.90 € |
 | 1 | USB-C data cable, to program the XIAO | a few euros |
 | 2 | Male-to-male jumper wires, for the maintenance button | a few cents |
+
+With the two sensors, the station uses six Grove to female connectors cables: both sets of the Gotronic list are needed.
+
+### With the bench station
+
+The station of the [Phase 4](../Architecture/Phase-04/00-1-requirements.qmd), on its breadboard, already has a BME280 (temperature, humidity and pressure, ±1 °C, ±3 % RH), a DS3231 module, a USB-C cable and jumper wires: they move to the outdoor station, and nothing more is bought. The BME280 uses one Grove to female connectors cable, so the second set of the Gotronic list can wait for the later sensors. A SHT31 can replace the BME280 later, for a more accurate temperature.
 
 ## Later sensors
 
