@@ -73,9 +73,17 @@ One rule follows: **the power switch of the Grove Shield is set to OFF before th
 
 ![Power of the outdoor station](../../assets/diagrams/power_outdoor_station.svg)
 
+The battery, the charger and the Grove Shield connect with **JST-PH connectors**, of two kinds:
+
+- a **plug**, at the end of a cable, which goes into a socket: the plug of the battery, and the plugs of the JST-PH cables;
+- a **socket**, fixed on a board, which receives a plug: the two sockets of the charger, BATT and LOAD, and the small socket supplied with each JST-PH cable.
+
+Shops name them after their metal contacts: the plug, with holes, is the *female* connector; the socket, with pins, is the *male* connector. The power needs three of them besides the battery: two cables, and one socket. Each JST-PH cable bought comes with a socket: two cables give all three, and a spare socket.
+
 - **Panel to charger**: the plug of the panel goes into the DC jack of the charger.
-- **Charger to Grove Shield**: a JST-PH cable plugs into the LOAD connector of the charger; its two wires are soldered into the two holes of the power bonding pad of the Grove Shield, next to its switch, red to +, black to −. The board has no printed BAT+ and BAT−: the + and the − are checked on the board and on its [schematic](https://files.seeedstudio.com/wiki/Grove-Shield-for-Seeeduino-XIAO/res/Grove_Shield_for_Seeeduino_XIAO_v1.0_SCH.pdf) before soldering, since a reversed supply can damage it.
-- **Charger to battery, through the INA219**: a second JST-PH cable plugs into the BATT connector of the charger. Its red wire goes into the VIN+ terminal of the INA219; the VIN− terminal goes to the + of the battery. The battery plugs into the small JST-PH socket supplied with the cable, with two wires soldered to it. The two black wires, of the charger and of the battery, are joined in a lever connector: the − of the battery goes straight back to the charger.
+- **Charger to Grove Shield**: a JST-PH cable plugs into the LOAD socket of the charger; its two wires are soldered into the two holes of the power bonding pad of the Grove Shield, next to its switch, red to +, black to −. The board has no printed BAT+ and BAT−: the + and the − are checked on the board and on its [schematic](https://files.seeedstudio.com/wiki/Grove-Shield-for-Seeeduino-XIAO/res/Grove_Shield_for_Seeeduino_XIAO_v1.0_SCH.pdf) before soldering, since a reversed supply can damage it.
+- **Charger to battery, through the INA219**: a second JST-PH cable plugs into the BATT socket of the charger. Its red wire goes into the VIN+ screw terminal of the INA219. The plug of the battery goes into the socket supplied with this cable, with two wires soldered to its pins: its + goes into the VIN− terminal of the INA219, its − into a lever connector, together with the black wire of the cable. The current of the battery goes through the INA219 on the + side, and the − of the battery goes straight back to the charger. The battery plug is never cut: two bare wires of a LiPo battery that touch can make it heat up, or catch fire.
+- **Polarity of the battery**: the order of the + and the − in a JST-PH plug differs between battery makers. Before the battery is plugged for the first time, its red wire must arrive on the + marked next to the BATT socket of the charger; if not, the two wires soldered to the socket are swapped.
 - **Thermistor**: on the board of Adafruit, a small jumper marked THERM is cut, then two wires are soldered, one to the **THERM** pad, the other to the ground; their other ends are soldered to the legs of the thermistor, taped against the battery.
 
 The INA219 shares the ground of the station through its I2C cable: it measures the voltage of the battery against this ground.
