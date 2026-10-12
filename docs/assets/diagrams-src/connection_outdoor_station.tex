@@ -56,7 +56,7 @@
 \node[module=cyan!20] (sht) at (15.8,1.4) {\textbf{BME280 module}\\\scriptsize temp., humidity, pressure};
 \node[module=gray!10, dashed] (bmp) at (15.8,4.8) {\textbf{later: SHT31}\\\scriptsize or other sensors};
 \node[module=yellow!30] (button) at (15.2,-1.2) {\textbf{Push button, IP67}\\\scriptsize under the shelter};
-\node[module=cyan!20] (probe) at (14.6,9.2) {\textbf{DFRobot SEN0562}\\\scriptsize light, IP68 probe};
+\node[module=gray!10, dashed] (probe) at (14.6,9.2) {\textbf{later: light probe}\\\scriptsize and UV sensor};
 
 % ---------------------------------------------------------------- shield ports
 \coordinate (i2cA) at (4,5.4);
@@ -90,8 +90,8 @@
 \node[note, above] at (10.0,4.4) {Grove, 30 cm,\\through a membrane};
 \draw[wireI2c] (hubB.south) |- (sht.west);
 \draw[reserved] ($(hubB.north)+(0.6,0)$) |- (bmp.west);
-\draw[wireI2c] ($(hubB.north)+(-0.6,0)$) |- (probe.west);
-\node[note, right] at (12.9,7.5) {its own cable, 1 m, into a\\Grove screw terminal module};
+\draw[reserved] ($(hubB.north)+(-0.6,0)$) |- (probe.west);
+\node[note, right] at (12.9,7.5) {reserved};
 \node[note, left] at (13.3,2.1) {free ports:\\later sensors};
 
 % ---------------------------------------------------------------- wake-up signals
@@ -100,7 +100,7 @@
 \node[note, right] at (8.4,3.3) {SQW};
 % The maintenance button closes D2 to ground while it is pressed
 \draw[wireSignal] (pD2) -- (11.0,1.4) |- (button.west);
-\node[note, below] at (12.3,-1.2) {Grove screw\\terminal module};
+\node[note, below] at (12.3,-1.2) {Grove to female,\\2 jumper wires};
 
 % ---------------------------------------------------------------- reserved
 \draw[reserved] (pD8) -- (5.6,0.8);
