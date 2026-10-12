@@ -117,10 +117,7 @@ All of them are on the **I2C bus**, where each one answers at its own address: 0
 
 ### The clock
 
-The DS3231 module keeps the time with a coin cell, and wakes the station up with its alarm, on its SQW pin. The common module, named ZS-042, with a memory chip (AT24C32), has two details that matter on battery.
-
-- **Its charging circuit.** The module was designed for a LIR2032, the rechargeable version of the coin cell: a resistor and a diode bring the supply voltage to the cell, to charge it ([Arduino forum](https://forum.arduino.cc/t/zs-042-ds3231-rtc-module/268862/1)). With a CR2032, which is not rechargeable, this circuit is a danger at 5 V. At 3.3 V, the supply of the station, the diode drops about 0.6 V: the cell sees about 2.7 V, less than its own 3 V, and no current flows into it. The circuit stays as it is.
-- **Its power LED.** It stays on as long as the module is powered, and draws about 1 mA: more than the whole sleeping station, which would empty its battery several times faster. The LED is removed: it is a tiny component soldered on the surface of the board, which comes off when it is pushed sideways with the tip of a small screwdriver, or with the tip of the soldering iron. The module works the same without it.
+The DS3231 module keeps the time with a coin cell, and wakes the station up with its alarm, on its SQW pin. The common module, named ZS-042, was designed for an Arduino at 5 V with a rechargeable coin cell. On the station, its **power LED** is removed: it stays lit as long as the module is powered, and draws more than the rest of the sleeping station. Its charging circuit, harmless at 3.3 V, stays. The [DS3231 Module](../Appendix/04-ds3231-module.qmd) appendix explains both, and how to remove the LED.
 
 ### Later sensors
 

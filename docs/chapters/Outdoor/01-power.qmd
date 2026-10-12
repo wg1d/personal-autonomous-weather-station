@@ -15,15 +15,16 @@ The [energy estimate](../Architecture/Phase-04/06-3-energy-and-review.qmd) of th
 | Grove Shield: its charger and its 3.3 V converter | about 35 µA |
 | bq24074 charger, at night, without sun | about 4 µA |
 | INA219, in power-down mode | about 6 µA |
+| DS3231 clock module, without its LED (see [The DS3231 Module](../Appendix/04-ds3231-module.qmd)) | up to about 110 µA |
 
-These add about 0.05 mA. On the other side, the XIAO sleeps with 14 µA, much less than the development board. All in all, the station should draw **about 0.3 to 0.5 mA on average, 7 to 12 mAh a day**. These figures are estimates from datasheets: the battery monitor gives the real behavior of the station once it is outdoors.
+These add up to about 0.16 mA. On the other side, the XIAO sleeps with 14 µA, much less than the development board. All in all, the station should draw **about 0.3 to 0.6 mA on average, 7 to 14 mAh a day**. These figures are estimates from datasheets: the battery monitor gives the real behavior of the station once it is outdoors.
 
 ## The battery
 
 A lithium battery stores the energy for the night and for the days without sun. The station uses a **lithium polymer (LiPo) battery**: a flat pouch of 52 × 35 × 6 mm, with a short cable and a JST-PH plug.
 
 - **3.7 V nominal**: 4.2 V when full, about 3.0 V when empty;
-- **1000 mAh**: with 12 mAh a day, it would hold **more than two months without any sun** on paper. Winter reduces this: a lithium battery gives less of its capacity in the cold. The margin stays large;
+- **1000 mAh**: with 14 mAh a day, it would hold **about two months without any sun** on paper. Winter reduces this: a lithium battery gives less of its capacity in the cold. The margin stays large;
 - **protected**: a small circuit in the pouch disconnects the battery when its voltage falls too low, when it is overcharged, or on a short circuit. An empty lithium battery, discharged further, is damaged for good: the protection prevents it, even if everything else fails.
 
 A LiPo pouch is not screwed: it is stuck to the bottom of the sealed box with thick double-sided foam tape. It must never be pierced, folded or squeezed, nor touch a sharp edge or a screw.
@@ -43,7 +44,7 @@ The panel turns light into current. It is described by two values, measured in f
 
 The station uses a generic panel of 145 × 145 mm, coated with resin for outdoor use, with a cable ending in a 5.5 × 2.1 mm plug, the plug of the charger.
 
-The panel lies **flat on the roof** of the shelter. A flat panel receives less light than a panel facing south, tilted, mostly in winter, when the sun stays low: in December, about two to three times less. Even so, the margin is large. In December, in France, a horizontal surface receives on average roughly 0.6 kWh of sunlight per square metre per day in the north, and up to about 2 kWh in the south: the same energy as 0.6 to 2 hours of full sun. A 3 W panel then gives about 2 to 6 Wh a day. Even if half of it is lost, in the charger and on grey days, 1 Wh is about **250 mAh** at the voltage of the battery: twenty times the 12 mAh the station needs.
+The panel lies **flat on the roof** of the shelter. A flat panel receives less light than a panel facing south, tilted, mostly in winter, when the sun stays low: in December, about two to three times less. Even so, the margin is large. In December, in France, a horizontal surface receives on average roughly 0.6 kWh of sunlight per square metre per day in the north, and up to about 2 kWh in the south: the same energy as 0.6 to 2 hours of full sun. A 3 W panel then gives about 2 to 6 Wh a day. Even if half of it is lost, in the charger and on grey days, 1 Wh is about **250 mAh** at the voltage of the battery: more than fifteen times the 14 mAh the station needs.
 
 ## The charger
 

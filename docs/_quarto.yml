@@ -130,6 +130,8 @@ website:
             contents:
               - href: chapters/Appendix/01-pull-resistors.qmd
                 text: "Pull-Up and Pull-Down"
+              - href: chapters/Appendix/04-ds3231-module.qmd
+                text: "DS3231 Module"
           - section: "Tools"
             contents:
               - href: chapters/Appendix/02-test-server.qmd
