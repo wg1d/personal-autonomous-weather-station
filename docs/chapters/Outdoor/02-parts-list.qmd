@@ -55,14 +55,16 @@ The generic INA219 module copies the design of Adafruit: the same chip and the s
 | 2 | Double-sided foam pads, or adhesive hook-and-loop pads, for the battery | to price |
 | 2 | M3 screws of 30 mm with their nuts, for the BME280 | to price |
 
-## Already on the bench
+## From the bench station
 
-These parts come from the [breadboard station](../Architecture/Phase-04/00-1-requirements.qmd):
+The station of the [Phase 4](../Architecture/Phase-04/00-1-requirements.qmd), on its breadboard, already has these parts: they move to the outdoor station. Without that station, they are bought too:
 
-- the **BME280** module: temperature, humidity and pressure;
-- the **DS3231** module: the clock, whose LED is removed (see [The clock](00-design.qmd#the-clock));
-- the **USB-C cable**, to program the XIAO;
-- two **male-to-male jumper wires**, for the maintenance button.
+| Qty | Part | Price |
+|-----|------|-------|
+| 1 | BME280 module, 3.3 V: temperature, humidity and pressure. For example the [Pimoroni PIM472](https://www.gotronic.fr/art-module-bme280-39822.htm) at Gotronic, or a [set of 3 AZDelivery modules](https://www.amazon.fr/AZDelivery-Barometric-Temperature-Compatible-Raspberry/dp/B07FS95JXT) at Amazon. Many cheap modules sold as "BME280" carry a BMP280, without humidity: check the description | 16.40 €, or 17.99 € for 3 |
+| 1 | [DS3231 clock module](https://www.gotronic.fr/art-module-rtc-i2c-ds3231-gt584-36063.htm), 38 × 22 mm with a CR2032 holder (the common ZS-042 format), at Gotronic; its LED is removed (see [The DS3231 Module](../Appendix/04-ds3231-module.qmd)) | 7.90 € |
+| 1 | USB-C data cable, to program the XIAO | a few euros |
+| 2 | Male-to-male jumper wires, for the maintenance button | a few cents |
 
 ## Later sensors
 

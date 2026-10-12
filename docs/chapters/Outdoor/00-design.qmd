@@ -197,7 +197,7 @@ The outdoor station changes the software in four ways:
 
 Most of the electronics come from a French shop, [Gotronic](https://www.gotronic.fr), which sells the Seeed Studio, Adafruit and DFRobot boards. Amazon has two parts for less: a solar panel with the plug of the charger, and a generic INA219 module. The BME280, the DS3231 module and the USB-C cable are those of the bench. The wood, the grilles and the sealed box come from a DIY store.
 
-The electronics and the cables cost **about 95 €**, without the shipping costs: about 69 € at Gotronic, and 26 € at Amazon. The [parts list](02-parts-list.qmd) gives every part to buy, shop by shop, with its link and its price, and the parts of the later steps.
+The electronics and the cables cost **about 95 €**, without the shipping costs and the parts of the bench station: about 69 € at Gotronic, and 26 € at Amazon. The [parts list](02-parts-list.qmd) gives every part to buy, shop by shop, with its link and its price, including the parts of the bench station.
 
 ## Implementation plan
 
