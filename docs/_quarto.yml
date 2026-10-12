@@ -122,6 +122,8 @@ website:
             text: "Design"
           - href: chapters/Outdoor/01-power.qmd
             text: "Power"
+          - href: chapters/Outdoor/02-parts-list.qmd
+            text: "Parts List"
       - section: "Appendices"
         contents:
           - section: "Electronics Notes"
