@@ -8,7 +8,7 @@ The log is a help to understand what happened, not data: if it cannot be written
 
 The adapters used to print with `Serial`. They now print with `console`, an object that prints to the serial port in the same way, and also keeps a copy of everything printed during the wake-up:
 
-```{.cpp include="../../../../firmware/paws/src/adapters/Console.h"}
+```{.cpp include="../../../_versions/v0.7.0/firmware/paws/src/adapters/Console.h"}
 ```
 
 `Console` inherits from `Print`, the Arduino class that provides `print()`, `println()` and `printf()`, like `Serial`. All of them end up calling `write()` for each character: redefining this single function is enough to send each character to the serial port, and to keep it in a buffer of 4 KB, about ten times what a usual wake-up prints. The buffer is in RAM, so it starts empty at each wake-up. If the buffer is full, the remaining characters still go to the serial port, and the log entry says that it was truncated.
@@ -23,7 +23,7 @@ The adapters used to print with `Serial`. They now print with `console`, an obje
 
 At the end of the wake-up, `close()` of the storage appends the copy kept by the console to `/log.txt`, before powering the card off:
 
-```{.cpp include="../../../../firmware/paws/src/adapters/SdStorage.h"}
+```{.cpp include="../../../_versions/v0.7.0/firmware/paws/src/adapters/SdStorage.h"}
 ```
 
 - Each entry starts with a blank line and the timestamp of the row of the wake-up (`=== 2026-10-04T15:09:31Z ===`), then the lines printed during the wake-up.
@@ -51,12 +51,12 @@ The lines printed by the ESP32 itself (boot messages, errors of the system) do n
 
 The log is uploaded with the hourly upload, following the same rules as the measurements: its own cursor (`/log.idx`), requests of complete lines, and a cursor that moves only after the server confirmed. Rather than writing a second loop, the interfaces receive the kind of data with a small enumeration:
 
-```{.cpp include="../../../../firmware/paws/lib/ports/Record.h"}
+```{.cpp include="../../../_versions/v0.7.0/firmware/paws/lib/ports/Record.h"}
 ```
 
 The core sends the measurements first, since they matter more, then the log, with the same function:
 
-```{.cpp include="../../../../firmware/paws/lib/core/StateMachine.cpp"}
+```{.cpp include="../../../_versions/v0.7.0/firmware/paws/lib/core/StateMachine.cpp"}
 ```
 
 The storage chooses the file and the cursor from the kind of data, and the network chooses the address: `/api/v1/measurements` with the CSV header line, or `/api/v1/logs` with the lines as they are. Since the log of a wake-up is written at its very end, it is uploaded at the next upload.
@@ -73,7 +73,7 @@ The maintenance page gains a third button, **Download the log**, and shows the v
 
 ![The maintenance page with the log button](../../../assets/images/A6-2_fallback_ap_interface.jpeg){width=300}
 
-```{.cpp include="../../../../firmware/paws/src/adapters/AccessPointMaintenance.h"}
+```{.cpp include="../../../_versions/v0.7.0/firmware/paws/src/adapters/AccessPointMaintenance.h"}
 ```
 
 The buttons now have the same width, whatever their text, and the title fits on one line on a phone.
