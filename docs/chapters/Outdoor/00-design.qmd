@@ -97,8 +97,8 @@ Under the Grove Shield, small spring contacts touch pads under the XIAO, to debu
 The outdoor station has **no SD card**: the measurements are kept in the flash memory of the XIAO, in a file system.
 
 - A row, with the new quantities of this phase, takes about 80 bytes; one measurement every 15 minutes makes 96 rows a day, about **2.8 MB a year**.
-- Of the 8 MB of flash, about 5 MB remain for the files once the firmware is installed: **close to two years** of measurements, and the log.
-- When the memory fills up, the station deletes its oldest rows, only those the server has acknowledged. The server keeps them, and [backs them up](../Backend/03-1-operations.qmd) every night.
+- Of the 8 MB of flash, about 5 MB remain for the files once the firmware is installed.
+- The rows go into a file of at most a quarter of this space, about five months of rows. When it is full and the server has acknowledged all its rows, it becomes the previous file and a new one starts: the station always keeps between five and ten months of rows, and never fills its memory. The server keeps every row, and [backs them up](../Backend/03-1-operations.qmd) every night. The [flash storage](03-flash-storage.qmd) step details it.
 
 Without an SD card, there is no card reader to wire and to power, and no card to wear out outdoors. The [maintenance page](../Architecture/Phase-04/05-1-maintenance-mode.qmd) still gives the files, to retrieve the data with a phone when the station cannot reach the Wi-Fi.
 
