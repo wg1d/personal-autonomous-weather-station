@@ -6,7 +6,7 @@ Everything to buy for the outdoor station, shop by shop, as a shopping list. The
 The prices are those of the shops linked, in euros, at the time of writing, without the shipping costs.
 :::
 
-## Gotronic: electronics and cables, about 70 €
+## Gotronic: electronics and cables, about 69 €
 
 [Gotronic](https://www.gotronic.fr) is a French shop that sells the Seeed Studio, Adafruit and DFRobot boards.
 
@@ -18,24 +18,25 @@ The prices are those of the shops linked, in euros, at the time of writing, with
 | 1 | [LiPo battery, 1000 mAh, JST-PH](https://www.gotronic.fr/art-accu-lipo-3-7-vcc-1000-mah-pr523450-5813.htm) | 9.90 € |
 | 1 | [Thermistor NTC 10 kΩ](https://www.gotronic.fr/art-thermistance-ctn-10k-8486-3739.htm) | 0.80 € |
 | 1 | [Waterproof push button, IP67, 16 mm](https://www.gotronic.fr/art-bouton-poussoir-bp16039-29350.htm) | 4.60 € |
-| 1 | [CR2032 coin cells, 5](https://www.gotronic.fr/cat-piles-lithium-1036.htm) | 3.20 € |
 | 2 | [Grove I2C hub, 6 ports](https://www.gotronic.fr/art-hub-6-ports-i2c-grove-103020272-31348.htm) | 3.80 € |
 | 1 | [Grove cables, 30 cm, set of 5](https://www.gotronic.fr/art-lot-de-5-cables-grove-30-cm-22557.htm) | 3.30 € |
 | 2 | [Grove to female connectors cables, 30 cm, set of 5](https://www.gotronic.fr/art-5-cables-30-cm-grove-4-contacts-femelles-19069.htm) | 8.40 € |
-| 2 | [JST-PH 2-pin cable, with its plug](https://www.gotronic.fr/art-cordon-jst-ph-femelle-2-cts-jst2-21318.htm) | 2.70 € |
+| 2 | [JST-PH 2-pin cable, with its plug](https://www.gotronic.fr/art-cordon-jst-ph-femelle-2-cts-jst2-21318.htm) | 4.40 € |
 
 What each cable connects:
 
+- **Grove I2C hubs**: one in the sealed box, for the clock and the INA219, and one in the shelter, for the BME280 and the later sensors. A single cable goes from the box to the shelter.
 - **Grove cables**: the Grove Shield to the hub of the box, and this hub to the hub of the shelter; the others are spares for the later sensors.
-- **Grove to female connectors cables**: the clock, its alarm, the BME280, the INA219 and the maintenance button; the others are spares for the later sensors.
+- **Grove to female connectors cables**: the clock, its alarm, the BME280, the INA219 and the maintenance button use the first set; the second set is for the later sensors, and can wait for them.
 - **JST-PH cables**: the charger to the Grove Shield, and the charger to the INA219 and the battery.
 
-## Amazon: panel and battery monitor, about 18 €
+## Amazon: panel, battery monitor and coin cells, about 26 €
 
 | Qty | Part | Price |
 |-----|------|-------|
-| 1 | [Solar panel, 6 V, 3 W, with a 5.5 × 2.1 mm plug](https://www.amazon.fr/Monocristallin-Ext%C3%A9rieur-Stratifi%C3%A9e-T%C3%A9l%C3%A9phone-14-5Cmx14-5Cm/dp/B08G8TT5Q7) | about 12 € |
+| 1 | [Solar panel, 6 V, 3 W, with a 5.5 × 2.1 mm plug](https://www.amazon.fr/Monocristallin-Ext%C3%A9rieur-Stratifi%C3%A9e-T%C3%A9l%C3%A9phone-14-5Cmx14-5Cm/dp/B08G8TT5Q7) | 16.99 € |
 | 1 | [INA219 module](https://www.amazon.fr/DollaTek-capteur-Courant-Alternatif-bidirectionnel/dp/B07DK7Y35Q) | 5.99 € |
+| 1 | [CR2032 coin cells, Varta, 5](https://www.amazon.fr/Varta-2032-Pile-Lithium-Pi%C3%A8ces/dp/B00TYEL11K), for the clock | about 3.40 € |
 
 The generic INA219 module copies the design of Adafruit: the same chip and the same 0.1 Ω shunt resistor, marked R100.
 
