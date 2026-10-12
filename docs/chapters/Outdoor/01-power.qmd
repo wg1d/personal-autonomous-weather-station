@@ -38,10 +38,10 @@ In winter, a sunny morning can follow a night of frost: the panel gives current 
 
 The panel turns light into current. It is described by two values, measured in full sun (1000 W per square metre):
 
-- its **voltage**, 5.5 V under load, and up to 8.2 V without load, according to its seller: it must be higher than the voltage of the full battery, 4.2 V, with a margin, for the charger to work. The charger accepts 5 to 10 V;
-- its **power**, 3 W: about 0.54 A in full sun.
+- its **voltage**, 6 V: it must be higher than the voltage of the full battery, 4.2 V, with a margin, for the charger to work. The charger accepts 5 to 10 V, and Adafruit recommends 6 to 7 V panels for it;
+- its **power**, 3 W: about 0.5 A at 6 V in full sun.
 
-The station uses the SOL3W panel, 160 × 138 mm, coated with resin for outdoor use.
+The station uses a generic panel of 145 × 145 mm, coated with resin for outdoor use, with a cable ending in a 5.5 × 2.1 mm plug, the plug of the charger.
 
 The panel lies **flat on the roof** of the shelter. A flat panel receives less light than a panel facing south, tilted, mostly in winter, when the sun stays low: in December, about two to three times less. Even so, the margin is large. In December, in France, a horizontal surface receives on average roughly 0.6 kWh of sunlight per square metre per day in the north, and up to about 2 kWh in the south: the same energy as 0.6 to 2 hours of full sun. A 3 W panel then gives about 2 to 6 Wh a day. Even if half of it is lost, in the charger and on grey days, 1 Wh is about **250 mAh** at the voltage of the battery: twenty times the 12 mAh the station needs.
 
@@ -72,7 +72,7 @@ One rule follows: **the power switch of the Grove Shield is set to OFF before th
 
 ![Power of the outdoor station](../../assets/diagrams/power_outdoor_station.svg)
 
-- **Panel to charger**: the JST plug of the panel is cut off, and its two wires go into the screw terminal of a DC plug adapter (5.5 × 2.1 mm), the + to the centre of the plug, which plugs into the DC jack of the charger.
+- **Panel to charger**: the plug of the panel goes into the DC jack of the charger.
 - **Charger to Grove Shield**: a JST-PH cable plugs into the LOAD connector of the charger; its two wires are soldered to the battery pads of the Grove Shield, red to +, black to −.
 - **Charger to battery, through the INA219**: a second JST-PH cable plugs into the BATT connector of the charger. Its red wire goes into the VIN+ terminal of the INA219; the VIN− terminal goes to the + of the battery. The battery plugs into the small JST-PH socket supplied with the cable, with two wires soldered to it. The two black wires, of the charger and of the battery, are joined in a lever connector: the − of the battery goes straight back to the charger.
 - **Thermistor**: on the board of Adafruit, a small jumper marked THERM is cut, then two wires are soldered, one to the **THERM** pad, the other to the ground; their other ends are soldered to the legs of the thermistor, taped against the battery.
@@ -115,7 +115,7 @@ Between two measurements, the firmware puts it in power-down mode, where it draw
 
 | Part | Role |
 |------|------|
-| Solar panel SOL3W, 3 W | Turns the light into current, about 250 mAh a day in winter, at least |
+| Solar panel, 6 V, 3 W | Turns the light into current, about 250 mAh a day in winter, at least |
 | bq24074 charger | Charges the battery safely, powers the station, adapts to the panel |
 | Thermistor NTC 10 kΩ | Stops the charge below about +5 °C |
 | LiPo battery, 1000 mAh, protected | Holds the energy: two months without sun on paper |
