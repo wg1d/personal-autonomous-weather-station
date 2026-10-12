@@ -3,8 +3,8 @@
  * File: src/main.cpp
  *
  * Description:
- * Firmware of the station (step A5): at each wake-up, the BME280 is read
- * and the row is appended to the CSV file of the SD card, timestamped by
+ * Firmware of the station: at each wake-up, the BME280 is read and the
+ * row is appended to the CSV file in the flash memory, timestamped by
  * the DS3231, whose alarm wakes the ESP32 up on the measurement grid.
  * Once per hour, the station connects to the home Wi-Fi and sends the new
  * rows to the server; once per day, it sets the DS3231 with NTP. A press
@@ -15,9 +15,9 @@
  * - BME280: 3.3V -> VIN, GND -> GND, Pin 21 -> SDA, Pin 22 -> SCL
  * - DS3231: 3.3V -> VCC, GND -> GND, Pin 21 -> SDA, Pin 22 -> SCL,
  *           Pin 36 -> SQW (10k pull-up resistor to 3.3V)
- * - SD card: 5V -> VCC, GND -> GND, Pin 19 -> MISO, Pin 23 -> MOSI,
- *            Pin 18 -> SCLK, Pin 5 -> CS,
- *            Pin 13 -> OFF (10k pull-down resistor to GND)
+ * - No SD card: the rows and the log are kept in the flash memory of the
+ *   ESP32. An SD card module left wired stays off (pull-down on its OFF
+ *   pin).
  * - Button: 3.3V -> button -> Pin 39 (10k pull-down resistor to GND)
  * Dependencies: ESP32 Arduino core, RTClib, Adafruit BME280 Library,
  * lib/core, lib/ports, include/secrets.h (Wi-Fi, server and access
@@ -33,7 +33,7 @@
 #include "adapters/Console.h"
 #include "adapters/Ds3231Clock.h"
 #include "adapters/Esp32Power.h"
-#include "adapters/SdStorage.h"
+#include "adapters/FlashStorage.h"
 #include "adapters/SerialLog.h"
 #include "adapters/WifiNetwork.h"
 #include "secrets.h"
@@ -59,11 +59,11 @@ Console console;
 
 Ds3231Clock rtcClock;
 Bme280Sensor sensor;
-SdCard card;
-SdStorage storage(card);
+FlashVolume volume;
+FlashStorage storage(volume);
 WifiNetwork network(kWifiSsid, kWifiPassword, kServerUrl);
 Esp32Power power;
-AccessPointMaintenance maintenance(card, kApSsid, kApPassword,
+AccessPointMaintenance maintenance(volume, kApSsid, kApPassword,
                                    PAWS_VERSION);
 SerialLog serialLog;
 

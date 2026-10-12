@@ -99,6 +99,24 @@ void test_safety_timer_is_one_interval_without_alarm() {
                                                      config));
 }
 
+// --- isRotationDue (storage of the outdoor station) ---
+
+const uint32_t kMaxSize = 1000;
+
+void test_no_rotation_while_the_file_is_not_full() {
+    // Every line sent, but the file is still small
+    TEST_ASSERT_FALSE(isRotationDue(800, 800, kMaxSize));
+}
+
+void test_rotation_when_full_and_every_line_sent() {
+    TEST_ASSERT_TRUE(isRotationDue(1040, 1040, kMaxSize));
+}
+
+void test_no_rotation_while_lines_are_not_sent() {
+    // The server has not acknowledged the last 40 bytes: they must stay
+    TEST_ASSERT_FALSE(isRotationDue(1040, 1000, kMaxSize));
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_next_alarm_is_next_grid_slot);
@@ -114,5 +132,8 @@ int main() {
     RUN_TEST(test_sync_needed_after_one_day);
     RUN_TEST(test_safety_timer_fires_after_the_alarm);
     RUN_TEST(test_safety_timer_is_one_interval_without_alarm);
+    RUN_TEST(test_no_rotation_while_the_file_is_not_full);
+    RUN_TEST(test_rotation_when_full_and_every_line_sent);
+    RUN_TEST(test_no_rotation_while_lines_are_not_sent);
     return UNITY_END();
 }

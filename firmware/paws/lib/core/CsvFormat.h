@@ -15,8 +15,11 @@
 
 #include "Record.h"
 
-/// Name of the measurement file on the SD card
+/// Name of the measurement file in the storage
 const char kCsvFileName[] = "/measurements_v1.csv";
+
+/// Previous measurement file, kept when the current one is full and sent
+const char kOldCsvFileName[] = "/measurements_v1_old.csv";
 
 /// First line of the file: the name and unit of each column
 const char kCsvHeader[] =
