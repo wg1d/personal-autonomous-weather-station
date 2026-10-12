@@ -73,8 +73,8 @@
 \node[port, anchor=south east] at (pD2)  {D2/D3};
 \node[port, anchor=south east] at (pD8)  {D8/D9};
 \node[port, anchor=south east] at (pD9)  {D9/D10};
-\node[port, anchor=south west] at (bat)  {BAT+};
-\node[port, anchor=north west] at (gnd)  {BAT$-$};
+\node[port, anchor=south west] at (bat)  {power +};
+\node[port, anchor=north west] at (gnd)  {power $-$};
 
 % ---------------------------------------------------------------- I2C, in the box
 % Grove port -> hub; the modules have pin headers: Grove to female jumpers
@@ -112,7 +112,7 @@
 \draw[wirePower] (panel.south) -- (charger.north);
 \node[note, right] at (-3.8,6.6) {DC plug 5.5 × 2.1 mm, through a membrane};
 
-% LOAD output -> battery pads of the shield
+% LOAD output -> power bonding pad of the shield (its battery input)
 \draw[wirePower] (charger.east |- bat) -- (bat);
 \draw[wireGround] (charger.east |- gnd) -- (gnd);
 \node[note, above] at (-1.2,1.9) {LOAD};

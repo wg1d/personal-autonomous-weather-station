@@ -63,7 +63,7 @@ Cheaper charger modules exist, built around the TP4056 or the CN3791. Their chip
 
 ## From the charger to the board
 
-The LOAD output of the charger goes to the **battery pads of the Grove Shield**, the board that carries the XIAO. The Grove Shield has its own charger, made for a battery charged from the USB port, and a converter that gives the 3.3 V of the XIAO and of the modules. For the Grove Shield, the solar charger takes the place of its battery: its charger lets the current through to the converter. Together, they draw about 35 µA.
+The LOAD output of the charger goes to the **battery input of the Grove Shield**, the board that carries the XIAO: two holes to solder, 2 mm apart, on the edge of the board next to its switch, which Seeed calls the *power bonding pad*. The Grove Shield has its own charger, made for a battery charged from the USB port, and a converter that gives the 3.3 V of the XIAO and of the modules. For the Grove Shield, the solar charger takes the place of its battery: its charger lets the current through to the converter. Together, they draw about 35 µA.
 
 The charger of the Grove Shield cannot replace the bq24074: its input is made for the 5 V of a USB port and is protected by components that limit it to about 5 V, while the panel exceeds 8 V without load; and it has no thermistor input.
 
@@ -74,7 +74,7 @@ One rule follows: **the power switch of the Grove Shield is set to OFF before th
 ![Power of the outdoor station](../../assets/diagrams/power_outdoor_station.svg)
 
 - **Panel to charger**: the plug of the panel goes into the DC jack of the charger.
-- **Charger to Grove Shield**: a JST-PH cable plugs into the LOAD connector of the charger; its two wires are soldered to the battery pads of the Grove Shield, red to +, black to −.
+- **Charger to Grove Shield**: a JST-PH cable plugs into the LOAD connector of the charger; its two wires are soldered into the two holes of the power bonding pad of the Grove Shield, next to its switch, red to +, black to −. The board has no printed BAT+ and BAT−: the + and the − are checked on the board and on its [schematic](https://files.seeedstudio.com/wiki/Grove-Shield-for-Seeeduino-XIAO/res/Grove_Shield_for_Seeeduino_XIAO_v1.0_SCH.pdf) before soldering, since a reversed supply can damage it.
 - **Charger to battery, through the INA219**: a second JST-PH cable plugs into the BATT connector of the charger. Its red wire goes into the VIN+ terminal of the INA219; the VIN− terminal goes to the + of the battery. The battery plugs into the small JST-PH socket supplied with the cable, with two wires soldered to it. The two black wires, of the charger and of the battery, are joined in a lever connector: the − of the battery goes straight back to the charger.
 - **Thermistor**: on the board of Adafruit, a small jumper marked THERM is cut, then two wires are soldered, one to the **THERM** pad, the other to the ground; their other ends are soldered to the legs of the thermistor, taped against the battery.
 
@@ -121,4 +121,4 @@ Between two measurements, the firmware puts it in power-down mode, where it draw
 | Thermistor NTC 10 kΩ | Stops the charge below about +5 °C |
 | LiPo battery, 1000 mAh, protected | Holds the energy: two months without sun on paper |
 | INA219 | Measures the voltage and the current of the battery at each wake-up |
-| Grove Shield | Receives the power of the charger on its battery pads, and gives the 3.3 V |
+| Grove Shield | Receives the power of the charger on its power bonding pad, and gives the 3.3 V |

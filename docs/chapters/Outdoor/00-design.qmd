@@ -88,7 +88,7 @@ The XIAO plugs into a [Grove Shield for XIAO](https://wiki.seeedstudio.com/Grove
 
 A pin that wakes the station up must be one of the pins that stay powered in deep sleep, the *RTC pins*: on the ESP32-S3, these are GPIO 0 to 21, which include D0 to D10 of the XIAO, but not D6 and D7.
 
-The Grove Shield also receives the power of the solar charger on its battery pads, and gives the 3.3 V of the XIAO and of the modules (see [Power](01-power.qmd#from-the-charger-to-the-board)).
+The Grove Shield also receives the power of the solar charger on its battery input, the *power bonding pad* next to its switch, and gives the 3.3 V of the XIAO and of the modules (see [Power](01-power.qmd#from-the-charger-to-the-board)).
 
 Under the Grove Shield, small spring contacts touch pads under the XIAO, to debug the XIAO boards built around an ARM chip with a probe (SWD). The ESP32-S3 is programmed and debugged through its USB port instead: these contacts are not used, and the rest of the Grove Shield works with it.
 
@@ -159,7 +159,7 @@ The I2C bus is about 1 m long, and grows with each later sensor: the firmware us
 Only a few wires (HN3):
 
 - the **pin header and the screw terminal** of the INA219 module, supplied apart;
-- **two wires on the battery pads** of the Grove Shield, which bring the power of the solar charger;
+- **two wires on the power bonding pad** of the Grove Shield, which bring the power of the solar charger;
 - the **thermistor** on the solar charger, and the **battery plug** (see [Power](01-power.qmd#wiring));
 - on the clock module, the **power LED** to remove.
 
