@@ -97,10 +97,13 @@
 % ---------------------------------------------------------------- wake-up signals
 % The alarm of the clock: its yellow lead (D0) on the SQW pin
 \draw[wireSignal] (pD0) -- (8.4,2.6) -- (8.4,6.4);
-\node[note, right] at (8.4,3.3) {SQW};
-% The maintenance button closes D2 to ground while it is pressed
-\draw[wireSignal] (pD2) -- (11.0,1.4) |- (button.west);
-\node[note, below] at (12.3,-1.2) {Grove to female,\\2 jumper wires};
+\node[note, right] at (8.4,3.3) {D0 $\rightarrow$ SQW};
+% The maintenance button closes D1 to ground while it is pressed: it
+% shares the cable of the alarm (D0/D1 connector)
+\draw[wireSignal] (pD0) -- (11.0,2.6) |- (button.west);
+\draw[reserved] (pD2) -- (5.6,1.4);
+\node[note, right] at (5.6,1.4) {free};
+\node[note, below] at (12.3,-1.2) {same cable: D1,\\2 jumper wires};
 
 % ---------------------------------------------------------------- reserved
 \draw[reserved] (pD8) -- (5.6,0.8);
