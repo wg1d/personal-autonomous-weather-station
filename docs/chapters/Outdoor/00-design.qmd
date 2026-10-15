@@ -160,7 +160,7 @@ Only a few wires (HN3):
 
 - the **pin header and the screw terminal** of the INA219 module, supplied apart;
 - **two wires on the power bonding pad** of the Grove Shield, which bring the power of the solar charger;
-- the **thermistor** on the solar charger, and the **battery plug** (see [Power](01-power.qmd#wiring));
+- the **thermistor**: two wires from the solar charger to its legs, once the THERM jumper of the charger is cut, and **two wires on the spare JST-PH socket** that receives the plug of the battery (see [Power](01-power.qmd#wiring));
 - on the clock module, the **power LED** to remove.
 
 ## Wi-Fi range
