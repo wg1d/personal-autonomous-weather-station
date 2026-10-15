@@ -49,11 +49,15 @@ The generic INA219 module copies the design of Adafruit: the same chip and the s
 | 1 | Pine shelf board 200 × 30 cm, 18 mm | about 11.50 € |
 | 1 | Junction box 115 × 115 × 60 mm, IP55, with rubber membranes | about 3 € |
 | 1 | White paint for wood, 0.5 L, and a primer for plastics | 17 to 30 € |
-| 4 | Angle brackets, with stainless wood screws | to price |
-| 1 | Self-amalgamating tape, and a bag of silica gel | to price |
-| 1 | Small lever connector (Wago type), for the two black wires of the battery | to price |
-| 2 | Double-sided foam pads, or adhesive hook-and-loop pads, for the battery | to price |
-| 2 | M3 screws of 30 mm with their nuts, for the BME280 | to price |
+| 4 | Reinforced stainless angle brackets, about 60 mm, to hold the shelter on the trellis | to price |
+| 1 | Stainless wood screws, 4 × 30 mm, a small pack | to price |
+| 1 | M3 screw of 30 mm with three nuts, for the BME280 (one for each module with a SHT31 and a BMP280) | a few cents |
+| 1 | Roll of double-sided tape, for the modules and the battery | a few euros |
+| 1 | Pack of lever connectors, Wago 221, for the two black wires of the battery: the 221 series takes wires from 0.14 mm², the S221 series only from 0.5 mm², too thick for the thin wires of the JST-PH cables | about 4 to 8 € |
+| 1 | Assortment of heat-shrink tubing, for the solder joints of the thermistor and of the battery socket | a few euros |
+| 1 | Digital multimeter, with a continuity tester and DC voltage, to check the polarity before each connection | about 10 € |
+
+Nothing else is needed: a bag of silica gel kept from a shoe box absorbs the condensation of the sealed box, and any adhesive tape holds the thermistor against the battery. The tools are a soldering iron with its solder, a cutter, a saw, and a drill with a hole saw of 20 mm and a spade bit of 16 mm.
 
 ## Sensors and clock: two options
 
