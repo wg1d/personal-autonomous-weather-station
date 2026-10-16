@@ -80,8 +80,8 @@ The XIAO plugs into a [Grove Shield for XIAO](https://wiki.seeedstudio.com/Grove
 |-----------------|------|-----|
 | I2C (first) | D5 (SCL), D4 (SDA) | I2C bus: all the modules, through two hubs |
 | I2C (second) | D5, D4 | Free |
-| D0/D1 | D0 | Alarm of the clock: wakes the station up |
-| D2/D3 | D2 | Maintenance button: wakes the station up |
+| D0/D1 | D0, D1 | Alarm of the clock (D0) and maintenance button (D1): both wake the station up |
+| D2/D3 | D2, D3 | Free |
 | D8/D9 | D8 | Reserved: wind speed |
 | D9/D10 | D9 | Reserved: rain |
 | D7/D6 (UART) | — | Free |
@@ -97,8 +97,8 @@ Under the Grove Shield, small spring contacts touch pads under the XIAO, to debu
 The outdoor station has **no SD card**: the measurements are kept in the flash memory of the XIAO, in a file system.
 
 - A row, with the new quantities of this phase, takes about 80 bytes; one measurement every 15 minutes makes 96 rows a day, about **2.8 MB a year**.
-- Of the 8 MB of flash, about 5 MB remain for the files once the firmware is installed: **close to two years** of measurements, and the log.
-- When the memory fills up, the station deletes its oldest rows, only those the server has acknowledged. The server keeps them, and [backs them up](../Backend/03-1-operations.qmd) every night.
+- Of the 8 MB of flash, about 5 MB remain for the files once the firmware is installed.
+- The rows go into a file of at most a quarter of this space, about five months of rows. When it is full and the server has acknowledged all its rows, it becomes the previous file and a new one starts: the station always keeps between five and ten months of rows, and never fills its memory. The server keeps every row, and [backs them up](../Backend/03-1-operations.qmd) every night. The [flash storage](03-flash-storage.qmd) step details it.
 
 Without an SD card, there is no card reader to wire and to power, and no card to wear out outdoors. The [maintenance page](../Architecture/Phase-04/05-1-maintenance-mode.qmd) still gives the files, to retrieve the data with a phone when the station cannot reach the Wi-Fi.
 
@@ -148,8 +148,8 @@ Every link is a cable with connectors at both ends, or a wire held by a screw te
 
 - **The I2C bus** goes from the Grove Shield to a **Grove I2C hub** in the sealed box, a small board that repeats the bus on 6 connectors: the clock and the battery monitor plug into it. A 30 cm Grove cable goes out of the box to a second hub, in the shelter, for the air sensors; its free connectors wait for the later sensors.
 - **The clock, the air sensors and the INA219** have pins, not Grove connectors: each one connects to its hub with a cable that has a Grove connector at one end and four female connectors at the other, which plug onto the pins of the module.
-- **The alarm of the clock** comes with a Grove to female connectors cable, from the D0/D1 connector: its yellow wire plugs onto the SQW pin of the clock, its black wire onto GND.
-- **The maintenance button** is a waterproof push button (IP67), mounted through the bottom board of the shelter and pointing down: it is pressed from below, without opening anything (H6), and the rain does not fall on it. It closes its contact only while it is pressed. Two male-to-male jumper wires go from its screw terminals into a Grove to female connectors cable on the D2/D3 connector, and close D2 to the ground.
+- **The alarm of the clock and the maintenance button** share one Grove to female connectors cable, on the D0/D1 connector, whose two signal wires go to two places: the yellow wire (D0) plugs onto the SQW pin of the clock; the white wire (D1) and the black wire (GND) go to the button, through two male-to-male jumper wires held by its screw terminals. The red wire (3.3 V) stays free.
+- **The maintenance button** is a waterproof push button (IP67), mounted through the bottom board of the shelter and pointing down: it is pressed from below, without opening anything (H6), and the rain does not fall on it. It closes its contact only while it is pressed: it then connects D1 to the ground.
 - **The power wires** go through JST connectors, screw terminals and a lever connector (see [Power](01-power.qmd#wiring)).
 
 The I2C bus is about 1 m long, and grows with each later sensor: the firmware uses a lower clock rate, 100 kHz or below, which keeps a long bus reliable.
@@ -160,7 +160,7 @@ Only a few wires (HN3):
 
 - the **pin header and the screw terminal** of the INA219 module, supplied apart;
 - **two wires on the power bonding pad** of the Grove Shield, which bring the power of the solar charger;
-- the **thermistor** on the solar charger, and the **battery plug** (see [Power](01-power.qmd#wiring));
+- the **thermistor**: two wires from the solar charger to its legs, once the THERM jumper of the charger is cut, and **two wires on the spare JST-PH socket** that receives the plug of the battery (see [Power](01-power.qmd#wiring));
 - on the clock module, the **power LED** to remove.
 
 ## Wi-Fi range
@@ -177,9 +177,10 @@ A Stevenson screen, the shelter of official weather stations, keeps the sensors 
 - **The bottom**: a board of 24 × 24 cm, drilled with holes of 20 mm around the box, so that the air also comes in from below, and with a hole of 16 mm for the maintenance button, which points down.
 - **The double roof**: two boards of 30 × 30 cm, separated by spacers cut from the batten. In the sun, the upper board heats up, the more so under the solar panel; the air that goes between the two boards takes this heat away, and the lower board stays close to the temperature of the air. The upper board leans to the south, on one spacer at the front and two stacked at the back: the rain runs off away from the trellis.
 - **The lid**: the lower board of the roof, with everything on it, is held by two wood screws in two opposite corner battens.
-- **The air sensors** are screwed under the lower board, on two M3 screws, with nuts as spacers of about 1 cm: they touch no wall, and the air goes all around them.
+- **The air sensors** are screwed under the lower board, each on one M3 screw through its mounting hole (the BME280 has a single hole), with nuts as spacers of about 1 cm: they touch no wall, and the air goes all around them.
 - **On the upper board**: the solar panel, flat. The light probe will join it later, on the south side; its cable will go down through a small hole of the lower board, sheltered by the upper one.
-- **The sealed box**: a junction box of 115 × 115 × 60 mm (IP55), on two spacers at the bottom. Its cables go through the rubber membranes of its entries, at the bottom of the box; around a thin cable, a turn of self-amalgamating tape, which fuses into a watertight sleeve, closes the passage. A bag of silica gel absorbs the condensation.
+- **The sealed box**: a junction box of 115 × 115 × 60 mm (IP55), on two spacers at the bottom. Its cables go through the rubber membranes of its entries, at the bottom of the box. Each membrane is pierced with a hole smaller than the cable, so that the rubber grips it; and each cable makes a loop below the box before going in, so that water running along it drips from the loop instead of entering. A bag of silica gel, such as those found in shoe boxes, absorbs the condensation.
+- **Inside the box**: the modules and the battery are stuck to the bottom with double-sided tape, in two or three layers under the modules so that the tape reaches past their solder joints. The charger stays a few centimetres away from the battery, so that its heat, when it charges, does not warm the battery and its thermistor. The modules need no air flow: the station sleeps almost all the time, and the charger, the only part that warms up, reduces its current by itself if its chip gets too hot ([Texas Instruments](https://www.ti.com/product/BQ24074)).
 - **The support**: a wooden garden trellis, about 1.65 m high, standing in a planter, 3 m from a wall. The shelter is screwed on a vertical upright of the trellis, not on its thin slats: with the panel on its roof, it catches the wind. Two angle brackets carry the bottom board, two more hold the top of the back battens, screwed through the back grille. The sensors are at about 1.7 to 2 m, within the usual height of weather stations.
 - **The climbing plant** of the trellis stays a few tens of centimetres below the shelter, and is trimmed so that it never grows into it: plants release humidity and cool the air around them. Watering the planter can also raise the humidity measured for a while.
 
@@ -198,7 +199,7 @@ The outdoor station changes the software in four ways:
 
 Most of the electronics come from a French shop, [Gotronic](https://www.gotronic.fr), which sells the Seeed Studio, Adafruit and DFRobot boards. Amazon has two parts for less: a solar panel with the plug of the charger, and a generic INA219 module. The air sensors and the clock depend on the starting point: a SHT31 and a BMP280 from scratch, or the BME280 and the DS3231 module of the bench station. The wood, the grilles and the sealed box come from a DIY store.
 
-The electronics and the cables cost **about 95 €**, without the shipping costs and the parts of the bench station: about 69 € at Gotronic, and 26 € at Amazon. The [parts list](02-parts-list.qmd) gives every part to buy, shop by shop, with its link and its price, including the parts of the bench station.
+The electronics and the cables cost **about 91 €**, without the shipping costs and the parts of the bench station: about 65 € at Gotronic, and 26 € at Amazon. The [parts list](02-parts-list.qmd) gives every part to buy, shop by shop, with its link and its price, including the parts of the bench station.
 
 ## Implementation plan
 

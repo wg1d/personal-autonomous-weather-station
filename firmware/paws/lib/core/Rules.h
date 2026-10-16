@@ -70,3 +70,22 @@ bool isSyncNeeded(uint32_t now, bool clockValid, uint32_t lastSync,
  */
 uint32_t safetyTimerSeconds(uint32_t now, uint32_t alarm, bool alarmSet,
                             const Config& config);
+
+/**
+ * @brief Tells whether a data file must start again in a new file.
+ *
+ * The storage keeps two files of each kind: the current one and the
+ * previous one. When the current file is full, it becomes the previous
+ * file, whose former content is deleted. A line is deleted only once the
+ * server has it: the current file is replaced only when its upload cursor
+ * is at its end. Until then, the file keeps growing.
+ *
+ * @param[in] fileSize The size of the current file, in bytes.
+ * @param[in] uploadCursor Its upload cursor: the bytes before it were
+ *            acknowledged by the server.
+ * @param[in] maxSize The size above which the file is full.
+ * @return true when the file is larger than maxSize and every line of it
+ *         was acknowledged.
+ */
+bool isRotationDue(uint32_t fileSize, uint32_t uploadCursor,
+                   uint32_t maxSize);

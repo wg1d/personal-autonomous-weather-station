@@ -47,3 +47,8 @@ uint32_t safetyTimerSeconds(uint32_t now, uint32_t alarm, bool alarmSet,
     }
     return alarm - now + config.safetyMarginS;
 }
+
+bool isRotationDue(uint32_t fileSize, uint32_t uploadCursor,
+                   uint32_t maxSize) {
+    return fileSize > maxSize && uploadCursor >= fileSize;
+}
