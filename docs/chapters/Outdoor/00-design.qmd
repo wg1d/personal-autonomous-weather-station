@@ -80,8 +80,8 @@ The XIAO plugs into a [Grove Shield for XIAO](https://wiki.seeedstudio.com/Grove
 |-----------------|------|-----|
 | I2C (first) | D5 (SCL), D4 (SDA) | I2C bus: all the modules, through two hubs |
 | I2C (second) | D5, D4 | Free |
-| D0/D1 | D0 | Alarm of the clock: wakes the station up |
-| D2/D3 | D2 | Maintenance button: wakes the station up |
+| D0/D1 | D0, D1 | Alarm of the clock (D0) and maintenance button (D1): both wake the station up |
+| D2/D3 | D2, D3 | Free |
 | D8/D9 | D8 | Reserved: wind speed |
 | D9/D10 | D9 | Reserved: rain |
 | D7/D6 (UART) | — | Free |
@@ -148,8 +148,8 @@ Every link is a cable with connectors at both ends, or a wire held by a screw te
 
 - **The I2C bus** goes from the Grove Shield to a **Grove I2C hub** in the sealed box, a small board that repeats the bus on 6 connectors: the clock and the battery monitor plug into it. A 30 cm Grove cable goes out of the box to a second hub, in the shelter, for the air sensors; its free connectors wait for the later sensors.
 - **The clock, the air sensors and the INA219** have pins, not Grove connectors: each one connects to its hub with a cable that has a Grove connector at one end and four female connectors at the other, which plug onto the pins of the module.
-- **The alarm of the clock** comes with a Grove to female connectors cable, from the D0/D1 connector: its yellow wire plugs onto the SQW pin of the clock, its black wire onto GND.
-- **The maintenance button** is a waterproof push button (IP67), mounted through the bottom board of the shelter and pointing down: it is pressed from below, without opening anything (H6), and the rain does not fall on it. It closes its contact only while it is pressed. Two male-to-male jumper wires go from its screw terminals into a Grove to female connectors cable on the D2/D3 connector, and close D2 to the ground.
+- **The alarm of the clock and the maintenance button** share one Grove to female connectors cable, on the D0/D1 connector, whose two signal wires go to two places: the yellow wire (D0) plugs onto the SQW pin of the clock; the white wire (D1) and the black wire (GND) go to the button, through two male-to-male jumper wires held by its screw terminals. The red wire (3.3 V) stays free.
+- **The maintenance button** is a waterproof push button (IP67), mounted through the bottom board of the shelter and pointing down: it is pressed from below, without opening anything (H6), and the rain does not fall on it. It closes its contact only while it is pressed: it then connects D1 to the ground.
 - **The power wires** go through JST connectors, screw terminals and a lever connector (see [Power](01-power.qmd#wiring)).
 
 The I2C bus is about 1 m long, and grows with each later sensor: the firmware uses a lower clock rate, 100 kHz or below, which keeps a long bus reliable.
@@ -198,7 +198,7 @@ The outdoor station changes the software in four ways:
 
 Most of the electronics come from a French shop, [Gotronic](https://www.gotronic.fr), which sells the Seeed Studio, Adafruit and DFRobot boards. Amazon has two parts for less: a solar panel with the plug of the charger, and a generic INA219 module. The air sensors and the clock depend on the starting point: a SHT31 and a BMP280 from scratch, or the BME280 and the DS3231 module of the bench station. The wood, the grilles and the sealed box come from a DIY store.
 
-The electronics and the cables cost **about 95 €**, without the shipping costs and the parts of the bench station: about 69 € at Gotronic, and 26 € at Amazon. The [parts list](02-parts-list.qmd) gives every part to buy, shop by shop, with its link and its price, including the parts of the bench station.
+The electronics and the cables cost **about 91 €**, without the shipping costs and the parts of the bench station: about 65 € at Gotronic, and 26 € at Amazon. The [parts list](02-parts-list.qmd) gives every part to buy, shop by shop, with its link and its price, including the parts of the bench station.
 
 ## Implementation plan
 
