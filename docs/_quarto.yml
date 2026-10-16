@@ -134,6 +134,8 @@ website:
                 text: "Pull-Up and Pull-Down"
               - href: chapters/Appendix/04-ds3231-module.qmd
                 text: "DS3231 Module"
+              - href: chapters/Appendix/05-bq24074-therm-jumper.qmd
+                text: "bq24074 THERM Jumper"
           - section: "Tools"
             contents:
               - href: chapters/Appendix/02-test-server.qmd
