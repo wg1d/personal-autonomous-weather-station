@@ -6,7 +6,7 @@ Everything to buy for the outdoor station, shop by shop, as a shopping list. The
 The prices are those of the shops linked, in euros, at the time of writing, without the shipping costs.
 :::
 
-## Gotronic: electronics and cables, about 69 €
+## Gotronic: electronics and cables, about 65 €
 
 [Gotronic](https://www.gotronic.fr) is a French shop that sells the Seeed Studio, Adafruit and DFRobot boards.
 
@@ -20,14 +20,14 @@ The prices are those of the shops linked, in euros, at the time of writing, with
 | 1 | [Waterproof push button, IP67, 16 mm](https://www.gotronic.fr/art-bouton-poussoir-bp16039-29350.htm) | 4.60 € |
 | 2 | [Grove I2C hub, 6 ports](https://www.gotronic.fr/art-hub-6-ports-i2c-grove-103020272-31348.htm) | 3.80 € |
 | 1 | [Grove cables, 30 cm, set of 5](https://www.gotronic.fr/art-lot-de-5-cables-grove-30-cm-22557.htm) | 3.30 € |
-| 2 | [Grove to female connectors cables, 30 cm, set of 5](https://www.gotronic.fr/art-5-cables-30-cm-grove-4-contacts-femelles-19069.htm) | 8.40 € |
+| 1 | [Grove to female connectors cables, 30 cm, set of 5](https://www.gotronic.fr/art-5-cables-30-cm-grove-4-contacts-femelles-19069.htm) | 4.20 € |
 | 2 | [JST-PH 2-pin cable, with its plug](https://www.gotronic.fr/art-cordon-jst-ph-femelle-2-cts-jst2-21318.htm) | 4.40 € |
 
 What each cable connects:
 
 - **Grove I2C hubs**: one in the sealed box, for the clock and the INA219, and one in the shelter, for the BME280 and the later sensors. A single cable goes from the box to the shelter.
 - **Grove cables**: the Grove Shield to the hub of the box, and this hub to the hub of the shelter; the others are spares for the later sensors.
-- **Grove to female connectors cables**: the clock, its alarm, the INA219, the maintenance button, and the air sensors (see [Sensors and clock](#sensors-and-clock-two-options)).
+- **Grove to female connectors cables**: the clock, the INA219, the air sensors (see [Sensors and clock](#sensors-and-clock-two-options)), and one cable shared by the alarm of the clock and the maintenance button.
 - **JST-PH cables**: the charger to the Grove Shield, and the charger to the INA219 and the battery.
 
 ## Amazon: panel, battery monitor and coin cells, about 26 €
@@ -75,11 +75,11 @@ A SHT31 for the temperature and the humidity, the sensor of 3D-PAWS, about three
 | 1 | USB-C data cable, to program the XIAO | a few euros |
 | 2 | Male-to-male jumper wires, for the maintenance button | a few cents |
 
-With the two sensors, the station uses six Grove to female connectors cables: both sets of the Gotronic list are needed.
+With the two sensors, the station uses five Grove to female connectors cables: the set of the Gotronic list is enough.
 
 ### With the bench station
 
-The station of the [Phase 4](../Architecture/Phase-04/00-1-requirements.qmd), on its breadboard, already has a BME280 (temperature, humidity and pressure, ±1 °C, ±3 % RH), a DS3231 module, a USB-C cable and jumper wires: they move to the outdoor station, and nothing more is bought. The BME280 uses one Grove to female connectors cable, so the second set of the Gotronic list can wait for the later sensors. A SHT31 can replace the BME280 later, for a more accurate temperature.
+The station of the [Phase 4](../Architecture/Phase-04/00-1-requirements.qmd), on its breadboard, already has a BME280 (temperature, humidity and pressure, ±1 °C, ±3 % RH), a DS3231 module, a USB-C cable and jumper wires: they move to the outdoor station, and nothing more is bought. With the BME280, the station uses four Grove to female connectors cables, and one stays spare. A SHT31 can replace the BME280 later, for a more accurate temperature.
 
 ## Later sensors
 

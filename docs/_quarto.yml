@@ -124,6 +124,8 @@ website:
             text: "Power"
           - href: chapters/Outdoor/02-parts-list.qmd
             text: "Parts List"
+          - href: chapters/Outdoor/03-flash-storage.qmd
+            text: "O3 · Flash Storage"
       - section: "Appendices"
         contents:
           - section: "Electronics Notes"

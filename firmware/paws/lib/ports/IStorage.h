@@ -19,7 +19,7 @@
 /**
  * @brief The storage that keeps every row: the source of truth.
  *
- * Implemented by the SD card adapter on the board, and by a fake
+ * Implemented by the flash memory adapter on the board, and by a fake
  * storage in RAM in the tests.
  */
 class IStorage {
@@ -33,7 +33,7 @@ public:
      *
      * @param[in] record The row to store.
      * @return true if the row is stored; false if it could not be written
-     *         (card missing or full). The schedule continues anyway.
+     *         (storage missing or full). The schedule continues anyway.
      */
     virtual bool append(const Record& record) = 0;
 
@@ -70,10 +70,10 @@ public:
     /**
      * @brief Releases the storage, once per wake-up, before sleeping.
      *
-     * On the board, it appends the log of the wake-up to the card, then
-     * powers the card off: the card stays powered from its first use
-     * until the end of the wake-up, instead of being initialized again for
-     * each operation (N3).
+     * On the board, it appends the log of the wake-up to the storage,
+     * then releases it: the storage stays ready from its first use until
+     * the end of the wake-up, instead of being initialized again for each
+     * operation (N3).
      */
     virtual void close() = 0;
 };

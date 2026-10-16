@@ -5,7 +5,7 @@
  * Description:
  * The console of the station: what the adapters print goes to the serial
  * port, as with Serial, and is also kept in memory until the end of the
- * wake-up, when the storage appends it to the log file of the SD card.
+ * wake-up, when the storage appends it to the log file.
  *
  * Wiring: none (USB serial only).
  * Dependencies: ESP32 Arduino core.

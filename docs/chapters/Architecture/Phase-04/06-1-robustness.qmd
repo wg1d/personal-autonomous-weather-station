@@ -14,7 +14,7 @@ Normally, every wake-up ends in deep sleep after a few seconds. But over months,
 
 A **watchdog** is a hardware timer, independent of the program, which restarts the chip if the program does not show a sign of life in time. The Arduino core of the ESP32 already starts one, the *task watchdog*, which only watches a task of the system. `main.cpp` sets its delay to 10 minutes and adds `setup()` to the tasks it watches:
 
-```{.cpp include="../../../../firmware/paws/src/main.cpp"}
+```{.cpp include="../../../_versions/v0.7.0/firmware/paws/src/main.cpp"}
 ```
 
 The firmware never resets the watchdog: since each deep sleep restarts the chip from scratch, the watchdog starts again at each wake-up, and the whole wake-up must simply end within 10 minutes. The longest normal wake-up, a maintenance session of 3 minutes followed by a large upload, stays well below.
@@ -49,12 +49,12 @@ About a minute after the boot (67 seconds, according to the `E (67295)` lines, i
 
 Until A5, each use of the card powered it on, initialized it, and powered it off: an upload wake-up initialized it three times (store, read the rows, save the cursor), about one second each. The card now stays mounted from its first use until the end of the wake-up. Its state is kept by an `SdCard` object, created once by `main.cpp` and shared by the storage and the maintenance mode:
 
-```{.cpp include="../../../../firmware/paws/src/adapters/SdCard.h"}
+```{.cpp include="../../../_versions/v0.7.0/firmware/paws/src/adapters/SdCard.h"}
 ```
 
 The storage interface gains a function, `close()`, which the state machine calls once, just before sleeping. On the board, it powers the card off (and writes the log, see the [next chapter](06-2-log.qmd)):
 
-```{.cpp include="../../../../firmware/paws/lib/ports/IStorage.h"}
+```{.cpp include="../../../_versions/v0.7.0/firmware/paws/lib/ports/IStorage.h"}
 ```
 
 A new scenario test checks that the storage is closed once per wake-up, after its last use. On the board, an upload wake-up without NTP sync now lasts **2.5 seconds**, against 4.0 seconds in [A4](04-2-upload.qmd#expected-output).
@@ -63,7 +63,7 @@ A new scenario test checks that the storage is closed once per wake-up, after it
 
 Two changes concern the Wi-Fi adapter:
 
-```{.cpp include="../../../../firmware/paws/src/adapters/WifiNetwork.h"}
+```{.cpp include="../../../_versions/v0.7.0/firmware/paws/src/adapters/WifiNetwork.h"}
 ```
 
 - **The channel and the router of the last connection** are kept in RTC memory, and given to `WiFi.begin()` at the next connection, so that it does not have to scan every channel. After a failed connection, they are forgotten, in case the router changed its channel. On our bench, the connection took between 0.1 and 0.7 seconds with or without this memory: we could not measure a gain, but it costs nothing.
@@ -75,7 +75,7 @@ The maintenance mode now stops its access point with a single `WiFi.mode(WIFI_OF
 
 The firmware prints its version at each boot, and shows it at the bottom of the maintenance page. It is computed by Git at each build, so that it never has to be updated by hand:
 
-```{.python include="../../../../firmware/paws/version.py"}
+```{.python include="../../../_versions/v0.7.0/firmware/paws/version.py"}
 ```
 
 `git describe` gives the last version tag, such as `v0.7.0`. Built from a later commit, the firmware shows the number of commits since that tag and the commit itself, such as `v0.6.0-3-gb9d931a`, and `-dirty` when files were changed without a commit. Any version can then be traced back to its exact code.
@@ -84,7 +84,7 @@ The firmware prints its version at each boot, and shows it at the bottom of the 
 
 The firmware now uses the periods of the design by default: one measurement every 15 minutes, one upload every hour. To see the whole cycle quickly on the bench, a second PlatformIO environment, `esp32-bench`, builds the same firmware with one measurement per minute and one upload every 5 minutes:
 
-```{.ini include="../../../../firmware/paws/platformio.ini"}
+```{.ini include="../../../_versions/v0.7.0/firmware/paws/platformio.ini"}
 ```
 
 - `extends = env:esp32` reuses every setting of the station, and adds the flag `-D PAWS_BENCH_DEMO=1`.

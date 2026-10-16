@@ -1,51 +1,45 @@
 /*
  * Project: Personal Autonomous Weather Station
- * File: src/adapters/SdStorage.h
+ * File: src/adapters/FlashStorage.h
  *
  * Description:
- * Storage adapter for the SD card: appends each row to the CSV file
- * /measurements_v1.csv, appends the log of each wake-up to /log.txt, and
- * gives back the rows and log lines after their upload cursors
- * (/upload.idx, /log.idx). The card module is powered only during the
- * wake-up.
+ * Storage adapter for the flash memory of the ESP32: appends each row to
+ * the CSV file /measurements_v1.csv, appends the log of each wake-up to
+ * /log.txt, and gives back the rows and log lines after their upload
+ * cursors (/upload.idx, /log.idx). When a file is full, it becomes the
+ * previous file and a new one starts, so that the memory never fills up.
  *
- * Wiring:
- * - SD card: 5V -> VCC, GND -> GND, Pin 19 -> MISO, Pin 23 -> MOSI,
- *            Pin 18 -> SCLK, Pin 5 -> CS,
- *            Pin 13 -> OFF (10k pull-down resistor to GND)
- * Dependencies: ESP32 Arduino core (SD, FS), lib/core (CSV format),
- * SdCard.h.
+ * Wiring: none (the flash memory is part of the ESP32 module).
+ * Dependencies: ESP32 Arduino core (LittleFS, FS), lib/core (CSV format,
+ * rotation rule), FlashVolume.h.
  */
 
 #pragma once
 
 #include <Arduino.h>
-#include <SD.h>
+#include <LittleFS.h>
 
 #include "Console.h"
 #include "CsvFormat.h"
+#include "FlashVolume.h"
 #include "IStorage.h"
-#include "SdCard.h"
-
-/// Maximum size of the log file, about a month of wake-ups with the
-/// periods of the design (about 300 bytes per wake-up)
-const size_t kLogMaxSize = 1024 * 1024;
+#include "Rules.h"
 
 /**
- * @brief Storage adapter for the SD card.
+ * @brief Storage adapter for the flash memory.
  *
- * If the card is missing or cannot be written, append() reports it and
- * returns false: the row is lost, but the station keeps its schedule.
+ * If the file system cannot be mounted or written, append() reports it
+ * and returns false: the row is lost, but the station keeps its schedule.
  */
-class SdStorage : public IStorage {
+class FlashStorage : public IStorage {
 public:
     /**
-     * @brief Creates the storage on an SD card.
+     * @brief Creates the storage on the flash file system.
      *
-     * @param[in,out] card The card module, shared with the maintenance
+     * @param[in,out] volume The file system, shared with the maintenance
      *                mode.
      */
-    explicit SdStorage(SdCard& card) : card_(card) {}
+    explicit FlashStorage(FlashVolume& volume) : volume_(volume) {}
 
     bool append(const Record& record) override {
         char row[kCsvRowSize];
@@ -55,17 +49,17 @@ public:
         }
         // The timestamp starts the row: kept to date the log entry
         memcpy(wakeTime_, row, sizeof(wakeTime_) - 1);
-        bool stored = card_.mount() && write(row);
+        bool stored = volume_.mount() && write(row);
         console.printf("   %s: %s\n", stored ? "stored" : "NOT stored", row);
         return stored;
     }
 
     size_t readUnsent(DataKind kind, char* buffer, size_t size) override {
-        return card_.mount() ? read(kind, buffer, size) : 0;
+        return volume_.mount() ? read(kind, buffer, size) : 0;
     }
 
     bool markSent(DataKind kind, size_t length) override {
-        return card_.mount() &&
+        return volume_.mount() &&
                saveCursor(cursorFile(kind), unsentStart_ + length);
     }
 
@@ -73,12 +67,11 @@ public:
         // The last line of the log of this wake-up
         console.printf("   awake for %lu ms\n",
                        static_cast<unsigned long>(millis()));
-        // Only if the card was usable during the wake-up: trying to mount
-        // a missing card again would only make the wake-up longer
-        if (card_.isMounted()) {
+        // Only if the file system was usable during the wake-up
+        if (volume_.isMounted()) {
             writeLog();
         }
-        card_.unmount();
+        volume_.unmount();
     }
 
 private:
@@ -92,8 +85,9 @@ private:
 
     // Appends the row, after the header if the file is new
     bool write(const char* row) {
-        bool newFile = !SD.exists(kCsvFileName);
-        File file = SD.open(kCsvFileName, FILE_APPEND);
+        startNewFileIfFull();
+        bool newFile = !LittleFS.exists(kCsvFileName);
+        File file = LittleFS.open(kCsvFileName, FILE_APPEND);
         if (!file) {
             console.println("   cannot open the CSV file");
             return false;
@@ -101,28 +95,41 @@ private:
         if (newFile) {
             file.println(kCsvHeader);
         }
-        // println() returns the number of bytes written: 0 means failure
+        // println() returns the number of bytes written: 0 means failure,
+        // for example when the flash memory is full
         bool written = file.println(row) > 0;
         file.close();
         return written;
     }
 
+    // When the CSV file is full and the server has all its rows, it
+    // becomes the previous file, and the next row starts a new file. The
+    // former previous file is deleted: the server has its rows too.
+    void startNewFileIfFull() {
+        uint32_t size = volume_.fileSize(kCsvFileName);
+        uint32_t cursor = volume_.loadCursor(kCursorFileName);
+        if (!isRotationDue(size, cursor, volume_.maxFileSize(false))) {
+            return;
+        }
+        LittleFS.remove(kOldCsvFileName);
+        LittleFS.rename(kCsvFileName, kOldCsvFileName);
+        // The new file is read from its start
+        LittleFS.remove(kCursorFileName);
+        console.println("   measurements file full and sent: new file");
+    }
+
     // Appends what the console kept during this wake-up to the log file
     void writeLog() {
         // Rotation: past its maximum size, the log becomes the old log,
-        // and the previous old log is deleted. Its unsent lines are no
-        // longer uploaded, but stay on the card.
-        if (SD.exists(kLogFileName)) {
-            File current = SD.open(kLogFileName, FILE_READ);
-            size_t size = current.size();
-            current.close();
-            if (size > kLogMaxSize) {
-                SD.remove(kOldLogFileName);
-                SD.rename(kLogFileName, kOldLogFileName);
-                SD.remove(kLogCursorFileName);
-            }
+        // and the previous old log is deleted. The log is a help, not
+        // data: its unsent lines are no longer uploaded, but stay in the
+        // old log.
+        if (volume_.fileSize(kLogFileName) > volume_.maxFileSize(true)) {
+            LittleFS.remove(kOldLogFileName);
+            LittleFS.rename(kLogFileName, kOldLogFileName);
+            LittleFS.remove(kLogCursorFileName);
         }
-        File file = SD.open(kLogFileName, FILE_APPEND);
+        File file = LittleFS.open(kLogFileName, FILE_APPEND);
         if (!file) {
             return;  // the log is a help, not data: nothing more to do
         }
@@ -145,16 +152,14 @@ private:
 
     // Reads complete lines from the cursor, as many as fit in the buffer
     size_t read(DataKind kind, char* buffer, size_t size) {
-        // Check first: opening a missing file prints an error of the
-        // SD library, although it is a normal case here
-        if (!SD.exists(dataFile(kind))) {
+        if (!LittleFS.exists(dataFile(kind))) {
             return 0;  // no file yet: nothing to send
         }
-        File file = SD.open(dataFile(kind), FILE_READ);
+        File file = LittleFS.open(dataFile(kind), FILE_READ);
         if (!file) {
             return 0;
         }
-        uint32_t cursor = card_.loadCursor(cursorFile(kind));
+        uint32_t cursor = volume_.loadCursor(cursorFile(kind));
         if (cursor == 0 && kind == DataKind::Measurements) {
             // Start of the CSV file: skip the header line, which the core
             // adds to each request itself
@@ -176,10 +181,10 @@ private:
     }
 
     // The cursor is stored as text, for example "1234" (see
-    // SdCard::loadCursor())
+    // FlashVolume::loadCursor())
     bool saveCursor(const char* fileName, uint32_t cursor) {
         // FILE_WRITE replaces the previous content
-        File file = SD.open(fileName, FILE_WRITE);
+        File file = LittleFS.open(fileName, FILE_WRITE);
         if (!file) {
             console.println("   cannot save the upload cursor");
             return false;
@@ -189,7 +194,7 @@ private:
         return saved;
     }
 
-    SdCard& card_;
+    FlashVolume& volume_;
     uint32_t unsentStart_ = 0;  // where the lines of the last read start
     char wakeTime_[21] = "unknown time";  // timestamp of the last row
 };
