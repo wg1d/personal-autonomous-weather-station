@@ -88,8 +88,8 @@ Both cases were checked on our server: the restore from the backup of the server
 
 After a failure of the SD card of the server, the whole recovery is:
 
-1. install the system on a new card, then install uv and rclone, and configure rclone with the access to the cloud storage;
-2. deploy the backend: `pixi run deploy-backend`;
+1. install the system on a new card, and configure rclone with the access to the cloud storage: copying `~/.config/rclone/rclone.conf` from the development computer is enough, if it has the same access;
+2. deploy the backend: `pixi run deploy-backend`. On a new server, `install.sh` first installs uv and rclone, which are missing;
 3. put back the newest backup: `pixi run restore-backend`;
 4. upload in the Data tab the file of measurements downloaded from the maintenance page of the station, for the rows of the last day.
 

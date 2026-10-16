@@ -9,6 +9,28 @@
 #                here
 set -euo pipefail
 
+# The tools, installed only if they are missing: a new server needs nothing
+# before its first deployment.
+# uv, the Python packaging tool: it also downloads the Python version of
+# .python-version
+if [ ! -x ~/.local/bin/uv ]; then
+    echo "Installing uv"
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+# rclone, which copies the backups to the cloud storage. The package of the
+# system can be too old for Proton Drive: below version 1.69, the official
+# script installs the current version
+rclone_ok() {
+    command -v rclone > /dev/null || return 1
+    local version
+    version=$(rclone version | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
+    [ "${version%%.*}" -gt 1 ] || [ "${version#*.}" -ge 69 ]
+}
+if ! rclone_ok; then
+    echo "Installing rclone"
+    curl -fsS https://rclone.org/install.sh | sudo bash
+fi
+
 cd ~/paws
 mkdir -p data
 
