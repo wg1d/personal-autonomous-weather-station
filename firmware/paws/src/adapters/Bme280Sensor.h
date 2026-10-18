@@ -7,7 +7,8 @@
  * read once per wake-up in forced mode.
  *
  * Wiring:
- * - BME280: 3.3V -> VIN, GND -> GND, Pin 21 -> SDA, Pin 22 -> SCL
+ * - BME280: 3.3V -> VIN, GND -> GND, SDA and SCL on the I2C bus of the
+ *           board (see Board.h)
  *           (same I2C bus as the DS3231)
  * Dependencies: ESP32 Arduino core, Adafruit BME280 Library.
  */

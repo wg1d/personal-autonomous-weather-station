@@ -11,14 +11,13 @@
  * on the button starts the maintenance mode: an access point and a web
  * page to download or delete the data, for 3 minutes.
  *
- * Wiring:
- * - BME280: 3.3V -> VIN, GND -> GND, Pin 21 -> SDA, Pin 22 -> SCL
- * - DS3231: 3.3V -> VCC, GND -> GND, Pin 21 -> SDA, Pin 22 -> SCL,
- *           Pin 36 -> SQW (10k pull-up resistor to 3.3V)
+ * Wiring: the pins of each board are in src/adapters/Board.h.
+ * - BME280 and DS3231 on the I2C bus of the board
+ * - DS3231 SQW -> alarm pin of the board
+ * - Button -> button pin of the board
  * - No SD card: the rows and the log are kept in the flash memory of the
- *   ESP32. An SD card module left wired stays off (pull-down on its OFF
- *   pin).
- * - Button: 3.3V -> button -> Pin 39 (10k pull-down resistor to GND)
+ *   ESP32. On the bench station, an SD card module left wired stays off
+ *   (pull-down on its OFF pin).
  * Dependencies: ESP32 Arduino core, RTClib, Adafruit BME280 Library,
  * lib/core, lib/ports, include/secrets.h (Wi-Fi, server and access
  * point settings).
@@ -29,6 +28,7 @@
 
 #include "StateMachine.h"
 #include "adapters/AccessPointMaintenance.h"
+#include "adapters/Board.h"
 #include "adapters/Bme280Sensor.h"
 #include "adapters/Console.h"
 #include "adapters/Ds3231Clock.h"
@@ -38,14 +38,15 @@
 #include "adapters/WifiNetwork.h"
 #include "secrets.h"
 
-// Set to 1 by the esp32-bench environment of platformio.ini
+// Set to 1 by the bench environments of platformio.ini (esp32-bench,
+// xiao-bench)
 #ifndef PAWS_BENCH_DEMO
 #define PAWS_BENCH_DEMO 0
 #endif
 
-/// true when built with the esp32-bench environment: one measurement per
-/// minute and one upload every 5 minutes, to see the whole cycle quickly
-/// on the bench. false with the esp32 environment, for the station: the
+/// true when built with a bench environment: one measurement per minute
+/// and one upload every 5 minutes, to see the whole cycle quickly on the
+/// bench. false with the esp32 and xiao environments, for the station: the
 /// periods of the design, 15 minutes and one hour.
 const bool kBenchDemo = PAWS_BENCH_DEMO;
 
@@ -70,7 +71,7 @@ SerialLog serialLog;
 /// Runs one wake-up of the state machine, which ends in deep sleep
 void setup() {
     Serial.begin(115200);
-    console.printf("\nPAWS firmware %s%s\n", PAWS_VERSION,
+    console.printf("\nPAWS firmware %s on %s%s\n", PAWS_VERSION, kBoardName,
                    kBenchDemo ? " (bench periods)" : "");
 
     // If this wake-up ever freezes (a library waiting forever, for
