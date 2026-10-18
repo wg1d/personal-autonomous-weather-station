@@ -1,3 +1,8 @@
+---
+aliases:
+  - 03-flash-storage.html
+---
+
 # O3 · Flash Storage {.unnumbered}
 
 The outdoor station has no SD card (see [Storing the measurements](00-design.qmd#storing-the-measurements)): its rows and its log stay in the **flash memory** of the ESP32, the memory that also holds the firmware. This first step of the firmware of the outdoor station moves the storage there. It runs on the development board of the bench as well, and is tested there before the XIAO arrives.
