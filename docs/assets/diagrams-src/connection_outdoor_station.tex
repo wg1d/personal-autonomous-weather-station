@@ -97,13 +97,14 @@
 % ---------------------------------------------------------------- wake-up signals
 % The alarm of the clock: its yellow lead (D0) on the SQW pin
 \draw[wireSignal] (pD0) -- (8.4,2.6) -- (8.4,6.4);
-\node[note, right] at (8.4,3.3) {D0 $\rightarrow$ SQW};
+\node[note, right] at (8.4,3.3) {yellow: D0 $\rightarrow$ SQW};
 % The maintenance button closes D1 to ground while it is pressed: it
 % shares the cable of the alarm (D0/D1 connector)
-\draw[wireSignal] (pD0) -- (11.0,2.6) |- (button.west);
+\draw[wireSignal] (pD0) -- (11.0,2.6) |- ($(button.west)+(0,0.2)$);
+\draw[wireGround] ($(pD0)+(0,-0.25)$) -- (10.6,2.35) |- ($(button.west)+(0,-0.2)$);
 \draw[reserved] (pD2) -- (5.6,1.4);
 \node[note, right] at (5.6,1.4) {free};
-\node[note, below] at (12.3,-1.2) {same cable: D1,\\2 jumper wires};
+\node[note, below] at (15.2,-2.2) {same cable: white (D1)\\and black (GND),\\2 jumper wires};
 
 % ---------------------------------------------------------------- reserved
 \draw[reserved] (pD8) -- (5.6,0.8);
@@ -113,7 +114,7 @@
 
 % ---------------------------------------------------------------- power
 \draw[wirePower] (panel.south) -- (charger.north);
-\node[note, right] at (-3.8,6.6) {DC plug 5.5 × 2.1 mm, through a membrane};
+\node[note, right] at (-3.8,6.6) {DC plug 5.5 $\times$ 2.1 mm, through a membrane};
 
 % LOAD output -> power bonding pad of the shield (its battery input)
 \draw[wirePower] (charger.east |- bat) -- (bat);
