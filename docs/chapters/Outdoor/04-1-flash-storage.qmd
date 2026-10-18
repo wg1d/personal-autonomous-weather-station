@@ -16,7 +16,7 @@ The flash memory of the ESP32 is divided into *partitions*: one for the firmware
 | Board | Flash memory | Partition for the files |
 |-------|--------------|-------------------------|
 | Development board of the bench | 4 MB | about 1.5 MB |
-| XIAO ESP32-S3 | 8 MB | set in the step of the XIAO |
+| XIAO ESP32-S3 | 8 MB | about 4.9 MB (see [The XIAO](04-2-xiao.qmd#the-memory-of-the-xiao)) |
 
 The first time, the partition holds no file system yet: LittleFS formats it, then mounts it. The station mounts it at the first use of a wake-up, and unmounts it before the deep sleep, as it did with the SD card.
 
@@ -47,7 +47,7 @@ The flash memory is much smaller than an SD card: the station must never fill it
 
 When the current file of the rows is larger than its quarter **and** the server has acknowledged all its rows, it becomes the **previous file**, and the next row starts a new current file. The former previous file is deleted: the server has its rows, and [backs them up](../Backend/03-1-operations.qmd) every night. A new file starts when the **file** is full, not the memory: there are never more than two files of rows, and they fit in half of the partition.
 
-The previous file is a **copy kept in the station**: if the server lost data, the [maintenance page](../Architecture/Phase-04/05-1-maintenance-mode.qmd) still gives the rows of the previous months. With one row every 15 minutes, about 7.7 KB a day, a quarter of the partition of the bench board holds about seven weeks of rows; the partition of the XIAO will be about three times larger.
+The previous file is a **copy kept in the station**: if the server lost data, the [maintenance page](../Architecture/Phase-04/05-1-maintenance-mode.qmd) still gives the rows of the previous months. With one row every 15 minutes, about 7.7 KB a day, a quarter of the partition of the bench board holds about seven weeks of rows; the partition of the XIAO is about three times larger.
 
 When the server cannot be reached, the rows are not acknowledged: the current file does not start again, and keeps growing in the margin. No row that the server does not have is ever deleted. Only if the server stays out of reach for months does the memory end up full: new rows can then no longer be stored, and the maintenance page retrieves the data.
 
@@ -117,4 +117,4 @@ The five rows of the previous minutes are sent at once, and the server stores th
 
 ## Next Steps
 
-The station keeps its data without an SD card, on the bench board already. The next steps of the firmware move it to the XIAO, with its pins and its partition table, and add the new sensors and the battery monitor.
+The station keeps its data without an SD card, on the bench board already. The [next step](04-2-xiao.qmd) moves it to the XIAO, with its pins and its partition table; the following ones add the new sensors and the battery monitor.

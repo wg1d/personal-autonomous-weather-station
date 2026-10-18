@@ -208,6 +208,6 @@ The electronics and the cables cost **about 91 €**, without the shipping costs
 | O0 | Wi-Fi range: the [Wi-Fi signal test](../Appendix/03-wifi-signal.qmd), run in the garden, tells whether the antenna is enough. Done: see [Wi-Fi range](#wi-fi-range). |
 | O1 | Parts: final list, order. |
 | O2 | [Bench](03-bench.qmd): the solderings, and the modules connected with their cables on the desk, checked with the [Bench Check](../Appendix/06-bench-check.qmd) program. |
-| O3 | Firmware, in several steps: the [flash storage](04-1-flash-storage.qmd), the XIAO, the new sensors, the battery monitor; protocol version 2, and the backend. |
+| O3 | Firmware, in several steps: the [flash storage](04-1-flash-storage.qmd), [the XIAO](04-2-xiao.qmd), the new sensors, the battery monitor; protocol version 2, and the backend. |
 | O4 | Shelter: wood, grilles, paint, mounting. |
 | O5 | Outdoors: installation, first measurements, and the start of the data collection. |
