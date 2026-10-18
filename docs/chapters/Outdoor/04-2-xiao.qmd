@@ -1,0 +1,126 @@
+# O3 · The XIAO {.unnumbered}
+
+The firmware of the station ran on the development board of the bench, the uPesy ESP32 Wrover DevKit. This step brings it to the XIAO ESP32-S3 of the outdoor station, wired on the bench as in [O2 · Bench](03-bench.qmd). The state machine, the rules and the tests do not change at all: only the pins, the memory and the wake-up differ, and the [ports and adapters](../Architecture/Phase-04/00-4-structure-and-verification.qmd) of the design keep them in the adapters.
+
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/paws)
+
+## One project, one environment per board
+
+The firmware stays a single PlatformIO project. Each board gets its environment, and each environment a bench version, with one measurement per minute and one upload every five minutes:
+
+| Environment | Board | Periods |
+|-------------|-------|---------|
+| `xiao` | XIAO ESP32-S3, outdoor station | 15 minutes, one hour |
+| `xiao-bench` | XIAO ESP32-S3 | 1 minute, 5 minutes |
+| `esp32` | uPesy ESP32 Wrover DevKit, bench station | 15 minutes, one hour |
+| `esp32-bench` | uPesy ESP32 Wrover DevKit | 1 minute, 5 minutes |
+
+```{.ini include="../../../firmware/paws/platformio.ini"}
+```
+
+The `xiao` environment names its board, `seeed_xiao_esp32s3`, its partition table, and adds `-D PAWS_BOARD_XIAO=1` to the compiler options: this option chooses the pins of the XIAO in the code. The two `monitor_` lines are explained in [The USB port of the XIAO](#the-usb-port-of-the-xiao). `pio run`, without `-e`, builds both stations.
+
+## The pins of each board
+
+The pins of each board are in a single file, `Board.h`. The rest of the firmware only uses their names, such as `kButtonPin`:
+
+```{.cpp include="../../../firmware/paws/src/adapters/Board.h"}
+```
+
+`#if PAWS_BOARD_XIAO` keeps one of the two halves of the file, at compile time: the board is known when the firmware is built, and never changes while it runs. A wrong pin is thus caught on the bench, and nothing is read or decided at each wake-up.
+
+The two boards differ in their button. On the uPesy, the button connects its pin to 3.3 V, and a pull-down resistor on the breadboard keeps the pin low the rest of the time: pins 36 and 39 have no internal pull resistor. On the XIAO, the button connects D1 to the ground, and the internal pull-up resistor of the chip keeps D1 high: there is no resistor to solder (see [Pull-Up and Pull-Down](../Appendix/01-pull-resistors.qmd)).
+
+The I2C bus needs no line: each board has default I2C pins, which the Arduino core uses.
+
+## The memory of the XIAO
+
+The flash memory of the XIAO holds 8 MB. Its partition table, which divides it, gives most of it to the files of the [flash storage](04-1-flash-storage.qmd):
+
+```{.text include="../../../firmware/paws/partitions_xiao.csv"}
+```
+
+The firmware takes about 0.97 MB: the application partition of 3 MB leaves it room to grow. The station has no update over the air, which would need a second application partition. The files get the rest, about 4.9 MB, three times the partition of the bench board: a quarter of it holds about five months of rows, at 7.7 KB a day.
+
+## Waking up
+
+The station sleeps between two measurements, and three sources wake it up, as on the bench station: the alarm of the clock, the maintenance button, and the safety timer. The power adapter arms them before the deep sleep:
+
+```{.cpp include="../../../firmware/paws/src/adapters/Esp32Power.h"}
+```
+
+The alarm of the clock pulls D0 low: the EXT0 wake-up watches it, as on the uPesy.
+
+The button uses the EXT1 wake-up, which can watch several pins and wakes the chip when they change to a chosen level: high on the uPesy, low on the XIAO (`kButtonWakeMode`). On the XIAO, the internal pull-up resistor must keep D1 high during the deep sleep too. Most of the chip is then off: only its RTC part stays awake, and the resistor must be set through it. The [sleep modes guide](https://docs.espressif.com/projects/esp-idf/en/v4.4.7/esp32s3/api-reference/system/sleep_modes.html) of Espressif gives the recipe: keep the power of the RTC peripherals on during the sleep, then enable the pull-up of the pin with `rtc_gpio_pullup_en()`. The resistor draws current only while the button is pressed.
+
+On the bench, a press on the button woke the XIAO up and opened the [maintenance page](../Architecture/Phase-04/05-1-maintenance-mode.qmd), and the alarm of the clock woke it up at each full minute.
+
+## The USB port of the XIAO
+
+On the uPesy, the USB cable goes to a separate chip, which converts the USB to the serial port of the ESP32. This chip stays powered while the ESP32 sleeps: for the computer, the serial port never disappears.
+
+The XIAO has no such chip: the USB port is part of the ESP32-S3 itself. This changes three things.
+
+- **The port disappears during the deep sleep**, as if the cable were unplugged, and comes back at the wake-up. If a program still holds the former port, the computer gives the new one another name: `/dev/ttyACM1` instead of `/dev/ttyACM0` on Linux. The name `/dev/serial/by-id/usb-Espressif…`, built from the serial number of the board, does not change.
+- **The XIAO only sends its serial output to a program that sets the DTR line** of the port, a signal that says "ready to read". `monitor_dtr = 1` makes the serial monitor of PlatformIO set it. `monitor_rts = 0` keeps the RTS line off: with DTR, it would restart the chip into its programming mode.
+- **`Serial.flush()` can wait forever.** Before the deep sleep, the firmware of the bench station calls it, to send its last lines before the serial port is powered down. On the native USB port, `flush()` waits until a computer has read everything, without a time limit (`HWCDC::flush()` in the Arduino core 2.0): with the USB cable plugged in but no serial monitor open, the XIAO stayed awake for minutes instead of sleeping. Outdoors, with no computer at all, it would never have slept, and the battery would have emptied. On the XIAO, the firmware no longer calls it (`kSerialIsNativeUsb`): the last lines may be lost on the serial port, but they are in the log of the wake-up anyway.
+
+With this change, the XIAO slept and woke up at each full minute with no serial monitor open: the computer saw its port appear at the start of each minute and disappear within the same second.
+
+## On the bench
+
+With the switch of the Grove Shield on OFF and the USB cable plugged in, the bench version is built, sent to the XIAO, and the serial monitor opens:
+
+```bash
+pixi run pio run -d firmware/paws -e xiao-bench -t upload -t monitor
+```
+
+The XIAO is awake for less than a second each minute: the upload can only reach it while it is awake. A press on the button keeps it awake for the three minutes of the maintenance mode, long enough for the upload.
+
+The log of the station, sent to the server every five minutes, shows each wake-up. A wake-up with an upload printed:
+
+```text
+PAWS firmware v0.9.0-36-g56fd949-dirty on XIAO ESP32-S3 (bench periods)
+-> BOOT
+-> MEASURE
+-> STORE
+   stored: 2026-10-18T13:50:36Z,1,20.44,42.53,1005.55
+-> UPLOAD
+   Wi-Fi connected in 1400 ms
+   sent 370 bytes of measurements, server answered 200 {"received":7,"inserted":7,"duplicates":0}
+   sent 2408 bytes of log, server answered 200 {"received":105}
+-> TIME_SYNC
+   NTP time received
+   clock set to 13:50:42
+-> SCHEDULE
+   alarm set for 13:51:00
+-> SLEEP
+   awake for 5616 ms
+```
+
+and the next one, without upload:
+
+```text
+PAWS firmware v0.9.0-36-g56fd949-dirty on XIAO ESP32-S3 (bench periods)
+-> BOOT
+-> MEASURE
+-> STORE
+   stored: 2026-10-18T13:51:00Z,1,20.46,42.51,1005.52
+-> SCHEDULE
+   alarm set for 13:52:00
+-> SLEEP
+   awake for 405 ms
+```
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+|---------|---------------|
+| The serial monitor shows nothing | The monitor does not set DTR: use the `xiao` or `xiao-bench` environment, whose `monitor_dtr = 1` does. |
+| The upload fails: `Input/output error`, or no port | The XIAO went back to sleep during the upload. Press the button, and upload during the three minutes of the maintenance mode. |
+| The port is `/dev/ttyACM1` | It came back while a program still held `/dev/ttyACM0`: use the name in `/dev/serial/by-id/`, which does not change. |
+| Rows dated 2000-01-01 | The clock lost its time while it had no power, for example during a change of its coin cell: the station sets it again with NTP at its next upload. |
+
+## Next Steps
+
+The station runs on its own board. The next steps add the battery monitor, the INA219, and, from scratch, the SHT31 and the BMP280 instead of the BME280; their values go to the server with version 2 of the protocol.

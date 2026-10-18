@@ -130,6 +130,8 @@ website:
             contents:
               - href: chapters/Outdoor/04-1-flash-storage.qmd
                 text: "Flash Storage"
+              - href: chapters/Outdoor/04-2-xiao.qmd
+                text: "The XIAO"
       - section: "Appendices"
         contents:
           - section: "Electronics Notes"

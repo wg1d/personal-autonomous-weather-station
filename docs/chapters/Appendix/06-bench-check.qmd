@@ -47,4 +47,4 @@ The clock module answers at two addresses: `0x68` for the DS3231, and `0x57` for
 | A module is missing from the list | Its own cable, or its pins: unplug the USB cable, check, plug back. |
 | `unknown module` | A module at an address the table does not know: a module of another kind, or a module whose address was changed by a jumper. |
 | `Button (D1): PRESSED` without pressing | The button wires are on the wrong pins: the white wire of the D0/D1 cable goes to the button, and so does the black one. |
-| Nothing on the serial monitor | The XIAO restarts after the upload: wait a few seconds. If nothing comes, unplug and plug back the USB cable, then run `pixi run pio device monitor -d firmware/tools/bench_check`. |
+| Nothing on the serial monitor | The XIAO restarts after the upload: wait a few seconds. If nothing comes, unplug and plug back the USB cable, then run `pixi run pio device monitor -d firmware/tools/bench_check`, which sets the DTR line the XIAO waits for (see [The USB port of the XIAO](../Outdoor/04-2-xiao.qmd#the-usb-port-of-the-xiao)). |
