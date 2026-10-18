@@ -1,0 +1,63 @@
+# O2 · Bench {.unnumbered}
+
+Before the station goes into its shelter, its parts are connected on the desk, powered by the USB cable of the computer: every cable is checked where it is easy to reach, and the firmware is developed on the real board. This chapter connects the modules to the XIAO, and checks the wiring.
+
+## What is connected
+
+The XIAO ESP32-S3 is plugged into the Grove Shield, following the outline printed on the shield, its USB-C connector towards the edge of the board. Its antenna is clipped on its small gold connector: one side first, then the other, until it clicks ([Seeed Studio](https://wiki.seeedstudio.com/xiao_esp32s3_getting_started/#installation-of-antenna)).
+
+The modules connect as in the [wiring diagram](00-design.qmd#connections):
+
+- the **I2C bus** goes from an I2C connector of the shield to a Grove hub, where the BME280 and the clock plug in. The shield has two I2C connectors on the same bus: the clock can as well plug into the second one, as on our bench;
+- the **alarm of the clock** and the **maintenance button** share one Grove to female connectors cable, on the D0/D1 connector;
+- the **solar charger** powers the shield through its power bonding pad (see [Power](01-power.qmd#wiring)). On the bench, before the INA219 arrives, the battery plugs straight into the BATT socket of the charger.
+
+### The colors of the Grove cables
+
+A Grove cable has four wires, always in the same order and with the same colors. What each wire carries depends on the connector of the shield it comes from ([Seeed Studio](https://wiki.seeedstudio.com/Grove_System/)):
+
+| Wire | I2C connector | D0/D1 connector |
+|------|---------------|-----------------|
+| Yellow | SCL, the clock of the bus | D0 |
+| White | SDA, the data of the bus | D1 |
+| Red | 3.3 V | 3.3 V |
+| Black | GND | GND |
+
+On a Grove to female connectors cable, each female connector goes onto the pin of the same name on the module: yellow on SCL, white on SDA, red on VCC (VIN on the BME280), black on GND. On the D0/D1 cable:
+
+- the **yellow** wire (D0) goes onto the SQW pin of the clock;
+- the **white** wire (D1) and the **black** wire (GND) go to the two terminals of the button, through two male-to-male jumper wires: the button connects D1 to the ground while it is pressed;
+- the **red** wire stays free.
+
+On the shield, D0/D1 shares its pin D1 with the D1/D2 connector next to it: the D1/D2 connector stays empty, or a module plugged in there would fight with the button.
+
+## Power on the bench
+
+The rule of the [Power](01-power.qmd#from-the-charger-to-the-board) chapter applies: **the switch of the Grove Shield is set to OFF before the USB cable is plugged in**. The XIAO then runs from the USB cable alone.
+
+With the battery on the charger and the switch on ON, the XIAO runs from the battery. A small orange LED of the XIAO then blinks: it belongs to the battery charger of the XIAO itself, made for a battery soldered under its board. With no battery there, it blinks; users of the XIAO report this behavior ([Core Electronics forum](https://forum.core-electronics.com.au/t/solar-lipo-charger-with-xiao-esp32s3/24378)), which Seeed does not document. It also shows that the power of the solar charger reaches the board.
+
+## Checking the wiring
+
+The [Bench Check](../Appendix/06-bench-check.qmd) program lists the modules that answer on the I2C bus, and shows the state of the button and of the alarm, every two seconds. With the switch on OFF and the USB cable plugged in:
+
+```bash
+pixi run bench-check
+```
+
+On our bench, every module answered at the first try:
+
+```text
+I2C modules:
+  0x57  AT24C32 memory of the clock module (unused)
+  0x68  DS3231 clock
+  0x76  BME280 or BMP280 (pressure)
+Button (D1): released
+Clock alarm (D0): idle (high)
+```
+
+Holding the button down turned the button line into `Button (D1): PRESSED`, and releasing it turned it back. The wiring of the bench is right: the firmware of the station can run on the XIAO.
+
+## Next Steps
+
+The [firmware steps](04-1-flash-storage.qmd) bring the station to the XIAO: its pins, its memory, the wake-up by the clock and by the button, and later the INA219 and the new sensors.

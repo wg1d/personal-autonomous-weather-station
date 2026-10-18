@@ -124,8 +124,12 @@ website:
             text: "Power"
           - href: chapters/Outdoor/02-parts-list.qmd
             text: "Parts List"
-          - href: chapters/Outdoor/03-flash-storage.qmd
-            text: "O3 · Flash Storage"
+          - href: chapters/Outdoor/03-bench.qmd
+            text: "O2 – Bench"
+          - section: "O3 – Firmware"
+            contents:
+              - href: chapters/Outdoor/04-1-flash-storage.qmd
+                text: "Flash Storage"
       - section: "Appendices"
         contents:
           - section: "Electronics Notes"
@@ -142,6 +146,8 @@ website:
                 text: "Test Server"
               - href: chapters/Appendix/03-wifi-signal.qmd
                 text: "Wi-Fi Signal Test"
+              - href: chapters/Appendix/06-bench-check.qmd
+                text: "Bench Check"
 
 date: last-modified
 

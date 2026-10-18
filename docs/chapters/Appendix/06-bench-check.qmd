@@ -1,0 +1,50 @@
+# Bench Check {.unnumbered}
+
+When the modules of the outdoor station are plugged into the XIAO for the first time, on the bench (step [O2 · Bench](../Outdoor/03-bench.qmd)), a cable can be in the wrong connector, or a wire on the wrong pin. This small program shows what the XIAO sees, before the firmware of the station runs on it: every two seconds, it lists the modules that answer on the I2C bus, and the state of the maintenance button and of the alarm of the clock.
+
+> **Ready-to-use project:** The complete code is available in the repository here: [`firmware/tools/bench_check`](https://github.com/wg1d/personal-autonomous-weather-station/tree/main/firmware/tools/bench_check)
+
+## How it finds the modules
+
+Each module of the I2C bus has an **address**, a number written in hexadecimal, such as `0x68` for the DS3231 clock. The program calls each address in turn, from `0x08` to `0x77`: a module present at this address answers, the others stay silent. The answers give the list of the modules, and a short table turns each known address into a name.
+
+The button and the alarm are two inputs:
+
+- the **button** connects D1 to the ground while it is pressed. The internal pull-up resistor of the XIAO keeps D1 high the rest of the time (see [Pull-Up and Pull-Down](01-pull-resistors.qmd)): the program reads `PRESSED` when D1 is low;
+- the **alarm** of the clock, its SQW output on D0, goes low when the alarm fires. The clock module has its own pull-up resistor on this line.
+
+```{.cpp include="../../../firmware/tools/bench_check/bench_check.ino"}
+```
+
+## Running it
+
+With the switch of the Grove Shield on **OFF** (see [Power](../Outdoor/01-power.qmd#from-the-charger-to-the-board)), plug the XIAO into the computer with its USB-C cable, then, from the root of the repository:
+
+```bash
+pixi run bench-check
+```
+
+The program is built, sent to the XIAO, and the serial monitor opens. Press **Ctrl+C** to quit it.
+
+On our bench, with the clock, the BME280 and the button, it printed, while the button was held down:
+
+```text
+I2C modules:
+  0x57  AT24C32 memory of the clock module (unused)
+  0x68  DS3231 clock
+  0x76  BME280 or BMP280 (pressure)
+Button (D1): PRESSED
+Clock alarm (D0): idle (high)
+```
+
+The clock module answers at two addresses: `0x68` for the DS3231, and `0x57` for the memory chip soldered next to it, which the station does not use (see [The DS3231 Module](04-ds3231-module.qmd)).
+
+## Troubleshooting
+
+| What it prints | Cause and fix |
+|----------------|---------------|
+| `none: check the Grove cables and the switch` | No module answers: a Grove cable is not fully plugged in, or a Grove to female connectors cable is not on the right pins. Check the colors: yellow on SCL, white on SDA, red on VCC, black on GND. |
+| A module is missing from the list | Its own cable, or its pins: unplug the USB cable, check, plug back. |
+| `unknown module` | A module at an address the table does not know: a module of another kind, or a module whose address was changed by a jumper. |
+| `Button (D1): PRESSED` without pressing | The button wires are on the wrong pins: the white wire of the D0/D1 cable goes to the button, and so does the black one. |
+| Nothing on the serial monitor | The XIAO restarts after the upload: wait a few seconds. If nothing comes, unplug and plug back the USB cable, then run `pixi run pio device monitor -d firmware/tools/bench_check`. |
