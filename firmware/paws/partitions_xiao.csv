@@ -1,0 +1,9 @@
+# Partitions of the 8 MB flash memory of the XIAO ESP32-S3.
+# The station has no update over the air: a single application partition
+# of 3 MB, about three times the size of the firmware, and the rest for the
+# files of LittleFS (the partition named spiffs, which LittleFS uses by
+# default).
+# Name,   Type, SubType,  Offset,   Size
+nvs,      data, nvs,      0x9000,   0x5000
+factory,  app,  factory,  0x10000,  0x300000
+spiffs,   data, spiffs,   0x310000, 0x4F0000

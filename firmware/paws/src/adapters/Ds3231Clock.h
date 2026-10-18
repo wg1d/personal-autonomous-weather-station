@@ -7,8 +7,8 @@
  * DS3231, and its alarm 1 wakes the ESP32 up through the SQW pin.
  *
  * Wiring:
- * - DS3231: 3.3V -> VCC, GND -> GND, Pin 21 -> SDA, Pin 22 -> SCL,
- *           Pin 36 -> SQW (10k pull-up resistor to 3.3V)
+ * - DS3231: 3.3V -> VCC, GND -> GND, SDA and SCL on the I2C bus of the
+ *           board, SQW -> alarm pin of the board (see Board.h)
  * Dependencies: ESP32 Arduino core, RTClib.
  */
 

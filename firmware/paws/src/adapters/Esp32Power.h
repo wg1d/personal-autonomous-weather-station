@@ -7,25 +7,24 @@
  * woken by the DS3231 alarm (EXT0), the maintenance button (EXT1) and
  * the safety timer.
  *
- * Wiring:
- * - DS3231 SQW -> Pin 36 (10k pull-up resistor to 3.3V)
- * - Button: 3.3V -> button -> Pin 39 (10k pull-down resistor to GND)
- * Dependencies: ESP32 Arduino core (ESP-IDF sleep functions).
+ * Wiring: the pins of the board, in Board.h.
+ * - DS3231 SQW -> kRtcAlarmPin, pulled low when the alarm fires
+ * - Button -> kButtonPin: active high on the uPesy (3.3V -> button, 10k
+ *   pull-down resistor), active low on the XIAO (button -> GND, internal
+ *   pull-up resistor)
+ * Dependencies: ESP32 Arduino core (ESP-IDF sleep and RTC GPIO functions),
+ * Board.h.
  */
 
 #pragma once
 
 #include <Arduino.h>
+#include <driver/rtc_io.h>
 #include <esp_sleep.h>
 
+#include "Board.h"
 #include "Console.h"
 #include "IPower.h"
-
-/// DS3231 SQW output: pulled low when the alarm fires
-const gpio_num_t kRtcAlarmPin = GPIO_NUM_36;
-
-/// Maintenance button: pulled high while it is pressed
-const gpio_num_t kButtonPin = GPIO_NUM_39;
 
 /**
  * @brief ESP32 power management: wake-up cause and deep sleep.
@@ -49,8 +48,13 @@ public:
                       plan.rtcAlarm ? "yes" : "no",
                       plan.button ? "yes" : "no",
                       static_cast<unsigned long>(plan.timerSeconds));
-        // Send the whole message before the UART is powered down
-        Serial.flush();
+        // Send the whole message before the UART is powered down. Not on
+        // the native USB port of the XIAO: its flush() would wait forever
+        // when no computer reads the port, outdoors for example, and the
+        // station would never sleep (see Board.h)
+        if (!kSerialIsNativeUsb) {
+            Serial.flush();
+        }
 
         // Arm the alarm wake-up only if the core could program the alarm:
         // a DS3231 that does not answer may hold SQW low, which would wake
@@ -61,10 +65,7 @@ public:
         }
 
         if (plan.button) {
-            // EXT1 can watch several pins: a bit mask selects pin 39, and
-            // the station wakes up when it goes high (button pressed)
-            esp_sleep_enable_ext1_wakeup(1ULL << kButtonPin,
-                                         ESP_EXT1_WAKEUP_ANY_HIGH);
+            armButton();
         }
 
         // Safety timer (N2), always armed: if the alarm never comes, the
@@ -76,5 +77,24 @@ public:
 
         // The chip stops here: the next wake-up restarts from setup()
         esp_deep_sleep_start();
+    }
+
+private:
+    // EXT1 can watch several pins: a bit mask selects the button pin, and
+    // the station wakes up when it changes to its pressed level
+    // (kButtonWakeMode, in Board.h)
+    void armButton() {
+        if (kButtonActiveLow) {
+            // The internal pull-up resistor keeps the pin high while the
+            // button is released. In deep sleep, it only works if the RTC
+            // part of the chip, which stays awake, keeps it on: its power
+            // is kept on, and the resistor set through it
+            esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
+            rtc_gpio_pullup_en(kButtonPin);
+            rtc_gpio_pulldown_dis(kButtonPin);
+        }
+        // Otherwise, the pull-down resistor of the breadboard keeps the pin
+        // low while the button is released
+        esp_sleep_enable_ext1_wakeup(1ULL << kButtonPin, kButtonWakeMode);
     }
 };
