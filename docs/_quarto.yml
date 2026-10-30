@@ -150,6 +150,8 @@ website:
                 text: "Wi-Fi Signal Test"
               - href: chapters/Appendix/06-bench-check.qmd
                 text: "Bench Check"
+              - href: chapters/Appendix/07-multimeter-checks.qmd
+                text: "Multimeter Checks"
 
 date: last-modified
 

@@ -1,0 +1,36 @@
+\documentclass[border = 2mm]{standalone}
+\usepackage[utf8]{inputenc}
+\usepackage{tikz}
+\input{multimeter.tex}
+
+% Voltage of the battery: the multimeter, as a voltmeter, across the LIPO
+% and GND pads of the charger. The battery stays plugged in. The pads are
+% drawn on the right edge of the charger; on the board, they are in a
+% row, in another order: their names are printed next to them.
+
+\begin{document}
+\begin{tikzpicture}
+
+\node[module=orange!25, minimum width=4cm, minimum height=3cm]
+    (charger) at (0,0) {};
+\node[font=\sffamily\small, align=center] at (-0.4,0)
+    {\textbf{Charger}\\bq24074};
+\foreach \name [count=\i from 0] in {VBUS, OUT, GND, LIPO} {
+    \node[pad] (pad-\name) at (1.6,1.05-0.7*\i) {};
+    \node[label, left] at (pad-\name.west) {\name};
+}
+
+\node[module=gray!15] (battery) at (0,-3.2) {\textbf{LiPo battery}\\
+    \scriptsize plugged into BATT};
+\draw[wirePower] (-0.2,-2.6) -- (-0.2,-1.5);
+\draw[wireGround] (0.2,-2.6) -- (0.2,-1.5);
+
+\multimeter{dmm}{6,1.9}{V$\,\overline{\cdots}$ 20}{V}
+
+% Black probe on GND, red probe on LIPO: in parallel with the battery
+\draw[probeBlack] (pad-GND.east) -| (dmm-COM.south);
+\draw[probeRed] (pad-LIPO.east) -| (dmm-V.south);
+\node[note] at (6,-1.5) {red lead in V$\Omega$,\\black lead in COM};
+
+\end{tikzpicture}
+\end{document}

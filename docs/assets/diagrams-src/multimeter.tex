@@ -1,0 +1,68 @@
+% Shared by the diagrams of the multimeter appendix: the styles, and a
+% drawing of a multimeter with its display, its dial and its three jacks.
+%
+% \multimeter{name}{x,y}{dial}{unit}
+% draws a multimeter centred on (x,y), with the setting of its dial
+% (such as "V$\,\overline{\cdots}$ 20") and the unit on its display. Its
+% jacks are the coordinates name-10A, name-COM and name-V.
+
+\usetikzlibrary{calc}
+
+\tikzset{
+    module/.style={draw, thick, rounded corners=2pt, fill=#1, align=center,
+        font=\sffamily\small, minimum height=1.2cm, minimum width=3cm},
+    module/.default=gray!15,
+    meter/.style={draw, very thick, rounded corners=6pt, fill=yellow!35,
+        minimum width=3cm, minimum height=4.2cm},
+    display/.style={draw, thick, fill=green!10, minimum width=2.3cm,
+        minimum height=0.8cm, font=\sffamily\bfseries},
+    jack/.style={draw, thick, circle, minimum size=0.35cm, inner sep=0pt,
+        fill=#1},
+    pad/.style={draw, thick, circle, minimum size=0.3cm, inner sep=0pt,
+        fill=yellow!60!orange},
+    label/.style={font=\sffamily\scriptsize, inner sep=1pt},
+    note/.style={font=\sffamily\scriptsize, align=center},
+    warning/.style={font=\sffamily\scriptsize\bfseries, align=center,
+        text=red!70!black},
+    probeRed/.style={red!80!black, very thick},
+    probeBlack/.style={black, very thick},
+    wirePower/.style={red!80!black, very thick},
+    wireGround/.style={black, very thick},
+    wirePanel/.style={gray!70!black, line width=2pt},
+}
+
+\newcommand{\multimeter}[4]{%
+    \node[meter] (#1) at (#2) {};
+    \node[display] at ($(#2)+(0,1.4)$) {#4};
+    % The dial, with the setting it points to
+    \draw[thick, fill=gray!30] ($(#2)+(0,0.1)$) circle (0.55);
+    \draw[very thick] ($(#2)+(0,0.1)$) -- ++(0.35,0.35);
+    \node[label, font=\sffamily\scriptsize\bfseries] at ($(#2)+(0,-0.7)$) {#3};
+    % The three jacks: 10A on the left, COM in the middle, V on the right
+    \node[jack=red!40] (#1-10A) at ($(#2)+(-0.9,-1.5)$) {};
+    \node[jack=black!60] (#1-COM) at ($(#2)+(0,-1.5)$) {};
+    \node[jack=red!40] (#1-V) at ($(#2)+(0.9,-1.5)$) {};
+    \node[label, above] at (#1-10A.north) {10A};
+    \node[label, above] at (#1-COM.north) {COM};
+    \node[label, above] at (#1-V.north) {V$\Omega$};
+}
+
+% The pads of the charger, in a row: VBUS, OUT, LIPO and GND
+% \chargerPads{x,y} draws them from left to right, 0.8 cm apart, with
+% the coordinates pad-VBUS, pad-OUT, pad-LIPO and pad-GND
+\newcommand{\chargerPads}[1]{%
+    \foreach \name [count=\i from 0] in {VBUS, OUT, LIPO, GND} {
+        \node[pad] (pad-\name) at ($(#1)+(0.8*\i,0)$) {};
+        \node[label, above] at (pad-\name.north) {\name};
+    }
+}
+
+% The DC plug of the panel, seen from its end: a sleeve (-) around a hole
+% whose inner contact is the + (most panels: check the label)
+% \dcPlug{name}{x,y}
+\newcommand{\dcPlug}[2]{%
+    \draw[thick, fill=gray!50] (#2) circle (0.45);
+    \draw[thick, fill=white] (#2) circle (0.2);
+    \coordinate (#1-plus) at (#2);
+    \coordinate (#1-minus) at ($(#2)+(0.45,0)$);
+}

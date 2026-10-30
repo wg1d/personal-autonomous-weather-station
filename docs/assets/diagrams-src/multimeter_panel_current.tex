@@ -1,0 +1,30 @@
+\documentclass[border = 2mm]{standalone}
+\usepackage[utf8]{inputenc}
+\usepackage{tikz}
+\input{multimeter.tex}
+
+% Short-circuit current of the panel: the plug of the panel is taken out
+% of the charger, and the multimeter, as an ammeter on its 10 A range,
+% connects its two contacts. Only for the panel: never for the battery.
+
+\begin{document}
+\begin{tikzpicture}
+
+\node[module=gray!15] (panel) at (0,2.5) {\textbf{Solar panel}\\
+    \scriptsize in the sun};
+\draw[wirePanel] (panel.south) -- (0,0.45);
+\dcPlug{plug}{0,0}
+\node[note, left] at (-0.6,0) {plug of the panel,\\out of the charger:\\
+    + inside, $-$ outside};
+
+\multimeter{dmm}{5,0.5}{A$\,\overline{\cdots}$ 10A}{A}
+
+% Red lead moved to the 10A jack
+\draw[probeRed] (dmm-10A.south) -- ++(0,-0.9) -| (0,-1.3) -- (plug-plus);
+\draw[probeBlack] (dmm-COM.south) -- ++(0,-0.6) -| (plug-minus);
+\node[note] at (5,-2.8) {red lead in 10A,\\black lead in COM};
+\node[warning] at (5,-3.7) {panel only, never the battery;\\
+    red lead back in V$\Omega$ afterwards};
+
+\end{tikzpicture}
+\end{document}
