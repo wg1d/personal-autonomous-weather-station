@@ -11,8 +11,9 @@ from paws_server.dashboard import (build_comparison, build_view,
                                    compare_dates, day_extremes,
                                    format_age, health,
                                    midnights, resolution, shown,
-                                   parts_of, shown_limits, start_of,
-                                   trend, trend_text,
+                                   parts_of, pressure_outlook,
+                                   shown_limits, start_of, trend,
+                                   trend_text, weather_summary,
                                    view_after_move, view_after_step)
 
 NOW = datetime(2026, 10, 5, 12, 0, tzinfo=timezone.utc)
@@ -50,6 +51,25 @@ def test_trend_text():
     assert trend_text(-0.42, "hPa") == "↓ -0.4 hPa in 3 h"
     assert trend_text(0.02, "%") == "→ steady in 3 h"
     assert trend_text(None, "%") == ""
+
+
+def test_pressure_outlook_follows_the_scale():
+    assert pressure_outlook(0.04).startswith("Pressure steady")
+    assert pressure_outlook(-1.5).startswith("Pressure falling slowly")
+    assert pressure_outlook(2.0).startswith("Pressure rising:")
+    assert pressure_outlook(-4.1) == ("Pressure falling quickly: rain and "
+                                      "wind are likely.")
+    assert pressure_outlook(-6.5).endswith("risk of a storm.")
+
+
+def test_summary_tells_only_clear_changes():
+    changes = {"temperature_c": 2.5, "humidity_pct": -3.0,
+               "pressure_hpa": -4.1}
+    assert weather_summary(changes) == (
+        "Pressure falling quickly: rain and wind are likely. "
+        "It is getting warmer.")
+    assert weather_summary({"temperature_c": None, "humidity_pct": None,
+                            "pressure_hpa": None}) == ""
 
 
 def test_extremes_of_the_local_day_only():

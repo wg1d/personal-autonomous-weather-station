@@ -272,6 +272,59 @@ def day_extremes(rows, day, column):
             max(values, key=lambda pair: pair[0]))
 
 
+# What the change of the pressure over 3 hours tells, from the scale
+# used by weather services (the UK Met Office): below 0.1 hPa, the
+# pressure is steady; then, up to each limit, in hPa, what a rise and a
+# fall usually mean. A low pressure makes the air rise, cool down and form
+# clouds: a falling pressure often brings rain. These are tendencies, not
+# forecasts: the sentences say "often" or "likely"
+PRESSURE_STEADY = "Pressure steady: little change in the weather."
+PRESSURE_OUTLOOK = [
+    (1.5, "Pressure rising slowly: little change in the weather.",
+     "Pressure falling slowly: little change in the weather."),
+    (3.5, "Pressure rising: the weather often improves.",
+     "Pressure falling: the weather often gets worse."),
+    (6.0, "Pressure rising quickly: clearing, often with wind.",
+     "Pressure falling quickly: rain and wind are likely."),
+    (None, "Pressure rising very quickly: strong wind is likely.",
+     "Pressure falling very quickly: risk of a storm."),
+]
+
+# Below these changes in 3 hours, the temperature and the humidity are
+# said steady
+STEADY_TEMPERATURE = 1.0
+STEADY_HUMIDITY = 10.0
+
+
+def pressure_outlook(change):
+    """The sentence about the change of the pressure over 3 hours, in
+    hPa, such as "Pressure falling quickly: rain and wind are likely."."""
+    size = round(abs(change), 1)
+    if size < 0.1:
+        return PRESSURE_STEADY
+    for limit, rising, falling in PRESSURE_OUTLOOK:
+        if limit is None or size <= limit:
+            return rising if change > 0 else falling
+
+
+def weather_summary(changes):
+    """A short text about the trends of the last 3 hours, at the top of the
+    Now tab. changes holds the change of each quantity, by column (see
+    trend()), None when unknown. Returns "" when nothing is known."""
+    sentences = []
+    if changes.get("pressure_hpa") is not None:
+        sentences.append(pressure_outlook(changes["pressure_hpa"]))
+    temperature = changes.get("temperature_c")
+    if temperature is not None and abs(temperature) >= STEADY_TEMPERATURE:
+        sentences.append("It is getting warmer." if temperature > 0
+                         else "It is getting cooler.")
+    humidity = changes.get("humidity_pct")
+    if humidity is not None and abs(humidity) >= STEADY_HUMIDITY:
+        sentences.append("The air is getting more humid." if humidity > 0
+                         else "The air is getting drier.")
+    return " ".join(sentences)
+
+
 def trend_text(change, unit):
     """Writes a change: "↑ +1.2 °C in 3 h", "↓ -0.4 hPa in 3 h", or
     "→ steady in 3 h" when it rounds to 0."""
@@ -535,7 +588,8 @@ def build_view(connection, view, now):
 
     view is the period shown (see shown()). Returns a dictionary:
     "stale", "status" and "alert" (the health of the station, see
-    health()), "date" (today, in words), "cards" (see cards()), "title"
+    health()), "date" (today, in words), "summary" (the trends, see
+    weather_summary()), "cards" (see cards()), "title"
     (the period shown, see period_title()) and "figure" (the graphs).
     """
     last = database.last_row(connection)
@@ -554,7 +608,12 @@ def build_view(connection, view, now):
     limits = None
     if oldest is not None:
         limits = (oldest, f"{to_local(now):{PLOTLY_TIME}}")
+    changes = {}
+    if last is not None:
+        changes = {column: trend(day_rows, last, column)
+                   for column, _, _, _ in QUANTITIES}
     return {"stale": stale, "status": status, "alert": alert,
+            "summary": weather_summary(changes),
             "date": f"{local_now:%A %d %B %Y}",
             "cards": cards(last, day_rows, f"{local_now:%Y-%m-%d}"),
             "title": period_title(view, now),
@@ -844,6 +903,8 @@ def create_dashboard(open_database, log_path, backup_status):
             # measurement
             html.H2(id="today-date", className="today-date"),
             html.Div(id="status", className="status"),
+            # What the trends of the last 3 hours tell
+            html.P(id="summary", className="summary"),
             html.Div(id="cards", className="cards"),
         ]),
         html.Div(id="graphs-tab", style={"display": "none"}, children=[
@@ -1093,8 +1154,8 @@ def create_dashboard(open_database, log_path, backup_status):
     @app.callback(
         Output("alert", "children"), Output("alert", "className"),
         Output("status", "children"), Output("status", "className"),
-        Output("today-date", "children"), Output("cards", "children"),
-        Output("graph", "figure"), Output("period-title", "children"),
+        Output("today-date", "children"), Output("summary", "children"),
+        Output("cards", "children"), Output("graph", "figure"), Output("period-title", "children"),
         Output("next", "disabled"),
         Input("view", "data"), Input("refresh", "n_intervals"))
     def update(view, _refresh_count):
@@ -1110,7 +1171,8 @@ def create_dashboard(open_database, log_path, backup_status):
         alert_class = "alert" if result["alert"] else "alert hidden"
         status = [html.Span(className="dot"), result["status"]]
         return (result["alert"], alert_class, status, f"status {state}",
-                result["date"], result["cards"], result["figure"],
+                result["date"], result["summary"], result["cards"],
+                result["figure"],
                 result["title"],
                 view["end"] is None)
 
