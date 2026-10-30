@@ -101,13 +101,31 @@ def dew_comfort(dew):
             return feeling
 
 
+# How fast the air dries, from its vapour pressure deficit: up to each
+# limit, in kPa
+VPD_DRYING = [(0.4, "séchage faible"), (1.0, "séchage moyen"),
+              (None, "séchage fort")]
+
+
+def vpd_drying(deficit):
+    """How fast the air dries with this vapour pressure deficit, such as
+    "séchage fort"."""
+    for limit, drying in VPD_DRYING:
+        if limit is None or deficit < limit:
+            return drying
+
+
 # The other values written on the card of a quantity, in the Now tab:
-# column, name, unit, and the function that tells what the value means,
-# or None
+# column, name, unit, decimals, and the function that tells what the
+# value means, or None
 CARD_EXTRAS = {
-    "temperature_c": [("dew_point_c", "Point de rosée", "°C", dew_comfort),
-                      ("feels_like_c", "Ressenti", "°C", None)],
-    "sea_level_hpa": [("pressure_hpa", "À la station", "hPa", None)],
+    "temperature_c": [
+        ("dew_point_c", "Point de rosée", "°C", 1, dew_comfort),
+        ("feels_like_c", "Ressenti", "°C", 1, None)],
+    "humidity_pct": [
+        ("absolute_humidity_gm3", "Humidité absolue", "g/m³", 1, None),
+        ("vpd_kpa", "Déficit de vapeur", "kPa", 2, vpd_drying)],
+    "sea_level_hpa": [("pressure_hpa", "À la station", "hPa", 1, None)],
 }
 
 # How to read the values, at the bottom of the Now tab: one block per
@@ -152,6 +170,43 @@ EXPLANATIONS = [
         "seulement parce que l'air se refroidit, sans eau en plus.",
         "Pour savoir si l'air est vraiment humide, le point de rosée est "
         "plus parlant.",
+    ]),
+    ("L'humidité absolue", [
+        "C'est la masse de vapeur d'eau dans un mètre cube d'air, en "
+        "grammes : la quantité d'eau réelle, qui ne dépend pas de la "
+        "température.",
+        "Elle dit s'il faut aérer la maison : quand l'air dehors contient "
+        "moins d'eau que l'air dedans, ouvrir les fenêtres assèche la "
+        "maison, même s'il pleut ou si l'humidité relative dehors paraît "
+        "forte. En hiver, l'air à 5 °C et 90 % contient environ 6 g/m³ ; "
+        "l'air d'une pièce à 20 °C et 60 %, environ 10 g/m³. Une fois "
+        "réchauffé à 20 °C, l'air du dehors n'a plus qu'environ 35 % "
+        "d'humidité : il absorbe l'eau de la maison.",
+    ]),
+    ("Le déficit de pression de vapeur", [
+        "À une température donnée, l'air ne peut contenir qu'une quantité "
+        "maximale de vapeur d'eau. Le déficit est l'écart entre ce maximum "
+        "et ce que l'air contient : la force avec laquelle il « aspire » "
+        "l'eau des plantes, du sol ou du linge. Il s'exprime en "
+        "kilopascals (kPa).",
+        "Contrairement à l'humidité relative, il tient compte de la "
+        "température : à 80 % d'humidité, l'air à 30 °C sèche bien plus "
+        "vite que l'air à 5 °C.",
+        "Pour les plantes : moins de 0,4 kPa, elles transpirent peu, et "
+        "les maladies à champignons se développent bien ; 0,8 à 1,2 kPa "
+        "convient à la plupart des cultures ; au-delà de 1,6 kPa, elles "
+        "ferment leurs pores pour garder leur eau, et poussent moins.",
+    ]),
+    ("Les conseils d'arrosage et de linge", [
+        "Le conseil d'arrosage regarde le déficit le plus fort des "
+        "dernières 24 heures : plus il est fort, plus les plantes et le "
+        "sol ont perdu d'eau. La station ne mesure ni la pluie ni "
+        "l'humidité du sol : vérifiez la terre avec le doigt avant "
+        "d'arroser.",
+        "Le conseil de linge regarde le déficit du moment, la rosée et la "
+        "pression : une pression qui baisse vite annonce souvent la pluie. "
+        "Le vent et le soleil sèchent aussi le linge, mais la station ne "
+        "les mesure pas.",
     ]),
     ("La température ressentie", [
         "Au-dessus de 27 °C, l'humidité freine l'évaporation de la sueur : "
@@ -500,6 +555,78 @@ def now_sentences(last):
     return sentences
 
 
+# A fall of the pressure larger than this in 3 hours, in hPa, often
+# brings rain (see PRESSURE_OUTLOOK)
+RAIN_PRESSURE_DROP = 3.5
+
+# Below this deficit all day long, in kPa, plants lose little water; above
+# the second one, the soil dries fast
+WATERING_LOW_VPD = 0.6
+WATERING_HIGH_VPD = 1.2
+
+
+def watering_advice(rows, changes):
+    """The advice about watering, from the highest vapour pressure deficit
+    of the last day (rows): how much water the plants and the soil lost.
+    The station does not measure the soil nor the rain: the advice tells
+    when watering is useful, if the soil is dry."""
+    deficits = [row["vpd_kpa"] for row in rows if row["vpd_kpa"] is not None]
+    if not deficits:
+        return ""
+    highest = max(deficits)
+    if highest < WATERING_LOW_VPD:
+        text = ("l'air est resté humide, les plantes ont perdu peu d'eau. "
+                "Inutile d'arroser si la terre est encore fraîche ; évitez "
+                "de mouiller les feuilles, l'humidité favorise les maladies.")
+    elif highest < WATERING_HIGH_VPD:
+        text = ("évaporation moyenne sur la journée. Arrosez si la terre "
+                "est sèche sur 2 à 3 cm, le soir ou tôt le matin.")
+    else:
+        text = (f"air très asséchant (jusqu'à {number(highest, 2)} kPa) : "
+                "le sol sèche vite. Si la terre est sèche, arrosez le soir "
+                "ou tôt le matin, au pied des plantes.")
+    pressure = changes.get("sea_level_hpa")
+    if pressure is not None and pressure < -RAIN_PRESSURE_DROP:
+        text += " La pression baisse vite : la pluie pourrait arroser à "\
+                "votre place."
+    return text
+
+
+def laundry_advice(last, changes):
+    """The advice about drying laundry outside, from the last measurement:
+    the rain that a fast fall of the pressure announces, the dew, then the
+    vapour pressure deficit. The wind and the sun, which also dry laundry,
+    are not measured."""
+    pressure = changes.get("sea_level_hpa")
+    if pressure is not None and pressure < -RAIN_PRESSURE_DROP:
+        return ("la pression baisse vite, la pluie est probable : mieux "
+                "vaut rentrer le linge.")
+    temperature, dew = last["temperature_c"], last["dew_point_c"]
+    if temperature is not None and dew is not None \
+            and temperature - dew <= DEW_SPREAD_C:
+        return ("l'air est saturé : le linge ne sèche plus, et la rosée va "
+                "le mouiller. Rentrez-le.")
+    deficit = last["vpd_kpa"]
+    if deficit is None:
+        return ""
+    if deficit >= VPD_DRYING[1][0]:
+        return "bon séchage : le linge sèche vite."
+    if deficit >= VPD_DRYING[0][0]:
+        return ("séchage lent : il sèchera mieux avec du vent ou du "
+                "soleil.")
+    return "l'air est trop humide, le linge ne sèchera presque pas dehors."
+
+
+def advice(last, rows, changes):
+    """The advice of the Now tab, as (subject, text) pairs: watering, and
+    laundry. Empty without measurement."""
+    if last is None:
+        return []
+    pairs = [("Arrosage", watering_advice(rows, changes)),
+             ("Linge", laundry_advice(last, changes))]
+    return [(subject, text) for subject, text in pairs if text]
+
+
 def trend_text(change, unit):
     """Writes a change: "↑ +1,2 °C en 3 h", "↓ -0,4 hPa en 3 h", or
     "→ stable en 3 h" when it rounds to 0."""
@@ -547,9 +674,10 @@ def cards(last, rows, day):
         # The other values that are known, and what they mean, such as
         # "Point de rosée 8,1 °C (air sec)"
         others = " · ".join(
-            f"{other} {number(last[key])} {other_unit}"
+            f"{other} {number(last[key], decimals)} {other_unit}"
             + ("" if meaning is None else f" ({meaning(last[key])})")
-            for key, other, other_unit, meaning in CARD_EXTRAS.get(column, [])
+            for key, other, other_unit, decimals, meaning
+            in CARD_EXTRAS.get(column, [])
             if last[key] is not None)
         result.append(html.Div(className="card", style={"borderColor": color},
                                children=[
@@ -847,6 +975,8 @@ def build_view(connection, view, now):
                    for column, _, _, _ in QUANTITIES}
     return {"stale": stale, "status": status, "alert": alert,
             "summary": weather_summary(changes, last),
+            "advice": [html.P([html.B(f"{subject} : "), text])
+                       for subject, text in advice(last, day_rows, changes)],
             "date": french_date(local_now, "%A %d %B %Y").capitalize(),
             "cards": cards(last, day_rows, f"{local_now:%Y-%m-%d}"),
             "title": period_title(view, now),
@@ -1145,6 +1275,8 @@ def create_dashboard(open_database, log_path, backup_status):
             html.Div(id="status", className="status"),
             # What the trends of the last 3 hours tell
             html.P(id="summary", className="summary"),
+            # Watering and laundry
+            html.Div(id="advice", className="advice"),
             html.Div(id="cards", className="cards"),
             html.H3("Comment lire ces valeurs", className="explanations"),
             *explanations(),
@@ -1399,6 +1531,7 @@ def create_dashboard(open_database, log_path, backup_status):
         Output("alert", "children"), Output("alert", "className"),
         Output("status", "children"), Output("status", "className"),
         Output("today-date", "children"), Output("summary", "children"),
+        Output("advice", "children"),
         Output("cards", "children"), Output("graph", "figure"), Output("period-title", "children"),
         Output("next", "disabled"),
         Input("view", "data"), Input("refresh", "n_intervals"))
@@ -1415,7 +1548,8 @@ def create_dashboard(open_database, log_path, backup_status):
         alert_class = "alert" if result["alert"] else "alert hidden"
         status = [html.Span(className="dot"), result["status"]]
         return (result["alert"], alert_class, status, f"status {state}",
-                result["date"], result["summary"], result["cards"],
+                result["date"], result["summary"], result["advice"],
+                result["cards"],
                 result["figure"],
                 result["title"],
                 view["end"] is None)

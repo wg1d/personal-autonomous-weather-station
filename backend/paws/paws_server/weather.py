@@ -12,6 +12,10 @@ sensor does not measure itself:
   the heat index of the weather services. In the cold, the feels-like
   temperature depends on the wind, which the station does not measure:
   it is then not computed;
+- the absolute humidity: the mass of water vapour in a cubic metre of
+  air, whatever its temperature;
+- the vapour pressure deficit: how much more water the air could take,
+  that is how fast it dries plants, soil and laundry;
 - the pressure at sea level: the pressure the station would measure at
   the altitude 0, which the weather maps and forecasts give, so that
   places at different altitudes can be compared.
@@ -59,6 +63,30 @@ def feels_like(temperature, humidity):
              - 0.05481717 * h * h + 0.00122874 * t * t * h
              + 0.00085282 * t * h * h - 0.00000199 * t * t * h * h)
     return (index - 32) * 5 / 9
+
+
+def absolute_humidity(temperature, humidity):
+    """The absolute humidity, in grams of water per cubic metre of air,
+    from the temperature (°C) and the relative humidity (%): the pressure
+    of the vapour (Magnus formula, in hPa), turned into a mass with the
+    law of ideal gases (216.7 = 100 / 461.5, the constant of water
+    vapour, in g·K/(hPa·m³))."""
+    if temperature is None or humidity is None:
+        return None
+    saturated = 6.112 * math.exp(MAGNUS_A * temperature
+                                 / (MAGNUS_B + temperature))
+    return 216.7 * saturated * humidity / 100 / (273.15 + temperature)
+
+
+def vapour_pressure_deficit(temperature, humidity):
+    """The vapour pressure deficit, in kPa: the pressure of the water
+    vapour that saturated air would hold at this temperature (Tetens
+    formula), minus the one the air holds, from the temperature (°C) and
+    the relative humidity (%)."""
+    if temperature is None or humidity is None:
+        return None
+    saturated = 0.6108 * math.exp(17.27 * temperature / (temperature + 237.3))
+    return saturated * (1 - humidity / 100)
 
 
 def sea_level_factor(altitude):

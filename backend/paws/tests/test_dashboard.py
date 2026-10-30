@@ -10,6 +10,8 @@ from paws_server.dashboard import (build_comparison, build_view,
                                    compare_after_move,
                                    compare_dates, day_extremes,
                                    dew_comfort, french_date, number,
+                                   laundry_advice, vpd_drying,
+                                   watering_advice,
                                    format_age, health,
                                    midnights, resolution, shown,
                                    parts_of, pressure_outlook,
@@ -42,6 +44,38 @@ def test_dates_and_numbers_in_french():
     assert french_date(moment, "%A %d %B %Y") == "jeudi 29 octobre 2026"
     assert number(11.44) == "11,4"
     assert number(1.2, sign=True) == "+1,2"
+
+
+def test_vpd_drying():
+    assert vpd_drying(0.27) == "séchage faible"
+    assert vpd_drying(0.7) == "séchage moyen"
+    assert vpd_drying(1.7) == "séchage fort"
+
+
+def measurement(temperature, dew, deficit):
+    return {"temperature_c": temperature, "dew_point_c": dew,
+            "vpd_kpa": deficit}
+
+
+def test_laundry_advice():
+    steady = {"sea_level_hpa": 0.2}
+    assert laundry_advice(measurement(23.4, 9.5, 1.7),
+                          steady).startswith("bon séchage")
+    assert laundry_advice(measurement(15.0, 9.0, 0.6),
+                          steady).startswith("séchage lent")
+    # Close to the dew point, or with a fast fall of the pressure, the
+    # laundry goes in, whatever the deficit
+    assert "Rentrez-le" in laundry_advice(measurement(9.8, 8.5, 0.1), steady)
+    assert "rentrer" in laundry_advice(measurement(23.4, 9.5, 1.7),
+                                       {"sea_level_hpa": -4.0})
+
+
+def test_watering_advice_follows_the_driest_moment():
+    rows = [{"vpd_kpa": 0.2}, {"vpd_kpa": 1.71}, {"vpd_kpa": None}]
+    text = watering_advice(rows, {"sea_level_hpa": 0.0})
+    assert text.startswith("air très asséchant (jusqu'à 1,71 kPa)")
+    assert "Inutile" in watering_advice([{"vpd_kpa": 0.3}], {})
+    assert watering_advice([], {}) == ""
 
 
 def test_dew_point_comfort():

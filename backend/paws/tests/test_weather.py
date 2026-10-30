@@ -3,7 +3,8 @@
 import pytest
 
 from paws_server import database
-from paws_server.weather import dew_point, feels_like, sea_level_factor
+from paws_server.weather import (absolute_humidity, dew_point, feels_like,
+                                 sea_level_factor, vapour_pressure_deficit)
 
 
 def test_dew_point():
@@ -22,6 +23,22 @@ def test_feels_like_only_in_the_heat():
     assert feels_like(32.2, 70.0) == pytest.approx(41.1, abs=0.3)
     assert feels_like(20.0, 90.0) is None
     assert feels_like(30.0, 30.0) is None
+
+
+def test_absolute_humidity():
+    # Reference values: 8.6 g/m³ at 20 °C and 50 %, 17.3 g/m³ saturated
+    assert absolute_humidity(20.0, 50.0) == pytest.approx(8.6, abs=0.1)
+    assert absolute_humidity(20.0, 100.0) == pytest.approx(17.3, abs=0.1)
+    assert absolute_humidity(20.0, None) is None
+
+
+def test_vapour_pressure_deficit():
+    # At 20 °C, saturated air holds 2.34 kPa of vapour: half of it is
+    # missing at 50 %; saturated air has no deficit
+    assert vapour_pressure_deficit(20.0, 50.0) == pytest.approx(1.17,
+                                                                abs=0.01)
+    assert vapour_pressure_deficit(10.0, 100.0) == 0.0
+    assert vapour_pressure_deficit(None, 50.0) is None
 
 
 def test_sea_level_factor():
