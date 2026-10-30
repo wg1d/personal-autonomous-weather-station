@@ -11,6 +11,9 @@ The data lives in the folder given by the PAWS_DATA_DIR environment
 variable (by default "data", next to the code), so that a deployment
 replaces the code without touching the data.
 
+The altitude of the station, for the pressure at sea level, is given in
+metres by the PAWS_ALTITUDE_M environment variable (0 by default).
+
 Run (development computer):
     uv run uvicorn paws_server.main:app --port 8080
 
@@ -39,8 +42,11 @@ def data_dir():
 
 
 def open_database():
-    """Opens the database of the measurements, in the data folder."""
-    return database.connect(data_dir() / "measurements.db")
+    """Opens the database of the measurements, in the data folder, with
+    the altitude of the station, given in metres by the PAWS_ALTITUDE_M
+    environment variable (0 by default), for the pressure at sea level."""
+    altitude = float(os.environ.get("PAWS_ALTITUDE_M", "0"))
+    return database.connect(data_dir() / "measurements.db", altitude)
 
 
 def log_path():

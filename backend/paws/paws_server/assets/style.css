@@ -190,9 +190,14 @@ body {
 }
 
 .card-trend,
+.card-others,
 .card-extremes {
     color: var(--muted);
     font-size: 0.9rem;
+}
+
+.card-others:empty {
+    display: none;
 }
 
 .sparkline {

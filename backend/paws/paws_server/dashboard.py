@@ -73,8 +73,28 @@ UNITS = {"day": "Day", "week": "Week", "month": "Month", "year": "Year"}
 QUANTITIES = [
     ("temperature_c", "Temperature", "°C", "#d95926"),
     ("humidity_pct", "Humidity", "%", "#3987e5"),
-    ("pressure_hpa", "Pressure", "hPa", "#199e70"),
+    ("sea_level_hpa", "Pressure at sea level", "hPa", "#199e70"),
 ]
+
+# The computed quantities drawn in the graph of a quantity of the Graphs
+# tab (see weather.py): column, name, unit, color, line, and the value of
+# each day shown over a long period. The dew point in violet; the
+# feels-like temperature, a variant of the temperature, in its color,
+# dotted, and only in the heat. Over a long period, its maximum: the
+# hottest the day felt
+EXTRA_CURVES = {
+    "temperature_c": [
+        ("dew_point_c", "Dew point", "°C", "#9085e9", "solid", "avg"),
+        ("feels_like_c", "Feels like", "°C", "#d95926", "dot", "max"),
+    ],
+}
+
+# The other values written on the card of a quantity, in the Now tab
+CARD_EXTRAS = {
+    "temperature_c": [("dew_point_c", "Dew point", "°C"),
+                      ("feels_like_c", "Feels like", "°C")],
+    "sea_level_hpa": [("pressure_hpa", "At the station", "hPa")],
+}
 
 # How the comparison is drawn in the Compare tab: the same color as the
 # reference, paler and dashed, so that both can be told apart without
@@ -307,13 +327,14 @@ def pressure_outlook(change):
             return rising if change > 0 else falling
 
 
-def weather_summary(changes):
+def weather_summary(changes, last=None):
     """A short text about the trends of the last 3 hours, at the top of the
-    Now tab. changes holds the change of each quantity, by column (see
-    trend()), None when unknown. Returns "" when nothing is known."""
+    Now tab, then about the last measurement (last, see cards()). changes
+    holds the change of each quantity, by column (see trend()), None when
+    unknown. Returns "" when nothing is known."""
     sentences = []
-    if changes.get("pressure_hpa") is not None:
-        sentences.append(pressure_outlook(changes["pressure_hpa"]))
+    if changes.get("sea_level_hpa") is not None:
+        sentences.append(pressure_outlook(changes["sea_level_hpa"]))
     temperature = changes.get("temperature_c")
     if temperature is not None and abs(temperature) >= STEADY_TEMPERATURE:
         sentences.append("It is getting warmer." if temperature > 0
@@ -322,7 +343,32 @@ def weather_summary(changes):
     if humidity is not None and abs(humidity) >= STEADY_HUMIDITY:
         sentences.append("The air is getting more humid." if humidity > 0
                          else "The air is getting drier.")
+    if last is not None:
+        sentences += now_sentences(last)
     return " ".join(sentences)
+
+
+# When the temperature is this close to the dew point, the air is nearly
+# saturated: water condenses on cold surfaces (dew, or frost below 0 °C),
+# or in the air (fog)
+DEW_SPREAD_C = 2.0
+
+
+def now_sentences(last):
+    """What the dew point and the feels-like temperature of the last
+    measurement tell, when they tell something."""
+    sentences = []
+    temperature = last["temperature_c"]
+    dew = last["dew_point_c"]
+    if temperature is not None and dew is not None \
+            and temperature - dew <= DEW_SPREAD_C:
+        water = "frost" if temperature <= 0 else "dew"
+        sentences.append("The air is close to saturation: "
+                         f"{water} or fog is likely.")
+    feels = last["feels_like_c"]
+    if feels is not None and feels - temperature >= 1:
+        sentences.append(f"With the humidity, it feels like {feels:.0f} °C.")
+    return sentences
 
 
 def trend_text(change, unit):
@@ -354,9 +400,10 @@ def sparkline(rows, column, color):
 
 def cards(last, rows, day):
     """One card per quantity: the value of the last measurement, its
-    change over the last 3 hours, a small curve of the last day, and the
-    minimum and maximum of the local day (day, such as "2026-10-05").
-    rows are the rows of the last day, oldest first."""
+    change over the last 3 hours, its other values (see CARD_EXTRAS), a
+    small curve of the last day, and the minimum and maximum of the local
+    day (day, such as "2026-10-05"). rows are the rows of the last day,
+    oldest first."""
     if last is None:
         return []
     result = []
@@ -368,6 +415,11 @@ def cards(last, rows, day):
             (low, low_time), (high, high_time) = extremes
             today = (f"Today: min {low:.1f} at {low_time} · "
                      f"max {high:.1f} at {high_time}")
+        # The other values that are known, such as "Dew point 8.1 °C"
+        others = " · ".join(f"{other} {last[key]:.1f} {other_unit}"
+                            for key, other, other_unit
+                            in CARD_EXTRAS.get(column, [])
+                            if last[key] is not None)
         result.append(html.Div(className="card", style={"borderColor": color},
                                children=[
             html.Div(name, className="card-name"),
@@ -378,6 +430,7 @@ def cards(last, rows, day):
                 html.Div(trend_text(trend(rows, last, column), unit),
                          className="card-trend"),
             ]),
+            html.Div(others, className="card-others"),
             # A picture of the curve: it cannot be dragged nor zoomed
             dcc.Graph(figure=sparkline(rows, column, color),
                       className="sparkline",
@@ -494,6 +547,34 @@ def _curves(values, points, quantity, axes, label=None, compared=False):
     return curves
 
 
+def _extra_curve(values, points, extra, axes):
+    """The curve of a computed quantity (see EXTRA_CURVES), drawn over the
+    curve of its graph, without band."""
+    column, name, unit, color, dash, daily = extra
+    curve = {"type": "scatter", "mode": "lines", **axes, "name": name,
+             "showlegend": False,
+             "line": {"color": color, "width": 2, "dash": dash},
+             "hovertemplate": f"%{{y:.1f}} {unit}<extra>{name}</extra>"}
+    if points == "days":
+        return {**curve, "x": [day["day"] for day in values],
+                "y": [day[f"{column}_{daily}"] for day in values]}
+    return {**curve, "x": [row["local_time"] for row in values],
+            "y": [row[column] for row in values]}
+
+
+def graph_title(quantity, extras):
+    """The title of a graph: the name of its quantity, then the names of
+    the computed quantities drawn with it, in their color, such as
+    "Temperature (°C) · Dew point · Feels like (dotted, above 27 °C)"."""
+    _, name, unit, _ = quantity
+    title = f"{name} ({unit})"
+    for _, extra_name, _, color, dash, _ in extras:
+        dotted = " (dotted, above 27 °C)" if dash == "dot" else ""
+        title += (f" · <span style='color:{color}'>{extra_name}{dotted}"
+                  "</span>")
+    return title
+
+
 def figure(values, points, start, stop, limits=None, label=None,
            comparison=None):
     """The three graphs, one above the other, sharing the time axis.
@@ -523,6 +604,10 @@ def figure(values, points, start, stop, limits=None, label=None,
         if comparison is not None:
             data += _curves(comparison[1], points, quantity, axes,
                             comparison[0], compared=True)
+        else:
+            # The computed quantities, in the Graphs tab only
+            data += [_extra_curve(values, points, extra, axes)
+                     for extra in EXTRA_CURVES.get(quantity[0], [])]
         # Each graph has its own value axis, which keeps its scale (only
         # time moves), and a time axis that follows the first one
         # ("matches"); only the time axis of the bottom graph shows dates
@@ -560,10 +645,12 @@ def figure(values, points, start, stop, limits=None, label=None,
 
     # The title of each graph, above it
     layout["annotations"] = [
-        {"text": f"{name} ({unit})", "x": 0.5, "xref": "paper",
+        {"text": graph_title(quantity, [] if comparison is not None
+                             else EXTRA_CURVES.get(quantity[0], [])),
+         "x": 0.5, "xref": "paper",
          "y": DOMAINS[index][1], "yref": "paper", "yanchor": "bottom",
          "showarrow": False, "font": {"size": 16}}
-        for index, (_, name, unit, _) in enumerate(QUANTITIES)]
+        for index, quantity in enumerate(QUANTITIES)]
     layout.update(
         template=TEMPLATE,
         paper_bgcolor=CARD,
@@ -613,7 +700,7 @@ def build_view(connection, view, now):
         changes = {column: trend(day_rows, last, column)
                    for column, _, _, _ in QUANTITIES}
     return {"stale": stale, "status": status, "alert": alert,
-            "summary": weather_summary(changes),
+            "summary": weather_summary(changes, last),
             "date": f"{local_now:%A %d %B %Y}",
             "cards": cards(last, day_rows, f"{local_now:%Y-%m-%d}"),
             "title": period_title(view, now),
