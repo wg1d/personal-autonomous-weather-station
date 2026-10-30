@@ -1,7 +1,8 @@
 /* Style of the dashboard: Dash adds every file of this folder to the page */
 
-/* The colors of the two themes, used by the rules below */
-.root.dark {
+/* The colors of the page, used by the rules below: dark blues. --card
+   is also the background of the graphs (CARD in dashboard.py) */
+.root {
     --background: #14171c;
     --card: #1f242c;
     --text: #e8eaed;
@@ -10,17 +11,8 @@
     --shadow: rgba(0, 0, 0, 0.4);
 }
 
-.root.light {
-    --background: #f4f6f8;
-    --card: #ffffff;
-    --text: #222222;
-    --muted: #666666;
-    --accent: #2e86ab;
-    --shadow: rgba(0, 0, 0, 0.1);
-}
-
-/* The components of Dash, such as the calendars of the Compare tab, take
-   their colors from variables of their own: they follow the theme */
+/* The components of Dash, such as the lists of the Compare tab, take
+   their colors from variables of their own, set from the ones above */
 .root {
     --Dash-Fill-Inverse-Strong: var(--card);
     --Dash-Text-Strong: var(--text);
@@ -37,45 +29,80 @@ body {
     font-family: system-ui, sans-serif;
 }
 
+/* The navigation panel on the left, the page on the right */
 .root {
+    display: flex;
     min-height: 100vh;
     background: var(--background);
     color: var(--text);
 }
 
 .page {
-    max-width: 1000px;
-    margin: auto;
+    flex: 1;
+    min-width: 0;
+    max-width: 1400px;
+    margin: 0 auto;
     padding: 16px;
 }
 
-/* Title on the left; tabs and theme button on the right */
-.header,
-.header-right {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
+/* The navigation panel: the title, then one entry per tab. It stays in
+   place while the page scrolls */
+.sidebar {
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    width: 180px;
+    height: 100vh;
+    flex: none;
+    box-sizing: border-box;
+    padding: 20px 12px;
+    background: var(--card);
 }
 
-.header h1 {
+.brand {
+    padding: 0 8px 20px;
+}
+
+.brand h1 {
     margin: 0;
-    font-size: 2rem;
+    font-size: 1.8rem;
 }
 
-.subtitle,
-.hint {
+.subtitle {
+    color: var(--muted);
+    font-size: 0.8rem;
+}
+
+/* The tabs are radio buttons: the round button is hidden, and the entry
+   of the tab shown is filled */
+.tabs label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 8px;
+    border-radius: 8px;
+    cursor: pointer;
     color: var(--muted);
 }
 
-.hint {
-    font-size: 0.9rem;
+.tabs input {
+    display: none;
+}
+
+.tabs label:has(input:checked) {
+    background: var(--background);
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.tab-icon {
+    width: 1.4em;
     text-align: center;
 }
 
 /* The warning when the station is silent: hidden while it sends */
 .alert {
-    margin-top: 16px;
+    margin-bottom: 16px;
     padding: 10px 16px;
     border-radius: 8px;
     background: #e53935;
@@ -87,9 +114,14 @@ body {
     display: none;
 }
 
-/* The line above the cards, with a dot showing the health */
+/* The Now tab: today, the line above the cards with a dot showing the
+   health, then the cards */
+.today-date {
+    margin: 4px 0;
+    font-size: 1.6rem;
+}
+
 .status {
-    margin-top: 20px;
     color: var(--muted);
 }
 
@@ -114,14 +146,14 @@ body {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 12px;
-    margin: 8px 0 20px;
+    margin: 12px 0;
 }
 
 .card {
     background: var(--card);
     border-radius: 10px;
     border-left: 6px solid;
-    padding: 6px 14px;
+    padding: 14px 18px;
     box-shadow: 0 1px 3px var(--shadow);
 }
 
@@ -130,9 +162,29 @@ body {
     font-size: 0.9rem;
 }
 
+/* The value, and its change on the right */
+.card-line {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+}
+
 .card-value {
-    font-size: 1.5rem;
+    font-size: 2.2rem;
     font-weight: 700;
+}
+
+.card-trend,
+.card-extremes {
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.sparkline {
+    height: 60px;
+    margin: 6px 0;
 }
 
 .card-unit {
@@ -140,7 +192,7 @@ body {
     font-weight: 400;
 }
 
-/* Period buttons on the left, Today on the right */
+/* The Graphs tab: period buttons on the left, Today on the right */
 .controls {
     display: flex;
     flex-wrap: wrap;
@@ -188,6 +240,21 @@ button {
     cursor: pointer;
     font-size: 1rem;
     font-family: inherit;
+}
+
+/* The arrows, with the period shown between them */
+.steps {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.period-title {
+    flex: 1;
+    text-align: center;
+    font-size: 1.15rem;
+    font-weight: 600;
 }
 
 button:disabled {
@@ -276,68 +343,85 @@ button:disabled {
     padding-left: 20px;
 }
 
-/* The graphs, on a card like the values */
+/* The graphs, on a card like the values, take the height of the screen
+   left below the controls. Dash gives them a height of its own, in their
+   style attribute: !important puts this one first */
+#graph {
+    height: calc(100vh - 130px) !important;
+}
+
+#compare-graph {
+    height: calc(100vh - 140px) !important;
+}
+
 #graph,
 #compare-graph {
+    min-height: 520px;
     background: var(--card);
     border-radius: 10px;
     box-shadow: 0 1px 3px var(--shadow);
     overflow: hidden;
 }
 
-/* On a phone: the rows of buttons take the whole
-   width, one above the other, and the title is smaller */
-/* On a phone: everything above the graphs is made smaller, so that the
-   graphs and their time axis fit on the screen at a glance */
+/* On a phone: the navigation panel becomes a bar at the bottom of the
+   screen, with the tabs side by side and without the title; the cards
+   are one above the other; the controls are smaller, so that the graphs
+   and their time axis fit on the screen at a glance */
 @media (max-width: 600px) {
+    .root {
+        flex-direction: column;
+    }
+
     .page {
-        padding: 8px;
+        width: 100%;
+        box-sizing: border-box;
+        padding: 8px 8px 72px;
     }
 
-    .header h1 {
-        font-size: 1.3rem;
+    .sidebar {
+        position: fixed;
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 10;
+        width: auto;
+        height: auto;
+        padding: 4px;
+        box-shadow: 0 -1px 3px var(--shadow);
     }
 
-    .subtitle,
-    .hint {
+    .brand {
         display: none;
     }
 
-    .header-right {
-        gap: 6px;
+    .tabs {
+        display: flex;
     }
 
-    .header button,
-    .header .periods label {
-        padding: 4px 8px;
-        font-size: 0.85rem;
+    .tabs label {
+        flex: 1;
+        flex-direction: column;
+        gap: 2px;
+        padding: 6px 0;
+        font-size: 0.75rem;
     }
 
-    .status {
-        margin-top: 6px;
-        font-size: 0.85rem;
+    .tab-icon {
+        font-size: 1.2rem;
     }
 
     .cards {
+        grid-template-columns: 1fr;
+    }
+
+    .steps {
         gap: 6px;
-        margin: 4px 0 8px;
+        margin-bottom: 6px;
     }
 
-    .card {
-        padding: 2px 8px;
-        border-left-width: 4px;
-    }
-
-    .card-name {
-        font-size: 0.7rem;
-    }
-
-    .card-value {
-        font-size: 1.05rem;
-    }
-
-    .card-unit {
-        font-size: 0.7rem;
+    .period-title {
+        font-size: 0.9rem;
     }
 
     .controls {
@@ -358,6 +442,7 @@ button:disabled {
         display: inline;
     }
 
+    .steps button,
     #today {
         padding: 4px 8px;
     }
@@ -413,7 +498,7 @@ button:disabled {
     /* The graphs take the height left on the screen */
     #graph,
     #compare-graph {
-        height: calc(100svh - 220px) !important;
+        height: calc(100svh - 190px) !important;
         min-height: 380px;
     }
 }
