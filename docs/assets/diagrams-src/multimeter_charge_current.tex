@@ -1,0 +1,49 @@
+\documentclass[border = 2mm]{standalone}
+\usepackage[utf8]{inputenc}
+\usepackage{tikz}
+\input{multimeter.tex}
+
+% Current from the panel to the charger: the multimeter, as an ammeter,
+% in series on the + wire, between two DC adapters with screw terminals.
+% The - wire goes straight from one adapter to the other.
+
+\tikzset{
+    adapter/.style={draw, thick, rounded corners=1pt, fill=gray!30,
+        minimum width=1.6cm, minimum height=1cm, align=center,
+        font=\sffamily\scriptsize},
+    terminal/.style={draw, thick, fill=green!35, minimum size=0.4cm,
+        inner sep=0pt, font=\sffamily\scriptsize},
+}
+
+\begin{document}
+\begin{tikzpicture}
+
+\node[module=gray!15] (panel) at (-5,2.6) {\textbf{Solar panel}\\
+    \scriptsize in the sun};
+\node[adapter] (female) at (-5,0) {female DC\\adapter};
+\draw[wirePanel] (panel.south) -- (female.north);
+\node[terminal] (fPlus) at (-4.5,-0.85) {+};
+\node[terminal] (fMinus) at (-5.5,-0.85) {$-$};
+
+\node[adapter] (male) at (5,0) {male DC\\adapter};
+\node[terminal] (mPlus) at (4.5,-0.85) {+};
+\node[terminal] (mMinus) at (5.5,-0.85) {$-$};
+\node[module=orange!25] (charger) at (5,2.6) {\textbf{Charger}\\
+    \scriptsize its DC jack};
+\draw[wirePanel] (male.north) -- (charger.south);
+\node[module=gray!15] (battery) at (8.6,2.6) {\textbf{LiPo}\\
+    \scriptsize battery};
+\draw[wirePower] (charger.east) -- (battery.west);
+
+\multimeter{dmm}{0,1.4}{A$\,\overline{\cdots}$ 10A}{A}
+
+% The + goes through the multimeter: in series
+\draw[wirePower] (fPlus.south) |- (-1.6,-1.6) -| (dmm-10A.south);
+\draw[probeBlack] (dmm-COM.south) |- (1.6,-1.6) -| (mPlus.south);
+% The - goes straight from one adapter to the other
+\draw[wireGround] (fMinus.south) |- (0,-2.6) -| (mMinus.south);
+\node[note] at (0,-3.2) {the $-$ wire goes straight across;\\
+    red lead in 10A, black lead in COM};
+
+\end{tikzpicture}
+\end{document}

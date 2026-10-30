@@ -98,7 +98,7 @@ The INA219 shares the ground of the station through its I2C cable: it measures t
 
 ## The battery monitor
 
-The battery monitor is part of the station for good: at each wake-up, every 15 minutes, it measures the battery, and its values are sent with the weather measurements.
+The battery monitor is part of the station for good: at each wake-up, every 15 minutes, it measures the battery, and its values are sent with the weather measurements. A multimeter checks the battery and the panel by hand: see [Checking the Panel and the Battery with a Multimeter](../Appendix/07-multimeter-checks.qmd).
 
 ### What it measures
 
