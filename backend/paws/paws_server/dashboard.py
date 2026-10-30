@@ -212,10 +212,10 @@ PLOTLY_FRENCH = {"fr": {"format": {
 
 # The dates of the time axes, in the French order, depending on the gap
 # between two ticks, in milliseconds or in months ("M1"): the hour and the
-# day below 1 day, the day below 1 month, the month below 1 year, then the
+# day ("ven. 30") below 1 day, the day below 1 month, the month below 1 year, then the
 # year. <br> starts a second line
 DATE_TICKS = [
-    {"dtickrange": [None, 86400000], "value": "%H:%M<br>%a %d %b"},
+    {"dtickrange": [None, 86400000], "value": "%H:%M<br>%a %d"},
     {"dtickrange": [86400000, "M1"], "value": "%a %d %b"},
     {"dtickrange": ["M1", "M12"], "value": "%b %Y"},
     {"dtickrange": ["M12", None], "value": "%Y"},
@@ -694,16 +694,20 @@ def _extra_curve(values, points, extra, axes):
 
 
 def graph_title(quantity, extras):
-    """The title of a graph: the name of its quantity, then the names of
-    the computed quantities drawn with it, in their color, such as
-    "Température (°C) · Point de rosée · Ressenti (pointillés, au-dessus
-    de 27 °C)"."""
+    """The title of a graph: the name of its quantity, such as
+    "Température (°C)", then, on a second line, in smaller letters, the
+    names of the computed quantities drawn with it, in their color:
+    "Point de rosée · Ressenti (pointillés, dès 27 °C)"."""
     _, name, unit, _ = quantity
     title = f"{name} ({unit})"
+    names = []
     for _, extra_name, _, color, dash, _ in extras:
-        dotted = " (pointillés, au-dessus de 27 °C)" if dash == "dot" else ""
-        title += (f" · <span style='color:{color}'>{extra_name}{dotted}"
-                  "</span>")
+        dotted = " (pointillés, dès 27 °C)" if dash == "dot" else ""
+        names.append(f"<span style='color:{color}'>{extra_name}{dotted}"
+                     "</span>")
+    if names:
+        title += ("<br><span style='font-size:13px'>" + " · ".join(names)
+                  + "</span>")
     return title
 
 
@@ -796,9 +800,10 @@ def figure(values, points, start, stop, limits=None, label=None,
         plot_bgcolor=CARD,
         # Dragging the graphs moves them in time, instead of zooming
         dragmode="pan",
-        # Room at the bottom for the dates, and for the legend of the
-        # Compare tab
-        margin={"l": 60, "r": 20, "t": 40,
+        # Room at the top for the title of the temperature graph, on two
+        # lines in the Graphs tab; at the bottom, for the dates, and for
+        # the legend of the Compare tab
+        margin={"l": 60, "r": 20, "t": 60 if comparison is None else 40,
                 "b": 50 if label is None else 90},
         hovermode="x unified",
         # Numbers in French: a decimal comma, a space between thousands
