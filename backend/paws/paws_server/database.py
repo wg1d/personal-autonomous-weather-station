@@ -28,6 +28,9 @@ QUANTITIES = {
     "pressure_hpa": "pressure_hpa",
     "dew_point_c": "dew_point(temperature_c, humidity_pct)",
     "feels_like_c": "feels_like(temperature_c, humidity_pct)",
+    "absolute_humidity_gm3": "absolute_humidity(temperature_c, "
+                             "humidity_pct)",
+    "vpd_kpa": "vpd(temperature_c, humidity_pct)",
     "sea_level_hpa": "sea_level(pressure_hpa)",
 }
 # All the quantities, separated by commas, for a SELECT
@@ -47,6 +50,9 @@ def connect(path, altitude=0):
     factor = weather.sea_level_factor(altitude)
     connection.create_function("dew_point", 2, weather.dew_point)
     connection.create_function("feels_like", 2, weather.feels_like)
+    connection.create_function("absolute_humidity", 2,
+                               weather.absolute_humidity)
+    connection.create_function("vpd", 2, weather.vapour_pressure_deficit)
     connection.create_function(
         "sea_level", 1,
         lambda pressure: None if pressure is None else pressure * factor)

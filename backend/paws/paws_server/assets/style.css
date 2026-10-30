@@ -138,6 +138,18 @@ body {
     display: none;
 }
 
+/* The advice about watering and laundry, one paragraph each */
+.advice {
+    margin: 8px 0 0;
+    padding: 2px 16px;
+    border-radius: 10px;
+    background: var(--card);
+}
+
+.advice:empty {
+    display: none;
+}
+
 .dot {
     display: inline-block;
     width: 10px;
