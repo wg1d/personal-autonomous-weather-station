@@ -175,6 +175,29 @@ body {
     font-size: 0.9rem;
 }
 
+/* How to read the values: blocks closed until their title is clicked */
+.explanations {
+    margin: 24px 0 8px;
+    font-size: 1.1rem;
+}
+
+.explanation {
+    margin-bottom: 8px;
+    padding: 10px 16px;
+    border-radius: 10px;
+    background: var(--card);
+}
+
+.explanation summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.explanation p {
+    color: var(--muted);
+    line-height: 1.5;
+}
+
 /* The value, and its change on the right */
 .card-line {
     display: flex;

@@ -49,31 +49,31 @@ PERIODS = {
     "30d": timedelta(days=30),
     "1y": timedelta(days=365),
 }
-PERIOD_LABELS = {"24h": "24 hours", "7d": "7 days", "30d": "30 days",
-                 "1y": "1 year"}
+PERIOD_LABELS = {"24h": "24 heures", "7d": "7 jours", "30d": "30 jours",
+                 "1y": "1 an"}
 # The tabs of the navigation panel: value, icon, name
 TABS = [
-    ("now", "◉", "Now"),
-    ("graphs", "〜", "Graphs"),
-    ("compare", "⇄", "Compare"),
-    ("data", "⬇", "Data"),
+    ("now", "◉", "Maintenant"),
+    ("graphs", "〜", "Courbes"),
+    ("compare", "⇄", "Comparer"),
+    ("data", "⬇", "Données"),
 ]
 
 # Shorter labels, shown on a phone instead (see style.css)
-SHORT_LABELS = {"24h": "24h", "7d": "7d", "30d": "30d", "1y": "1y"}
+SHORT_LABELS = {"24h": "24 h", "7d": "7 j", "30d": "30 j", "1y": "1 an"}
 
 # The units of the Compare tab. A period is chosen in short lists: the
 # day, the month and the year for a day; the week number and the year for
 # a week; the month and the year for a month; the year for a year
-UNITS = {"day": "Day", "week": "Week", "month": "Month", "year": "Year"}
+UNITS = {"day": "Jour", "week": "Semaine", "month": "Mois", "year": "Année"}
 
 # The quantities shown: column of the database, name, unit, color. The
 # three colors stay distinct for the most common forms of color blindness,
 # and readable on the dark background of the cards
 QUANTITIES = [
-    ("temperature_c", "Temperature", "°C", "#d95926"),
-    ("humidity_pct", "Humidity", "%", "#3987e5"),
-    ("sea_level_hpa", "Pressure at sea level", "hPa", "#199e70"),
+    ("temperature_c", "Température", "°C", "#d95926"),
+    ("humidity_pct", "Humidité", "%", "#3987e5"),
+    ("sea_level_hpa", "Pression au niveau de la mer", "hPa", "#199e70"),
 ]
 
 # The computed quantities drawn in the graph of a quantity of the Graphs
@@ -84,17 +84,93 @@ QUANTITIES = [
 # hottest the day felt
 EXTRA_CURVES = {
     "temperature_c": [
-        ("dew_point_c", "Dew point", "°C", "#9085e9", "solid", "avg"),
-        ("feels_like_c", "Feels like", "°C", "#d95926", "dot", "max"),
+        ("dew_point_c", "Point de rosée", "°C", "#9085e9", "solid", "avg"),
+        ("feels_like_c", "Ressenti", "°C", "#d95926", "dot", "max"),
     ],
 }
 
-# The other values written on the card of a quantity, in the Now tab
+# How the air feels, from its dew point: up to each limit, in °C
+DEW_COMFORT = [(10, "air sec"), (16, "confortable"), (20, "un peu lourd"),
+               (None, "étouffant")]
+
+
+def dew_comfort(dew):
+    """How the air feels with this dew point, such as "air sec"."""
+    for limit, feeling in DEW_COMFORT:
+        if limit is None or dew < limit:
+            return feeling
+
+
+# The other values written on the card of a quantity, in the Now tab:
+# column, name, unit, and the function that tells what the value means,
+# or None
 CARD_EXTRAS = {
-    "temperature_c": [("dew_point_c", "Dew point", "°C"),
-                      ("feels_like_c", "Feels like", "°C")],
-    "sea_level_hpa": [("pressure_hpa", "At the station", "hPa")],
+    "temperature_c": [("dew_point_c", "Point de rosée", "°C", dew_comfort),
+                      ("feels_like_c", "Ressenti", "°C", None)],
+    "sea_level_hpa": [("pressure_hpa", "À la station", "hPa", None)],
 }
+
+# How to read the values, at the bottom of the Now tab: one block per
+# subject, closed until clicked, with its title and its paragraphs
+EXPLANATIONS = [
+    ("La pression et sa tendance", [
+        "La pression est le poids de l'air au-dessus de la station. Sa "
+        "valeur seule dit peu de choses : c'est sa variation qui annonce "
+        "le temps.",
+        "Quand elle baisse, une dépression approche : l'air monte, se "
+        "refroidit et forme des nuages, d'où la pluie et le vent. Quand "
+        "elle monte, un anticyclone s'installe : le temps devient plus "
+        "sec et plus calme.",
+        "Variation en 3 heures : moins de 0,1 hPa, stable ; jusqu'à "
+        "1,5 hPa, légère ; jusqu'à 3,5 hPa, nette ; jusqu'à 6 hPa, forte ; "
+        "au-delà, très forte. Ce sont des tendances, pas des prévisions "
+        "sûres.",
+        "La valeur est ramenée au niveau de la mer, comme dans les "
+        "bulletins météo, pour se comparer aux autres villes : 1013 hPa "
+        "en moyenne, moins de 1000 hPa dans une dépression marquée, plus "
+        "de 1025 hPa dans un anticyclone.",
+    ]),
+    ("Le point de rosée", [
+        "C'est la température à laquelle il faudrait refroidir l'air pour "
+        "qu'il soit saturé d'eau : la vapeur se condense alors en rosée, "
+        "en givre sous 0 °C, ou en brouillard.",
+        "Ce qui compte, c'est l'écart avec la température : moins de "
+        "2 °C, la rosée ou le brouillard sont probables ; un grand écart, "
+        "l'air est sec.",
+        "Il mesure la quantité d'eau dans l'air, et dit le confort : "
+        "moins de 10 °C, air sec ; 10 à 16 °C, confortable ; 16 à 20 °C, "
+        "un peu lourd ; plus de 20 °C, étouffant, avec des orages "
+        "possibles en été.",
+        "Par nuit calme et dégagée, la température descend rarement "
+        "beaucoup sous le point de rosée : il donne une idée du minimum "
+        "de la nuit.",
+    ]),
+    ("L'humidité relative", [
+        "C'est la vapeur d'eau dans l'air, en pourcentage du maximum que "
+        "l'air peut contenir à sa température. L'air chaud contient plus "
+        "d'eau que l'air froid : la nuit, l'humidité monte souvent "
+        "seulement parce que l'air se refroidit, sans eau en plus.",
+        "Pour savoir si l'air est vraiment humide, le point de rosée est "
+        "plus parlant.",
+    ]),
+    ("La température ressentie", [
+        "Au-dessus de 27 °C, l'humidité freine l'évaporation de la sueur : "
+        "le corps se refroidit moins bien, et on a plus chaud que la "
+        "température. La station calcule alors l'indice de chaleur des "
+        "services météo américains.",
+        "Par temps froid, le ressenti dépend surtout du vent, que la "
+        "station ne mesure pas : il n'est pas calculé.",
+    ]),
+]
+
+
+def explanations():
+    """The blocks of EXPLANATIONS: each one opens on a click on its
+    title (the <details> element of HTML, without any callback)."""
+    return [html.Details(className="explanation", children=[
+                html.Summary(title),
+                *[html.P(paragraph) for paragraph in paragraphs]])
+            for title, paragraphs in EXPLANATIONS]
 
 # How the comparison is drawn in the Compare tab: the same color as the
 # reference, paler and dashed, so that both can be told apart without
@@ -111,6 +187,57 @@ REFRESH_MS = 5 * 60 * 1000
 
 # The format of the times given to Plotly, in local time
 PLOTLY_TIME = "%Y-%m-%d %H:%M:%S"
+
+# The page is in French. The names of the days and months are written
+# here, instead of asking them to the system, whose language may be
+# another one (see french_date())
+DAYS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi",
+        "dimanche"]
+SHORT_DAYS = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."]
+MONTHS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet",
+          "août", "septembre", "octobre", "novembre", "décembre"]
+SHORT_MONTHS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.",
+                "août", "sept.", "oct.", "nov.", "déc."]
+
+# The same names for Plotly, which writes the dates of the time axes and
+# of the values under the mouse in the browser (the "locale" of the
+# graphs). separators: a decimal comma, and a space between thousands
+PLOTLY_FRENCH = {"fr": {"format": {
+    "days": [DAYS[-1]] + DAYS[:-1],             # Plotly starts on Sunday
+    "shortDays": [SHORT_DAYS[-1]] + SHORT_DAYS[:-1],
+    "months": MONTHS, "shortMonths": SHORT_MONTHS,
+    "date": "%d/%m/%Y", "decimal": ",", "thousands": " ",
+}}}
+
+
+# The dates of the time axes, in the French order, depending on the gap
+# between two ticks, in milliseconds or in months ("M1"): the hour and the
+# day below 1 day, the day below 1 month, the month below 1 year, then the
+# year. <br> starts a second line
+DATE_TICKS = [
+    {"dtickrange": [None, 86400000], "value": "%H:%M<br>%a %d %b"},
+    {"dtickrange": [86400000, "M1"], "value": "%a %d %b"},
+    {"dtickrange": ["M1", "M12"], "value": "%b %Y"},
+    {"dtickrange": ["M12", None], "value": "%Y"},
+]
+
+
+def french_date(moment, form):
+    """Writes a date with strftime(), the names of the days (%A, %a) and
+    of the months (%B, %b) in French: french_date(moment, "%a %d %b") gives
+    "jeu. 29 oct."."""
+    form = (form.replace("%A", DAYS[moment.weekday()])
+            .replace("%a", SHORT_DAYS[moment.weekday()])
+            .replace("%B", MONTHS[moment.month - 1])
+            .replace("%b", SHORT_MONTHS[moment.month - 1]))
+    return moment.strftime(form)
+
+
+def number(value, decimals=1, sign=False):
+    """Writes a number in French, with a decimal comma: "11,4", or "+1,2"
+    with sign."""
+    text = f"{value:+.{decimals}f}" if sign else f"{value:.{decimals}f}"
+    return text.replace(".", ",")
 
 
 def parse_timestamp(text):
@@ -210,36 +337,36 @@ def resolution(length):
 
 def period_title(view, now):
     """Writes the period shown in the Graphs tab, above the graphs, with
-    the day of the week: "Thu 29 Oct, 14:30 → Fri 30 Oct, 14:30" up to 2
-    days, "Wed 30 Sep 2026 → Fri 30 Oct 2026" beyond. While it shows the
-    present, its end is written "now"."""
+    the day of the week: "jeu. 29 oct., 14:30 → ven. 30 oct., 14:30" up to
+    2 days, "mer. 30 sept. 2026 → ven. 30 oct. 2026" beyond. While it
+    shows the present, its end is written "maintenant"."""
     start, stop = shown(view, now)
     first, last = to_local(start), to_local(stop)
     form = "%a %d %b, %H:%M" if stop - start <= timedelta(days=2) \
         else "%a %d %b %Y"
-    end = "now" if view["end"] is None else f"{last:{form}}"
-    return f"{first:{form}} → {end}"
+    end = "maintenant" if view["end"] is None else french_date(last, form)
+    return f"{french_date(first, form)} → {end}"
 
 
 def span_label(start, stop):
-    """Writes a period in local time: "04 Oct 15:30 → 05 Oct 15:30" up to
-    2 days, "05 Sep 2026 → 05 Oct 2026" beyond."""
+    """Writes a period in local time: "04 oct. 15:30 → 05 oct. 15:30" up
+    to 2 days, "05 sept. 2026 → 05 oct. 2026" beyond."""
     first, last = to_local(start), to_local(stop)
-    if stop - start <= timedelta(days=2):
-        return f"{first:%d %b %H:%M} → {last:%d %b %H:%M}"
-    return f"{first:%d %b %Y} → {last:%d %b %Y}"
+    form = "%d %b %H:%M" if stop - start <= timedelta(days=2) \
+        else "%d %b %Y"
+    return f"{french_date(first, form)} → {french_date(last, form)}"
 
 
 # --- Health and last measurement -------------------------------------------
 
 def format_age(age):
-    """Writes a duration in words: "12 min", "3 h 05 min" or "4 days"."""
+    """Writes a duration in words: "12 min", "3 h 05 min" or "4 jours"."""
     minutes = int(age.total_seconds() // 60)
     if minutes < 60:
         return f"{minutes} min"
     if minutes < 48 * 60:
         return f"{minutes // 60} h {minutes % 60:02d} min"
-    return f"{minutes // (24 * 60)} days"
+    return f"{minutes // (24 * 60)} jours"
 
 
 def health(last, now):
@@ -250,15 +377,16 @@ def health(last, now):
     top of the page when the station is silent, empty otherwise.
     """
     if last is None:
-        return (True, "No measurement received yet",
-                "No measurement received yet: check the station.")
+        return (True, "Aucune mesure reçue pour l'instant",
+                "Aucune mesure reçue pour l'instant : vérifiez la station.")
     measured = parse_timestamp(last["timestamp"])
     age = now - measured
-    status = (f"Last measurement · {to_local(measured):%d %b, %H:%M} "
-              f"({format_age(age)} ago)")
+    status = ("Dernière mesure · "
+              f"{french_date(to_local(measured), '%d %b, %H:%M')} "
+              f"(il y a {format_age(age)})")
     if age > STALE_AFTER:
-        return (True, status, f"No new measurement for {format_age(age)}: "
-                "check the station.")
+        return (True, status, "Aucune nouvelle mesure depuis "
+                f"{format_age(age)} : vérifiez la station.")
     return False, status, ""
 
 
@@ -298,16 +426,16 @@ def day_extremes(rows, day, column):
 # fall usually mean. A low pressure makes the air rise, cool down and form
 # clouds: a falling pressure often brings rain. These are tendencies, not
 # forecasts: the sentences say "often" or "likely"
-PRESSURE_STEADY = "Pressure steady: little change in the weather."
+PRESSURE_STEADY = "Pression stable : peu de changement du temps."
 PRESSURE_OUTLOOK = [
-    (1.5, "Pressure rising slowly: little change in the weather.",
-     "Pressure falling slowly: little change in the weather."),
-    (3.5, "Pressure rising: the weather often improves.",
-     "Pressure falling: the weather often gets worse."),
-    (6.0, "Pressure rising quickly: clearing, often with wind.",
-     "Pressure falling quickly: rain and wind are likely."),
-    (None, "Pressure rising very quickly: strong wind is likely.",
-     "Pressure falling very quickly: risk of a storm."),
+    (1.5, "Pression en légère hausse : peu de changement du temps.",
+     "Pression en légère baisse : peu de changement du temps."),
+    (3.5, "Pression en hausse : le temps s'améliore souvent.",
+     "Pression en baisse : le temps se dégrade souvent."),
+    (6.0, "Pression en forte hausse : éclaircies, souvent avec du vent.",
+     "Pression en forte baisse : pluie et vent probables."),
+    (None, "Pression en très forte hausse : vent fort probable.",
+     "Pression en très forte baisse : risque de tempête."),
 ]
 
 # Below these changes in 3 hours, the temperature and the humidity are
@@ -318,7 +446,7 @@ STEADY_HUMIDITY = 10.0
 
 def pressure_outlook(change):
     """The sentence about the change of the pressure over 3 hours, in
-    hPa, such as "Pressure falling quickly: rain and wind are likely."."""
+    hPa, such as "Pression en forte baisse : pluie et vent probables."."""
     size = round(abs(change), 1)
     if size < 0.1:
         return PRESSURE_STEADY
@@ -337,12 +465,12 @@ def weather_summary(changes, last=None):
         sentences.append(pressure_outlook(changes["sea_level_hpa"]))
     temperature = changes.get("temperature_c")
     if temperature is not None and abs(temperature) >= STEADY_TEMPERATURE:
-        sentences.append("It is getting warmer." if temperature > 0
-                         else "It is getting cooler.")
+        sentences.append("Il fait de plus en plus chaud." if temperature > 0
+                         else "Il fait de plus en plus frais.")
     humidity = changes.get("humidity_pct")
     if humidity is not None and abs(humidity) >= STEADY_HUMIDITY:
-        sentences.append("The air is getting more humid." if humidity > 0
-                         else "The air is getting drier.")
+        sentences.append("L'air devient plus humide." if humidity > 0
+                         else "L'air devient plus sec.")
     if last is not None:
         sentences += now_sentences(last)
     return " ".join(sentences)
@@ -362,25 +490,26 @@ def now_sentences(last):
     dew = last["dew_point_c"]
     if temperature is not None and dew is not None \
             and temperature - dew <= DEW_SPREAD_C:
-        water = "frost" if temperature <= 0 else "dew"
-        sentences.append("The air is close to saturation: "
-                         f"{water} or fog is likely.")
+        water = "givre" if temperature <= 0 else "rosée"
+        sentences.append("L'air est presque saturé d'eau : "
+                         f"{water} ou brouillard probable.")
     feels = last["feels_like_c"]
     if feels is not None and feels - temperature >= 1:
-        sentences.append(f"With the humidity, it feels like {feels:.0f} °C.")
+        sentences.append("Avec l'humidité, on ressent "
+                         f"{number(feels, 0)} °C.")
     return sentences
 
 
 def trend_text(change, unit):
-    """Writes a change: "↑ +1.2 °C in 3 h", "↓ -0.4 hPa in 3 h", or
-    "→ steady in 3 h" when it rounds to 0."""
+    """Writes a change: "↑ +1,2 °C en 3 h", "↓ -0,4 hPa en 3 h", or
+    "→ stable en 3 h" when it rounds to 0."""
     if change is None:
         return ""
     hours = int(TREND_SPAN.total_seconds() // 3600)
     if round(change, 1) == 0:
-        return f"→ steady in {hours} h"
+        return f"→ stable en {hours} h"
     arrow = "↑" if change > 0 else "↓"
-    return f"{arrow} {change:+.1f} {unit} in {hours} h"
+    return f"{arrow} {number(change, sign=True)} {unit} en {hours} h"
 
 
 def sparkline(rows, column, color):
@@ -408,18 +537,20 @@ def cards(last, rows, day):
         return []
     result = []
     for column, name, unit, color in QUANTITIES:
-        value = "–" if last[column] is None else f"{last[column]:.1f}"
+        value = "–" if last[column] is None else number(last[column])
         extremes = day_extremes(rows, day, column)
         today = ""
         if extremes is not None:
             (low, low_time), (high, high_time) = extremes
-            today = (f"Today: min {low:.1f} at {low_time} · "
-                     f"max {high:.1f} at {high_time}")
-        # The other values that are known, such as "Dew point 8.1 °C"
-        others = " · ".join(f"{other} {last[key]:.1f} {other_unit}"
-                            for key, other, other_unit
-                            in CARD_EXTRAS.get(column, [])
-                            if last[key] is not None)
+            today = (f"Aujourd'hui : min {number(low)} à {low_time} · "
+                     f"max {number(high)} à {high_time}")
+        # The other values that are known, and what they mean, such as
+        # "Point de rosée 8,1 °C (air sec)"
+        others = " · ".join(
+            f"{other} {number(last[key])} {other_unit}"
+            + ("" if meaning is None else f" ({meaning(last[key])})")
+            for key, other, other_unit, meaning in CARD_EXTRAS.get(column, [])
+            if last[key] is not None)
         result.append(html.Div(className="card", style={"borderColor": color},
                                children=[
             html.Div(name, className="card-name"),
@@ -539,11 +670,11 @@ def _curves(values, points, quantity, axes, label=None, compared=False):
                        "y": [day[f"{column}_max"] for day in values],
                        "line": {"width": 0}, "fill": "tonexty",
                        "fillcolor": _transparent(color, 0.2),
-                       "name": f"{title}: daily min – max",
+                       "name": f"{title} : min – max du jour",
                        "hoverinfo": "skip"})
     curves.append({**common, "x": x, "line": line,
                    "y": [day[f"{column}_avg"] for day in values],
-                   "name": f"{title}: daily average"})
+                   "name": f"{title} : moyenne du jour"})
     return curves
 
 
@@ -565,11 +696,12 @@ def _extra_curve(values, points, extra, axes):
 def graph_title(quantity, extras):
     """The title of a graph: the name of its quantity, then the names of
     the computed quantities drawn with it, in their color, such as
-    "Temperature (°C) · Dew point · Feels like (dotted, above 27 °C)"."""
+    "Température (°C) · Point de rosée · Ressenti (pointillés, au-dessus
+    de 27 °C)"."""
     _, name, unit, _ = quantity
     title = f"{name} ({unit})"
     for _, extra_name, _, color, dash, _ in extras:
-        dotted = " (dotted, above 27 °C)" if dash == "dot" else ""
+        dotted = " (pointillés, au-dessus de 27 °C)" if dash == "dot" else ""
         title += (f" · <span style='color:{color}'>{extra_name}{dotted}"
                   "</span>")
     return title
@@ -614,12 +746,19 @@ def figure(values, points, start, stop, limits=None, label=None,
         layout["yaxis" + suffix] = {"domain": DOMAINS[index],
                                     "anchor": "x" + suffix,
                                     "gridcolor": GRID,
-                                    "fixedrange": True}
+                                    "fixedrange": True,
+                                    # "1029,5", without a space between
+                                    # thousands
+                                    "tickformat": ".1~f"}
         # The time axis has no grid of its own: the dotted lines at
         # midnight tell the days apart
         layout["xaxis" + suffix] = {"anchor": "y" + suffix, "type": "date",
                                     "showgrid": False,
-                                    "showticklabels": index == 2}
+                                    "showticklabels": index == 2,
+                                    "tickformatstops": DATE_TICKS,
+                                    "hoverformat": (
+                                        "%A %d %B %Y" if points == "days"
+                                        else "%A %d %B %Y, %H:%M")}
         if index > 0:
             layout["xaxis" + suffix]["matches"] = "x"
 
@@ -662,6 +801,8 @@ def figure(values, points, start, stop, limits=None, label=None,
         margin={"l": 60, "r": 20, "t": 40,
                 "b": 50 if label is None else 90},
         hovermode="x unified",
+        # Numbers in French: a decimal comma, a space between thousands
+        separators=", ",
         # The legend at the bottom of the figure ("container"), below the
         # dates of the time axis
         legend={"orientation": "h", "x": 0, "y": 0, "yref": "container",
@@ -701,7 +842,7 @@ def build_view(connection, view, now):
                    for column, _, _, _ in QUANTITIES}
     return {"stale": stale, "status": status, "alert": alert,
             "summary": weather_summary(changes, last),
-            "date": f"{local_now:%A %d %B %Y}",
+            "date": french_date(local_now, "%A %d %B %Y").capitalize(),
             "cards": cards(last, day_rows, f"{local_now:%Y-%m-%d}"),
             "title": period_title(view, now),
             "figure": figure(values, points, start, stop, limits)}
@@ -738,26 +879,27 @@ def unit_length(unit, start):
 
 
 def unit_label(unit, start):
-    """Names a period: "Mon 05 Oct 2026", "Week 41 · 05 – 11 Oct 2026",
-    "October 2026" or "2026"."""
+    """Names a period: "lun. 05 oct. 2026", "Semaine 41 · 05 oct. – 11 oct.
+    2026", "Octobre 2026" or "2026"."""
     if unit == "week":
         end = start + timedelta(days=6)
-        return (f"Week {start.isocalendar().week} · {start:%d %b} – "
-                f"{end:%d %b %Y}")
+        return (f"Semaine {start.isocalendar().week} · "
+                f"{french_date(start, '%d %b')} – "
+                f"{french_date(end, '%d %b %Y')}")
     if unit == "month":
-        return f"{start:%B %Y}"
+        return french_date(start, "%B %Y").capitalize()
     if unit == "year":
         return f"{start:%Y}"
-    return f"{start:%a %d %b %Y}"
+    return french_date(start, "%a %d %b %Y")
 
 
 def part_options(unit):
-    """The list of the week or the month: "W1" to "W53", or "Jan" to
-    "Dec" (for a month or a day)."""
+    """The list of the week or the month: "S1" to "S53", or "janv." to
+    "déc." (for a month or a day)."""
     if unit == "week":
-        return [{"label": f"W{week}", "value": week}
+        return [{"label": f"S{week}", "value": week}
                 for week in range(1, 54)]
-    return [{"label": calendar.month_abbr[month], "value": month}
+    return [{"label": SHORT_MONTHS[month - 1], "value": month}
             for month in range(1, 13)]
 
 
@@ -878,13 +1020,14 @@ def stored_text(connection):
     """Describes the measurements stored, for the Data tab."""
     count, oldest, newest = database.summary(connection)
     if count == 0:
-        return "No measurement stored yet."
+        return "Aucune mesure enregistrée pour l'instant."
     first, last = (to_local(parse_timestamp(text)) for text in (oldest,
                                                                 newest))
     # 105121 is written "105 121"
-    number = f"{count:,}".replace(",", " ")
-    return (f"Stored: {number} measurements, from {first:%d %b %Y} "
-            f"to {last:%d %b %Y}.")
+    count_text = f"{count:,}".replace(",", " ")
+    return (f"Enregistrées : {count_text} mesures, du "
+            f"{french_date(first, '%d %b %Y')} au "
+            f"{french_date(last, '%d %b %Y')}.")
 
 
 # A backup older than this is late: the timer or the copy no longer works
@@ -898,15 +1041,16 @@ def backup_text(status, now):
     the Data tab then shows it in red.
     """
     if status is None:
-        return False, "No backup yet."
+        return False, "Aucune sauvegarde pour l'instant."
     made = datetime.fromisoformat(status["time"])
-    text = f"Last backup: {to_local(made):%d %b, %H:%M}"
+    text = ("Dernière sauvegarde : "
+            f"{french_date(to_local(made), '%d %b, %H:%M')}")
     if not status["ok"]:
-        return True, f"{text}, failed: {status['error']}"
+        return True, f"{text}, échec : {status['error']}"
     if status["remote"]:
-        text += f", copied to {status['remote']}"
+        text += f", copiée sur {status['remote']}"
     if now - made > BACKUP_LATE:
-        return True, f"{text}: late, no backup since then."
+        return True, f"{text} : en retard, aucune sauvegarde depuis."
     return False, text + "."
 
 
@@ -937,6 +1081,9 @@ def create_dashboard(open_database, log_path, backup_status):
                meta_tags=[{"name": "viewport",
                            "content": "width=device-width, initial-scale=1"}])
     # The page that Dash sends holds the icon at the place of {%favicon%}
+    # The page is in French: <html lang="fr"> tells it to the browser,
+    # for the reading aloud and the hyphenation
+    app.index_string = app.index_string.replace("<html>", '<html lang="fr">')
     app.index_string = app.index_string.replace("{%favicon%}",
                                                 SUNFLOWER_ICON)
 
@@ -947,7 +1094,8 @@ def create_dashboard(open_database, log_path, backup_status):
         # buttons of the page are enough
         return dcc.Graph(id=graph_id, responsive=True,
                          config={"displayModeBar": False,
-                                 "scrollZoom": True})
+                                 "scrollZoom": True, "locale": "fr",
+                                 "locales": PLOTLY_FRENCH})
 
     def short_list(list_id):
         # A short list, without a text field nor an empty choice
@@ -973,7 +1121,7 @@ def create_dashboard(open_database, log_path, backup_status):
     app.layout = html.Div(className="root", children=[
       html.Nav(className="sidebar", children=[
         html.Div([html.H1("PAWS"),
-                  html.Div("Personal Autonomous Weather Station",
+                  html.Div("Station météo personnelle autonome",
                            className="subtitle")], className="brand"),
         # The tabs: radio buttons drawn as the entries of the panel
         dcc.RadioItems(
@@ -993,6 +1141,8 @@ def create_dashboard(open_database, log_path, backup_status):
             # What the trends of the last 3 hours tell
             html.P(id="summary", className="summary"),
             html.Div(id="cards", className="cards"),
+            html.H3("Comment lire ces valeurs", className="explanations"),
+            *explanations(),
         ]),
         html.Div(id="graphs-tab", style={"display": "none"}, children=[
             html.Div(className="controls", children=[
@@ -1006,14 +1156,14 @@ def create_dashboard(open_database, log_path, backup_status):
                                             className="short")],
                               "value": period}
                              for period, label in PERIOD_LABELS.items()]),
-                html.Button("Today", id="today",
-                            title="Come back to the present"),
+                html.Button("Aujourd'hui", id="today",
+                            title="Revenir au présent"),
             ]),
             # The period before, the period shown, the period after
             html.Div(className="steps", children=[
-                html.Button("◀", id="previous", title="The period before"),
+                html.Button("◀", id="previous", title="La période d'avant"),
                 html.Div(id="period-title", className="period-title"),
-                html.Button("▶", id="next", title="The period after"),
+                html.Button("▶", id="next", title="La période d'après"),
             ]),
             graph("graph"),
         ]),
@@ -1027,23 +1177,25 @@ def create_dashboard(open_database, log_path, backup_status):
             ]),
             # The reference, then the comparison
             html.Div(className="compare", children=[
-                period_choice("reference", "Reference", "solid"),
-                period_choice("comparison", "Comparison", "dashed"),
+                period_choice("reference", "Référence", "solid"),
+                period_choice("comparison", "Comparaison", "dashed"),
             ]),
             graph("compare-graph"),
         ]),
         html.Div(id="data-tab", style={"display": "none"}, children=[
             html.P(id="stored", className="stored"),
             html.P(id="backup", className="backup"),
-            html.Button("⬇ Download all measurements (CSV)", id="export"),
+            html.Button("⬇ Télécharger toutes les mesures (CSV)",
+                        id="export"),
             dcc.Download(id="download"),
             # The files are read by the browser and sent to the page;
             # several can be chosen at once
             dcc.Upload(id="upload", multiple=True, className="upload",
                        children=html.Div([
-                           "Drop here, or click to choose, the files "
-                           "downloaded from the maintenance page of the "
-                           "station: the measurements (CSV) and the log."])),
+                           "Déposez ici, ou cliquez pour choisir, les "
+                           "fichiers téléchargés depuis la page de "
+                           "maintenance de la station : les mesures (CSV) "
+                           "et le journal."])),
             html.Ul(id="upload-result", className="upload-result"),
         ]),
         # The period shown in the Graphs tab (see shown())

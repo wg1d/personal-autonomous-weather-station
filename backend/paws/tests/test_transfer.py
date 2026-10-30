@@ -31,7 +31,8 @@ def test_uploaded_measurements_store_only_the_new_rows(connection,
         connection, tmp_path / "station.log", "measurements.csv",
         HEADER + ROW_1 + ROW_2 + ROW_3)
     assert success
-    assert text == "measurements.csv: 3 rows read, 1 new, 2 already stored"
+    assert text == ("measurements.csv : 3 lignes lues, 1 nouvelles, "
+                    "2 déjà enregistrées")
     assert database.count_rows(connection) == 3
 
 
@@ -51,7 +52,7 @@ def test_file_saved_by_a_spreadsheet_is_refused(connection, tmp_path):
     success, text = transfer.import_file(connection, log, "excel.csv",
                                          french)
     assert not success
-    assert "commas between the fields" in text
+    assert "virgules entre les champs" in text
     assert not log.exists()
 
 
@@ -71,7 +72,8 @@ def test_uploaded_log_adds_only_the_new_entries(connection, tmp_path):
     success, text = transfer.import_file(connection, log, "log.txt",
                                          ENTRY_1 + ENTRY_2)
     assert success
-    assert text == "log.txt: 2 log entries read, 1 new, 1 already stored"
+    assert text == ("log.txt : 2 entrées du journal lues, 1 nouvelles, "
+                    "1 déjà enregistrées")
     assert log.read_text() == ENTRY_1 + ENTRY_2
 
 

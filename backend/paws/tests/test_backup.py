@@ -64,11 +64,12 @@ def test_dashboard_tells_the_state_of_the_backup():
     status = {"time": "2026-10-07T03:30:00+00:00", "ok": True,
               "remote": "Proton:paws_backup", "error": None}
     assert backup_text(status, NOW) == (
-        False, "Last backup: 07 Oct, 03:30, copied to Proton:paws_backup.")
+        False, "Dernière sauvegarde : 07 oct., 03:30, copiée sur "
+        "Proton:paws_backup.")
     # Three days later, without a new backup: late
     late, _ = backup_text(status, NOW + timedelta(days=3))
     assert late
     late, text = backup_text({**status, "ok": False, "error": "no network"},
                              NOW)
-    assert late and text.endswith("failed: no network")
-    assert backup_text(None, NOW) == (False, "No backup yet.")
+    assert late and text.endswith("échec : no network")
+    assert backup_text(None, NOW) == (False, "Aucune sauvegarde pour l'instant.")
