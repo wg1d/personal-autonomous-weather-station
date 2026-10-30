@@ -50,16 +50,16 @@ def import_file(connection, log_path, name, content):
         except FormatError as error:
             # A file saved again by a spreadsheet often uses ";" between
             # the fields, and "," in the numbers
-            return False, (f"{name}: not stored, {error}; it must keep the "
-                           "format of the station, with commas between "
-                           "the fields")
+            return False, (f"{name} : non enregistré, {error} ; il doit "
+                           "garder le format de la station, avec des "
+                           "virgules entre les champs")
         inserted = database.insert_rows(connection, rows)
-        return True, (f"{name}: {len(rows)} rows read, {inserted} new, "
-                      f"{len(rows) - inserted} already stored")
+        return True, (f"{name} : {len(rows)} lignes lues, {inserted} "
+                      f"nouvelles, {len(rows) - inserted} déjà enregistrées")
     if any(logs.ENTRY_START.match(line.strip())
            for line in content.splitlines()):
         read, added = logs.merge(log_path, content)
-        return True, (f"{name}: {read} log entries read, {added} new, "
-                      f"{read - added} already stored")
-    return False, (f"{name}: not stored, neither measurements nor a log of "
-                   "the station")
+        return True, (f"{name} : {read} entrées du journal lues, {added} "
+                      f"nouvelles, {read - added} déjà enregistrées")
+    return False, (f"{name} : non enregistré, ni des mesures ni le journal "
+                   "de la station")

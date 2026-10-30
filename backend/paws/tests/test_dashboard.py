@@ -9,6 +9,7 @@ from paws_server import database
 from paws_server.dashboard import (build_comparison, build_view,
                                    compare_after_move,
                                    compare_dates, day_extremes,
+                                   dew_comfort, french_date, number,
                                    format_age, health,
                                    midnights, resolution, shown,
                                    parts_of, pressure_outlook,
@@ -33,6 +34,22 @@ def row(timestamp, temperature, time_valid=1):
     return (timestamp, time_valid, temperature, 50.0, 1013.0)
 
 
+# --- French ------------------------------------------------------------------
+
+def test_dates_and_numbers_in_french():
+    moment = datetime(2026, 10, 29, 14, 30)
+    assert french_date(moment, "%a %d %b, %H:%M") == "jeu. 29 oct., 14:30"
+    assert french_date(moment, "%A %d %B %Y") == "jeudi 29 octobre 2026"
+    assert number(11.44) == "11,4"
+    assert number(1.2, sign=True) == "+1,2"
+
+
+def test_dew_point_comfort():
+    assert dew_comfort(6.8) == "air sec"
+    assert dew_comfort(17.0) == "un peu lourd"
+    assert dew_comfort(22.0) == "étouffant"
+
+
 # --- Health ------------------------------------------------------------------
 
 def test_trend_over_three_hours():
@@ -47,27 +64,27 @@ def test_trend_over_three_hours():
 
 
 def test_trend_text():
-    assert trend_text(3.0, "°C") == "↑ +3.0 °C in 3 h"
-    assert trend_text(-0.42, "hPa") == "↓ -0.4 hPa in 3 h"
-    assert trend_text(0.02, "%") == "→ steady in 3 h"
+    assert trend_text(3.0, "°C") == "↑ +3,0 °C en 3 h"
+    assert trend_text(-0.42, "hPa") == "↓ -0,4 hPa en 3 h"
+    assert trend_text(0.02, "%") == "→ stable en 3 h"
     assert trend_text(None, "%") == ""
 
 
 def test_pressure_outlook_follows_the_scale():
-    assert pressure_outlook(0.04).startswith("Pressure steady")
-    assert pressure_outlook(-1.5).startswith("Pressure falling slowly")
-    assert pressure_outlook(2.0).startswith("Pressure rising:")
-    assert pressure_outlook(-4.1) == ("Pressure falling quickly: rain and "
-                                      "wind are likely.")
-    assert pressure_outlook(-6.5).endswith("risk of a storm.")
+    assert pressure_outlook(0.04).startswith("Pression stable")
+    assert pressure_outlook(-1.5).startswith("Pression en légère baisse")
+    assert pressure_outlook(2.0).startswith("Pression en hausse :")
+    assert pressure_outlook(-4.1) == ("Pression en forte baisse : pluie et "
+                                      "vent probables.")
+    assert pressure_outlook(-6.5).endswith("risque de tempête.")
 
 
 def test_summary_tells_only_clear_changes():
     changes = {"temperature_c": 2.5, "humidity_pct": -3.0,
                "sea_level_hpa": -4.1}
     assert weather_summary(changes) == (
-        "Pressure falling quickly: rain and wind are likely. "
-        "It is getting warmer.")
+        "Pression en forte baisse : pluie et vent probables. "
+        "Il fait de plus en plus chaud.")
     assert weather_summary({"temperature_c": None, "humidity_pct": None,
                             "sea_level_hpa": None}) == ""
 
@@ -85,24 +102,25 @@ def test_extremes_of_the_local_day_only():
 def test_health_without_data_warns():
     stale, status, alert = health(None, NOW)
     assert stale
-    assert alert == "No measurement received yet: check the station."
+    assert alert == "Aucune mesure reçue pour l'instant : vérifiez la station."
 
 
 def test_health_of_a_recent_measurement():
     last = {"timestamp": "2026-10-05T11:30:00Z"}
     assert health(last, NOW) == (
-        False, "Last measurement · 05 Oct, 11:30 (30 min ago)", "")
+        False, "Dernière mesure · 05 oct., 11:30 (il y a 30 min)", "")
 
 
 def test_health_warns_after_two_hours():
     last = {"timestamp": "2026-10-05T08:55:00Z"}
     stale, status, alert = health(last, NOW)
     assert stale
-    assert alert == "No new measurement for 3 h 05 min: check the station."
+    assert alert == ("Aucune nouvelle mesure depuis 3 h 05 min : vérifiez "
+                     "la station.")
 
 
 def test_long_silence_is_counted_in_days():
-    assert format_age(timedelta(days=4, hours=3)) == "4 days"
+    assert format_age(timedelta(days=4, hours=3)) == "4 jours"
 
 
 # --- Navigation ----------------------------------------------------------------
@@ -213,7 +231,7 @@ def test_view_of_a_day_shows_every_row(connection):
     # temperature in the graph of the temperature
     assert len(figure["data"]) == 5
     assert [trace["name"] for trace in figure["data"][1:3]] == [
-        "Dew point", "Feels like"]
+        "Point de rosée", "Ressenti"]
 
 
 def test_view_holds_as_much_again_on_each_side(connection):
@@ -230,8 +248,8 @@ def test_view_of_a_year_shows_min_average_max(connection):
     view = {"length": 365 * 86400, "end": None}
     names = [trace.get("name")
              for trace in build_view(connection, view, NOW)["figure"]["data"]]
-    assert names[:3] == [None, "Temperature: daily min – max",
-                         "Temperature: daily average"]
+    assert names[:3] == [None, "Température : min – max du jour",
+                         "Température : moyenne du jour"]
 
 
 def test_figure_holds_the_limits_of_the_data(connection):
@@ -278,8 +296,8 @@ def test_month_is_compared_with_another_month(connection):
     assert compared["length"] == 31 * 86400
     data = build_comparison(connection, compared, NOW)["data"]
     reference, comparison = data[:2]
-    assert reference["name"] == "October 2026"
-    assert comparison["name"] == "December 2025"
+    assert reference["name"] == "Octobre 2026"
+    assert comparison["name"] == "Décembre 2025"
     # One hour after the start of each month: drawn at the same place
     # (the middle of the hour, see hourly_summary())
     assert reference["x"] == comparison["x"] == ["2026-10-01 01:30:00"]
