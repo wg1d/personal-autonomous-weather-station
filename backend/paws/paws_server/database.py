@@ -7,21 +7,49 @@ The SQLite database of the measurements: one table, whose primary key is
 the timestamp, so that a row received twice is stored once (idempotence of
 the upload protocol).
 
+The queries of the dashboard also return the quantities computed from the
+measurements (see weather.py): SQLite calls the Python functions given to
+it, for each row, so that the averages, minimums and maximums of these
+quantities are computed like those of the measurements.
+
 Dependencies: Python standard library (sqlite3).
 """
 
 import sqlite3
 
+from . import weather
 from .protocol import COLUMNS
 
+# The quantities that the queries of the dashboard return: the three
+# measurements, then the computed ones, each with its SQL expression
+QUANTITIES = {
+    "temperature_c": "temperature_c",
+    "humidity_pct": "humidity_pct",
+    "pressure_hpa": "pressure_hpa",
+    "dew_point_c": "dew_point(temperature_c, humidity_pct)",
+    "feels_like_c": "feels_like(temperature_c, humidity_pct)",
+    "sea_level_hpa": "sea_level(pressure_hpa)",
+}
+# All the quantities, separated by commas, for a SELECT
+QUANTITY_COLUMNS = ", ".join(QUANTITIES.values())
 
-def connect(path):
+
+def connect(path, altitude=0):
     """Opens the database, and creates its table if it does not exist.
 
     One connection per request: SQLite handles the concurrent accesses of
-    the server, and a connection is cheap to open.
+    the server, and a connection is cheap to open. altitude is the one of
+    the station, in metres, for the pressure at sea level.
     """
     connection = sqlite3.connect(path)
+    # The functions of weather.py, which the SQL of QUANTITIES calls,
+    # with their number of arguments
+    factor = weather.sea_level_factor(altitude)
+    connection.create_function("dew_point", 2, weather.dew_point)
+    connection.create_function("feels_like", 2, weather.feels_like)
+    connection.create_function(
+        "sea_level", 1,
+        lambda pressure: None if pressure is None else pressure * factor)
     connection.execute(
         "CREATE TABLE IF NOT EXISTS measurements ("
         "timestamp TEXT PRIMARY KEY, "
@@ -72,11 +100,12 @@ def summary(connection):
 
 
 def last_row(connection):
-    """Returns the newest row with a valid time, or None if there is none."""
+    """Returns the newest row with a valid time, with all the QUANTITIES,
+    or None if there is none."""
     rows = connection.execute(
-        "SELECT * FROM measurements WHERE time_valid = 1 "
-        "ORDER BY timestamp DESC LIMIT 1").fetchall()
-    return dict(zip(COLUMNS, rows[0])) if rows else None
+        f"SELECT timestamp, {QUANTITY_COLUMNS} FROM measurements "
+        "WHERE time_valid = 1 ORDER BY timestamp DESC LIMIT 1").fetchall()
+    return dict(zip(["timestamp", *QUANTITIES], rows[0])) if rows else None
 
 
 def first_local_time(connection):
@@ -94,15 +123,18 @@ def rows_between(connection, start, end):
     format their alphabetical order is the order of time: comparing them
     as text is enough.
 
-    Each row also holds "local_time": its time in the local time of the
-    server, as text ("2026-10-05 14:45:00"), converted by SQLite
-    ('localtime') much faster than Python would.
+    Each row holds its "timestamp", all the QUANTITIES, and "local_time":
+    its time in the local time of the server, as text ("2026-10-05
+    14:45:00"), converted by SQLite ('localtime') much faster than Python
+    would.
     """
     rows = connection.execute(
-        "SELECT *, datetime(timestamp, 'localtime') FROM measurements "
+        f"SELECT timestamp, {QUANTITY_COLUMNS}, "
+        "datetime(timestamp, 'localtime') FROM measurements "
         "WHERE time_valid = 1 AND timestamp >= ? AND timestamp < ? "
         "ORDER BY timestamp", (start, end)).fetchall()
-    return [dict(zip(COLUMNS + ["local_time"], row)) for row in rows]
+    return [dict(zip(["timestamp", *QUANTITIES, "local_time"], row))
+            for row in rows]
 
 
 def hourly_summary(connection, start, end):
@@ -113,10 +145,11 @@ def hourly_summary(connection, start, end):
     points to send to the browser. Each average is placed at the middle
     of its hour ('+30 minutes'), in the local time of the server. Returns
     one dictionary per hour, with the keys "local_time" and one per
-    quantity, as rows_between().
+    quantity of QUANTITIES, as rows_between().
     """
-    quantities = COLUMNS[2:]
-    columns = ", ".join(f"ROUND(AVG({q}), 2)" for q in quantities)
+    quantities = list(QUANTITIES)
+    columns = ", ".join(f"ROUND(AVG({sql}), 2)"
+                        for sql in QUANTITIES.values())
     rows = connection.execute(
         "SELECT datetime(substr(timestamp, 1, 13) || ':00:00', "
         f"'+30 minutes', 'localtime'), {columns} "
@@ -137,10 +170,12 @@ def daily_summary(connection, start, end):
     average and maximum.
 
     Returns one dictionary per day, oldest first, with the keys "day" and
-    "<column>_min", "<column>_avg", "<column>_max" for each quantity.
+    "<column>_min", "<column>_avg", "<column>_max" for each quantity of
+    QUANTITIES.
     """
-    quantities = COLUMNS[2:]
-    columns = ", ".join(f"MIN({q}), AVG({q}), MAX({q})" for q in quantities)
+    quantities = list(QUANTITIES)
+    columns = ", ".join(f"MIN({sql}), AVG({sql}), MAX({sql})"
+                        for sql in QUANTITIES.values())
     rows = connection.execute(
         f"SELECT substr(timestamp, 1, 10) AS day, {columns} "
         "FROM measurements WHERE time_valid = 1 "

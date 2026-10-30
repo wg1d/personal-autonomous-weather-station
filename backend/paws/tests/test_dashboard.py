@@ -64,12 +64,12 @@ def test_pressure_outlook_follows_the_scale():
 
 def test_summary_tells_only_clear_changes():
     changes = {"temperature_c": 2.5, "humidity_pct": -3.0,
-               "pressure_hpa": -4.1}
+               "sea_level_hpa": -4.1}
     assert weather_summary(changes) == (
         "Pressure falling quickly: rain and wind are likely. "
         "It is getting warmer.")
     assert weather_summary({"temperature_c": None, "humidity_pct": None,
-                            "pressure_hpa": None}) == ""
+                            "sea_level_hpa": None}) == ""
 
 
 def test_extremes_of_the_local_day_only():
@@ -209,7 +209,11 @@ def test_view_of_a_day_shows_every_row(connection):
     database.insert_rows(connection, [row("2026-10-05T11:45:00Z", 12.0)])
     figure = build_view(connection, DAY, NOW)["figure"]
     assert figure["data"][0]["y"] == [12.0]
-    assert len(figure["data"]) == 3                 # one line per quantity
+    # One line per quantity, then the dew point and the feels-like
+    # temperature in the graph of the temperature
+    assert len(figure["data"]) == 5
+    assert [trace["name"] for trace in figure["data"][1:3]] == [
+        "Dew point", "Feels like"]
 
 
 def test_view_holds_as_much_again_on_each_side(connection):
