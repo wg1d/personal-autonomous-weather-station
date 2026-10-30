@@ -4,11 +4,14 @@ File: backend/paws/paws_server/dashboard.py
 
 Description:
 The dashboard: the health of the station, the last measurement, and the
-graphs of temperature, humidity and pressure. Three tabs:
+graphs of temperature, humidity and pressure. Four tabs, in a
+navigation panel on the left (at the bottom on a phone):
 
+- Now: the health of the station, and the last measurement;
 - Graphs: the graphs over a period chosen with the buttons (24 hours,
-  7 days, 30 days, 1 year), then moved by dragging the graphs and zoomed
-  with the mouse wheel;
+  7 days, 30 days, 1 year), moved by one period with the arrows, or by
+  dragging the graphs with the mouse or a finger, and zoomed with the
+  mouse wheel or two fingers;
 - Compare: two days, weeks, months or years drawn over each other,
   aligned on their start, then dragged and zoomed together;
 - Data: the export of all the measurements, and the upload by hand of
@@ -16,7 +19,7 @@ graphs of temperature, humidity and pressure. Three tabs:
   transfer.py).
 
 Over a long period, the graphs show the minimum, average and maximum of
-each day. A button switches between a dark and a light theme.
+each day. The page has a dark theme only.
 
 Built with Dash: the page is described in Python, Plotly draws the graphs
 in the browser, and Dash calls the functions marked @app.callback when
@@ -48,6 +51,14 @@ PERIODS = {
 }
 PERIOD_LABELS = {"24h": "24 hours", "7d": "7 days", "30d": "30 days",
                  "1y": "1 year"}
+# The tabs of the navigation panel: value, icon, name
+TABS = [
+    ("now", "◉", "Now"),
+    ("graphs", "〜", "Graphs"),
+    ("compare", "⇄", "Compare"),
+    ("data", "⬇", "Data"),
+]
+
 # Shorter labels, shown on a phone instead (see style.css)
 SHORT_LABELS = {"24h": "24h", "7d": "7d", "30d": "30d", "1y": "1y"}
 
@@ -57,11 +68,12 @@ SHORT_LABELS = {"24h": "24h", "7d": "7d", "30d": "30d", "1y": "1y"}
 UNITS = {"day": "Day", "week": "Week", "month": "Month", "year": "Year"}
 
 # The quantities shown: column of the database, name, unit, color. The
-# three colors stay distinct for the most common forms of color blindness
+# three colors stay distinct for the most common forms of color blindness,
+# and readable on the dark background of the cards
 QUANTITIES = [
-    ("temperature_c", "Temperature", "°C", "#e4572e"),
-    ("humidity_pct", "Humidity", "%", "#2f8fe0"),
-    ("pressure_hpa", "Pressure", "hPa", "#d063b5"),
+    ("temperature_c", "Temperature", "°C", "#d95926"),
+    ("humidity_pct", "Humidity", "%", "#3987e5"),
+    ("pressure_hpa", "Pressure", "hPa", "#199e70"),
 ]
 
 # How the comparison is drawn in the Compare tab: the same color as the
@@ -109,7 +121,8 @@ def from_local(text):
 # --- Navigation in time ----------------------------------------------------
 # The Graphs tab keeps the period shown as {"length": seconds, "end": ...}:
 # its length, and its end as a timestamp, or None while it shows the
-# latest data. The buttons set the length; a drag or a zoom sets both.
+# latest data. The buttons set the length; the arrows, a drag or a zoom
+# set the end.
 
 def shown(view, now):
     """Returns (start, stop), the period shown, as datetimes in UTC."""
@@ -148,6 +161,19 @@ def view_after_move(limits, now):
     return {"length": (last - first).total_seconds(), "end": end}
 
 
+def view_after_step(view, direction, now):
+    """The period shown after a click on an arrow: the period before
+    (direction -1) or after (+1), of the same length.
+
+    The page follows the new data again when the period reaches the
+    present.
+    """
+    _, stop = shown(view, now)
+    stop += direction * timedelta(seconds=view["length"])
+    end = None if stop >= now - timedelta(minutes=5) else to_timestamp(stop)
+    return {**view, "end": end}
+
+
 def resolution(length):
     """The points shown for a period of this length (a timedelta).
 
@@ -160,6 +186,19 @@ def resolution(length):
     if length <= timedelta(days=92):
         return "hours"
     return "days"
+
+
+def period_title(view, now):
+    """Writes the period shown in the Graphs tab, above the graphs, with
+    the day of the week: "Thu 29 Oct, 14:30 → Fri 30 Oct, 14:30" up to 2
+    days, "Wed 30 Sep 2026 → Fri 30 Oct 2026" beyond. While it shows the
+    present, its end is written "now"."""
+    start, stop = shown(view, now)
+    first, last = to_local(start), to_local(stop)
+    form = "%a %d %b, %H:%M" if stop - start <= timedelta(days=2) \
+        else "%a %d %b %Y"
+    end = "now" if view["end"] is None else f"{last:{form}}"
+    return f"{first:{form}} → {end}"
 
 
 def span_label(start, stop):
@@ -203,18 +242,94 @@ def health(last, now):
     return False, status, ""
 
 
-def cards(last):
-    """One card per quantity, with the value of the last measurement."""
+# The change shown on the cards: since this long before the last
+# measurement
+TREND_SPAN = timedelta(hours=3)
+
+
+def trend(rows, last, column):
+    """The change of a quantity over TREND_SPAN: the last value minus the
+    one of the last row at least TREND_SPAN older. rows are the rows of
+    the last day, oldest first. Returns None without such a row, or
+    without value."""
+    limit = to_timestamp(parse_timestamp(last["timestamp"]) - TREND_SPAN)
+    older = [row for row in rows if row["timestamp"] <= limit]
+    if not older or older[-1][column] is None or last[column] is None:
+        return None
+    return last[column] - older[-1][column]
+
+
+def day_extremes(rows, day, column):
+    """The minimum and maximum of a quantity on a local day ("2026-10-05"),
+    each with the local time of its row: ((value, "04:45"), (value,
+    "14:00")). Returns None when the day has no value."""
+    values = [(row[column], row["local_time"][11:16]) for row in rows
+              if row["local_time"].startswith(day)
+              and row[column] is not None]
+    if not values:
+        return None
+    return (min(values, key=lambda pair: pair[0]),
+            max(values, key=lambda pair: pair[0]))
+
+
+def trend_text(change, unit):
+    """Writes a change: "↑ +1.2 °C in 3 h", "↓ -0.4 hPa in 3 h", or
+    "→ steady in 3 h" when it rounds to 0."""
+    if change is None:
+        return ""
+    hours = int(TREND_SPAN.total_seconds() // 3600)
+    if round(change, 1) == 0:
+        return f"→ steady in {hours} h"
+    arrow = "↑" if change > 0 else "↓"
+    return f"{arrow} {change:+.1f} {unit} in {hours} h"
+
+
+def sparkline(rows, column, color):
+    """A small curve of the last day, without axes, for a card."""
+    return {"data": [{"type": "scatter", "mode": "lines",
+                      "x": [row["local_time"] for row in rows],
+                      "y": [row[column] for row in rows],
+                      "line": {"color": color, "width": 2},
+                      "hoverinfo": "skip"}],
+            "layout": {"margin": {"l": 0, "r": 0, "t": 4, "b": 4},
+                       "xaxis": {"visible": False},
+                       "yaxis": {"visible": False},
+                       "showlegend": False,
+                       "paper_bgcolor": "rgba(0,0,0,0)",
+                       "plot_bgcolor": "rgba(0,0,0,0)"}}
+
+
+def cards(last, rows, day):
+    """One card per quantity: the value of the last measurement, its
+    change over the last 3 hours, a small curve of the last day, and the
+    minimum and maximum of the local day (day, such as "2026-10-05").
+    rows are the rows of the last day, oldest first."""
     if last is None:
         return []
     result = []
     for column, name, unit, color in QUANTITIES:
         value = "–" if last[column] is None else f"{last[column]:.1f}"
+        extremes = day_extremes(rows, day, column)
+        today = ""
+        if extremes is not None:
+            (low, low_time), (high, high_time) = extremes
+            today = (f"Today: min {low:.1f} at {low_time} · "
+                     f"max {high:.1f} at {high_time}")
         result.append(html.Div(className="card", style={"borderColor": color},
                                children=[
             html.Div(name, className="card-name"),
-            html.Div([value, html.Span(f" {unit}", className="card-unit")],
-                     className="card-value", style={"color": color}),
+            html.Div(className="card-line", children=[
+                html.Div([value, html.Span(f" {unit}",
+                                           className="card-unit")],
+                         className="card-value", style={"color": color}),
+                html.Div(trend_text(trend(rows, last, column), unit),
+                         className="card-trend"),
+            ]),
+            # A picture of the curve: it cannot be dragged nor zoomed
+            dcc.Graph(figure=sparkline(rows, column, color),
+                      className="sparkline",
+                      config={"staticPlot": True}),
+            html.Div(today, className="card-extremes"),
         ]))
     return result
 
@@ -227,15 +342,14 @@ def _transparent(color, alpha):
     return f"rgba({red},{green},{blue},{alpha})"
 
 
-# Colors of the two themes: background of the cards, and of the dotted
-# lines at midnight. The graphs use the matching template of Plotly, its
-# set of colors, fonts and grids, read once as a dictionary
-THEMES = {
-    "dark": {"template": pio.templates["plotly_dark"].to_plotly_json(),
-             "card": "#1f242c", "midnight": "rgba(255,255,255,0.3)"},
-    "light": {"template": pio.templates["plotly_white"].to_plotly_json(),
-              "card": "#ffffff", "midnight": "rgba(0,0,0,0.3)"},
-}
+# The dark template of Plotly, its set of colors, fonts and grids, read
+# once as a dictionary; the background of the cards (--card in style.css),
+# and the color of the dotted lines at midnight
+TEMPLATE = pio.templates["plotly_dark"].to_plotly_json()
+CARD = "#1f242c"
+MIDNIGHT = "rgba(255,255,255,0.3)"
+# The lines of the values, faint: they help reading without being seen
+GRID = "rgba(255,255,255,0.08)"
 
 # Where each graph sits in the figure, from the bottom (0) to the top (1):
 # the temperature at the top, the pressure at the bottom
@@ -295,7 +409,11 @@ def _curves(values, points, quantity, axes, label=None, compared=False):
               "hovertemplate": (f"%{{y:.1f}} {unit}<extra>{name}"
                                 + ("" if label is None else f", {label}")
                                 + "</extra>")}
-    if label is not None:
+    if label is None:
+        # In the Graphs tab, the title of each graph names its curve: no
+        # legend
+        common.update(showlegend=False)
+    else:
         # The curves of one period, in the three graphs, are shown or
         # hidden together from the legend
         common.update(legendgroup=label, showlegend=axes["xaxis"] == "x")
@@ -323,7 +441,7 @@ def _curves(values, points, quantity, axes, label=None, compared=False):
     return curves
 
 
-def figure(values, points, start, stop, theme, limits=None, label=None,
+def figure(values, points, start, stop, limits=None, label=None,
            comparison=None):
     """The three graphs, one above the other, sharing the time axis.
 
@@ -357,8 +475,12 @@ def figure(values, points, start, stop, theme, limits=None, label=None,
         # ("matches"); only the time axis of the bottom graph shows dates
         layout["yaxis" + suffix] = {"domain": DOMAINS[index],
                                     "anchor": "x" + suffix,
+                                    "gridcolor": GRID,
                                     "fixedrange": True}
+        # The time axis has no grid of its own: the dotted lines at
+        # midnight tell the days apart
         layout["xaxis" + suffix] = {"anchor": "y" + suffix, "type": "date",
+                                    "showgrid": False,
                                     "showticklabels": index == 2}
         if index > 0:
             layout["xaxis" + suffix]["matches"] = "x"
@@ -375,7 +497,7 @@ def figure(values, points, start, stop, theme, limits=None, label=None,
         # A dotted line at each midnight, across the three graphs, to tell
         # the days apart
         margin = stop - start
-        line = {"color": THEMES[theme]["midnight"], "width": 1, "dash": "dot"}
+        line = {"color": MIDNIGHT, "width": 1, "dash": "dot"}
         layout["shapes"] = [
             {"type": "line", "x0": f"{midnight:{PLOTLY_TIME}}",
              "x1": f"{midnight:{PLOTLY_TIME}}", "xref": "x",
@@ -390,12 +512,15 @@ def figure(values, points, start, stop, theme, limits=None, label=None,
          "showarrow": False, "font": {"size": 16}}
         for index, (_, name, unit, _) in enumerate(QUANTITIES)]
     layout.update(
-        template=THEMES[theme]["template"],
-        paper_bgcolor=THEMES[theme]["card"],
-        plot_bgcolor=THEMES[theme]["card"],
+        template=TEMPLATE,
+        paper_bgcolor=CARD,
+        plot_bgcolor=CARD,
         # Dragging the graphs moves them in time, instead of zooming
         dragmode="pan",
-        margin={"l": 60, "r": 20, "t": 40, "b": 90},
+        # Room at the bottom for the dates, and for the legend of the
+        # Compare tab
+        margin={"l": 60, "r": 20, "t": 40,
+                "b": 50 if label is None else 90},
         hovermode="x unified",
         # The legend at the bottom of the figure ("container"), below the
         # dates of the time axis
@@ -405,15 +530,21 @@ def figure(values, points, start, stop, theme, limits=None, label=None,
     return {"data": data, "layout": layout}
 
 
-def build_view(connection, view, now, theme="dark"):
+def build_view(connection, view, now):
     """Computes everything the Graphs tab shows.
 
     view is the period shown (see shown()). Returns a dictionary:
     "stale", "status" and "alert" (the health of the station, see
-    health()), "last" (the last measurement) and "figure" (the graphs).
+    health()), "date" (today, in words), "cards" (see cards()), "title"
+    (the period shown, see period_title()) and "figure" (the graphs).
     """
     last = database.last_row(connection)
     stale, status, alert = health(last, now)
+    # The rows of the last day, for the cards
+    day_rows = database.rows_between(
+        connection, to_timestamp(now - timedelta(days=1)),
+        to_timestamp(now + timedelta(minutes=1)))
+    local_now = to_local(now)
     start, stop = shown(view, now)
     # The period shown, and as much again on each side to drag into
     length = stop - start
@@ -423,8 +554,11 @@ def build_view(connection, view, now, theme="dark"):
     limits = None
     if oldest is not None:
         limits = (oldest, f"{to_local(now):{PLOTLY_TIME}}")
-    return {"stale": stale, "status": status, "alert": alert, "last": last,
-            "figure": figure(values, points, start, stop, theme, limits)}
+    return {"stale": stale, "status": status, "alert": alert,
+            "date": f"{local_now:%A %d %B %Y}",
+            "cards": cards(last, day_rows, f"{local_now:%Y-%m-%d}"),
+            "title": period_title(view, now),
+            "figure": figure(values, points, start, stop, limits)}
 
 
 # --- Compare tab -----------------------------------------------------------
@@ -544,7 +678,7 @@ def compare_after_move(limits, compared):
                 parse_timestamp(compared["comparison"]) + shift)}
 
 
-def build_comparison(connection, compared, now, theme="dark"):
+def build_comparison(connection, compared, now):
     """The figure of the Compare tab.
 
     The time axis is the one of the reference; the comparison is moved
@@ -579,7 +713,7 @@ def build_comparison(connection, compared, now, theme="dark"):
     else:
         labels = [span_label(moment, moment + length)
                   for moment in (reference, comparison)]
-    return figure(values, points, reference, reference + length, theme,
+    return figure(values, points, reference, reference + length,
                   limits, labels[0],
                   (labels[1], moved(compared_values, points, offset)))
 
@@ -661,12 +795,13 @@ def create_dashboard(open_database, log_path, backup_status):
                                                 SUNFLOWER_ICON)
 
     def graph(graph_id):
-        # The graphs take the width of the page, and a height that fits
-        # below the controls on a laptop screen, legend included. The
-        # mouse wheel zooms in time (scrollZoom)
+        # The graphs take the width of the page, and the height of the
+        # screen below the controls (see style.css). The mouse wheel zooms
+        # in time (scrollZoom). The bar of icons of Plotly is hidden: the
+        # buttons of the page are enough
         return dcc.Graph(id=graph_id, responsive=True,
-                         style={"height": "560px"},
-                         config={"displaylogo": False, "scrollZoom": True})
+                         config={"displayModeBar": False,
+                                 "scrollZoom": True})
 
     def short_list(list_id):
         # A short list, without a text field nor an empty choice
@@ -687,31 +822,31 @@ def create_dashboard(open_database, log_path, backup_status):
             short_list(f"{choice_id}-year"),
         ])
 
-    # The outer block carries the theme ("root dark" or "root light"):
-    # style.css gives the page its colors from it
-    app.layout = html.Div(id="root", className="root dark", children=[
-      html.Div(className="page", children=[
-        html.Header(className="header", children=[
-            html.Div([html.H1("PAWS"),
-                      html.Div("Personal Autonomous Weather Station",
-                               className="subtitle")]),
-            html.Div(className="header-right", children=[
-                # The two tabs, drawn as a row of buttons like the periods
-                dcc.RadioItems(
-                    id="tab", value="graphs", className="periods",
-                    options=[{"label": "Graphs", "value": "graphs"},
-                             {"label": "Compare", "value": "compare"},
-                             {"label": "Data", "value": "data"}]),
-                html.Button("☀", id="theme-button",
-                            title="Dark or light theme"),
-            ]),
-        ]),
-        # Shown only when the station is silent
+    # The navigation panel on the left (at the bottom on a phone, see
+    # style.css), then the page, which shows one tab at a time
+    app.layout = html.Div(className="root", children=[
+      html.Nav(className="sidebar", children=[
+        html.Div([html.H1("PAWS"),
+                  html.Div("Personal Autonomous Weather Station",
+                           className="subtitle")], className="brand"),
+        # The tabs: radio buttons drawn as the entries of the panel
+        dcc.RadioItems(
+            id="tab", value="now", className="tabs",
+            options=[{"label": [html.Span(icon, className="tab-icon"),
+                                html.Span(name)], "value": value}
+                     for value, icon, name in TABS]),
+      ]),
+      html.Main(className="page", children=[
+        # Shown only when the station is silent, whatever the tab
         html.Div(id="alert", className="alert hidden"),
-        # A dot, green or red, then the time of the last measurement
-        html.Div(id="status", className="status"),
-        html.Div(id="cards", className="cards"),
-        html.Div(id="graphs-tab", children=[
+        html.Div(id="now-tab", children=[
+            # Today, then a dot, green or red, and the time of the last
+            # measurement
+            html.H2(id="today-date", className="today-date"),
+            html.Div(id="status", className="status"),
+            html.Div(id="cards", className="cards"),
+        ]),
+        html.Div(id="graphs-tab", style={"display": "none"}, children=[
             html.Div(className="controls", children=[
                 # Each button holds a long and a short label: style.css
                 # shows one or the other, depending on the screen
@@ -725,6 +860,12 @@ def create_dashboard(open_database, log_path, backup_status):
                              for period, label in PERIOD_LABELS.items()]),
                 html.Button("Today", id="today",
                             title="Come back to the present"),
+            ]),
+            # The period before, the period shown, the period after
+            html.Div(className="steps", children=[
+                html.Button("◀", id="previous", title="The period before"),
+                html.Div(id="period-title", className="period-title"),
+                html.Button("▶", id="next", title="The period after"),
             ]),
             graph("graph"),
         ]),
@@ -757,32 +898,39 @@ def create_dashboard(open_database, log_path, backup_status):
                            "station: the measurements (CSV) and the log."])),
             html.Ul(id="upload-result", className="upload-result"),
         ]),
-        html.P(id="hint", className="hint",
-               children="Drag the graphs to move in time, turn the mouse "
-                        "wheel over them to zoom."),
         # The period shown in the Graphs tab (see shown())
         dcc.Store(id="view", data={"length": 86400, "end": None}),
         # The periods of the Compare tab (see compare_dates())
         dcc.Store(id="compared", data=None),
-        # The theme, kept by the browser from one visit to the next
-        dcc.Store(id="theme", data="dark", storage_type="local"),
+        # The tab last shown, set by the clientside callback below
+        dcc.Store(id="resized"),
         # Asks for new data every few minutes, while the page is open
         dcc.Interval(id="refresh", interval=REFRESH_MS),
       ]),
     ])
 
     @app.callback(
-        Output("graphs-tab", "style"), Output("compare-tab", "style"),
-        Output("data-tab", "style"), Output("hint", "style"),
+        *[Output(f"{value}-tab", "style") for value, _, _ in TABS],
         Input("tab", "value"))
     def show_tab(tab):
-        # The tab chosen is shown, the others hidden; the hint about the
-        # graphs is only shown with graphs
-        hidden = {"display": "none"}
-        return ({} if tab == "graphs" else hidden,
-                {} if tab == "compare" else hidden,
-                {} if tab == "data" else hidden,
-                hidden if tab == "data" else {})
+        # The tab chosen is shown, the others hidden
+        return [{} if tab == value else {"display": "none"}
+                for value, _, _ in TABS]
+
+    # Plotly sizes the graphs when it draws them, and again when the
+    # window changes size; a hidden tab has no size. When a tab is shown,
+    # this function, run by the browser itself (a "clientside" callback,
+    # written in JavaScript), tells Plotly that the window changed, so
+    # that the graphs take the room of their tab. It changes nothing on
+    # the page: Dash needs an output, the store "resized"
+    app.clientside_callback(
+        """function (tab) {
+            setTimeout(function () {
+                window.dispatchEvent(new Event("resize"));
+            }, 50);
+            return tab;
+        }""",
+        Output("resized", "data"), Input("tab", "value"))
 
     @app.callback(
         Output("download", "data"),
@@ -829,16 +977,18 @@ def create_dashboard(open_database, log_path, backup_status):
     @app.callback(
         Output("view", "data"), Output("period", "value"),
         Input("period", "value"), Input("today", "n_clicks"),
+        Input("previous", "n_clicks"), Input("next", "n_clicks"),
         Input("graph", "relayoutData"), State("view", "data"),
         prevent_initial_call=True)
-    def navigate(period, _today, relayout, view):
-        # Called on a click on a period or on Today, or after the graphs
-        # were dragged or zoomed: ctx.triggered_id tells which
+    def navigate(period, _today, _previous, _next, relayout, view):
+        # Called on a click on a period, an arrow or Today, or after the
+        # graphs were dragged or zoomed: ctx.triggered_id tells which
+        now = datetime.now(timezone.utc)
         limits = shown_limits(relayout)
         if ctx.triggered_id == "graph":
             if limits is None:
                 return no_update, no_update
-            view = view_after_move(limits, datetime.now(timezone.utc))
+            view = view_after_move(limits, now)
             # The length shown is no longer the one of a button: none is
             # selected, and a click on any of them sets its length again
             length = timedelta(seconds=view["length"])
@@ -847,6 +997,9 @@ def create_dashboard(open_database, log_path, backup_status):
             return view, (matching[0] if matching else None)
         if ctx.triggered_id == "today":
             return {**view, "end": None}, no_update
+        if ctx.triggered_id in ("previous", "next"):
+            direction = -1 if ctx.triggered_id == "previous" else 1
+            return view_after_step(view, direction, now), no_update
         if period is None:
             return no_update, no_update
         return {**view, "length": PERIODS[period].total_seconds()}, no_update
@@ -926,48 +1079,39 @@ def create_dashboard(open_database, log_path, backup_status):
 
     @app.callback(
         Output("compare-graph", "figure"),
-        Input("compared", "data"), Input("theme", "data"))
-    def update_comparison(compared, theme):
+        Input("compared", "data"))
+    def update_comparison(compared):
         if compared is None:
             return no_update
         connection = open_database()
         try:
             return build_comparison(connection, compared,
-                                    datetime.now(timezone.utc), theme)
+                                    datetime.now(timezone.utc))
         finally:
             connection.close()
 
     @app.callback(
-        Output("theme", "data"),
-        Input("theme-button", "n_clicks"), State("theme", "data"),
-        prevent_initial_call=True)
-    def switch_theme(_clicks, theme):
-        return "light" if theme == "dark" else "dark"
-
-    @app.callback(
         Output("alert", "children"), Output("alert", "className"),
         Output("status", "children"), Output("status", "className"),
-        Output("cards", "children"),
-        Output("graph", "figure"),
-        Output("root", "className"), Output("theme-button", "children"),
-        Input("view", "data"),
-        Input("theme", "data"), Input("refresh", "n_intervals"))
-    def update(view, theme, _refresh_count):
-        # Called when the page opens, when the period shown or the theme
-        # changes, and at each refresh
+        Output("today-date", "children"), Output("cards", "children"),
+        Output("graph", "figure"), Output("period-title", "children"),
+        Output("next", "disabled"),
+        Input("view", "data"), Input("refresh", "n_intervals"))
+    def update(view, _refresh_count):
+        # Called when the page opens, when the period shown changes, and
+        # at each refresh. There is no period after the present
         connection = open_database()
         try:
             result = build_view(connection, view,
-                                datetime.now(timezone.utc), theme)
+                                datetime.now(timezone.utc))
         finally:
             connection.close()
         state = "stale" if result["stale"] else "ok"
         alert_class = "alert" if result["alert"] else "alert hidden"
         status = [html.Span(className="dot"), result["status"]]
-        # The button shows the theme it switches to
-        icon = "☀" if theme == "dark" else "☾"
         return (result["alert"], alert_class, status, f"status {state}",
-                cards(result["last"]), result["figure"], f"root {theme}",
-                icon)
+                result["date"], result["cards"], result["figure"],
+                result["title"],
+                view["end"] is None)
 
     return app

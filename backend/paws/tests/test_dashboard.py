@@ -8,10 +8,12 @@ import pytest
 from paws_server import database
 from paws_server.dashboard import (build_comparison, build_view,
                                    compare_after_move,
-                                   compare_dates, format_age, health,
+                                   compare_dates, day_extremes,
+                                   format_age, health,
                                    midnights, resolution, shown,
                                    parts_of, shown_limits, start_of,
-                                   view_after_move)
+                                   trend, trend_text,
+                                   view_after_move, view_after_step)
 
 NOW = datetime(2026, 10, 5, 12, 0, tzinfo=timezone.utc)
 
@@ -31,6 +33,34 @@ def row(timestamp, temperature, time_valid=1):
 
 
 # --- Health ------------------------------------------------------------------
+
+def test_trend_over_three_hours():
+    rows = [{"timestamp": "2026-10-05T08:00:00Z", "temperature_c": 10.0},
+            {"timestamp": "2026-10-05T09:00:00Z", "temperature_c": 11.0},
+            {"timestamp": "2026-10-05T11:00:00Z", "temperature_c": 13.5}]
+    # 3 hours before 12:00 is 09:00: 14.0 - 11.0
+    last = {"timestamp": "2026-10-05T12:00:00Z", "temperature_c": 14.0}
+    assert trend(rows, last, "temperature_c") == 3.0
+    # Without a row old enough, no trend
+    assert trend(rows[2:], last, "temperature_c") is None
+
+
+def test_trend_text():
+    assert trend_text(3.0, "°C") == "↑ +3.0 °C in 3 h"
+    assert trend_text(-0.42, "hPa") == "↓ -0.4 hPa in 3 h"
+    assert trend_text(0.02, "%") == "→ steady in 3 h"
+    assert trend_text(None, "%") == ""
+
+
+def test_extremes_of_the_local_day_only():
+    rows = [{"local_time": "2026-10-04 23:45:00", "temperature_c": 2.0},
+            {"local_time": "2026-10-05 04:45:00", "temperature_c": 5.3},
+            {"local_time": "2026-10-05 09:00:00", "temperature_c": None},
+            {"local_time": "2026-10-05 14:00:00", "temperature_c": 15.9}]
+    assert day_extremes(rows, "2026-10-05", "temperature_c") == (
+        (5.3, "04:45"), (15.9, "14:00"))
+    assert day_extremes(rows, "2026-10-06", "temperature_c") is None
+
 
 def test_health_without_data_warns():
     stale, status, alert = health(None, NOW)
@@ -83,6 +113,19 @@ def test_limits_reported_by_plotly_for_the_three_axes():
 def test_back_to_the_present_follows_the_new_data():
     limits = ["2026-10-04 12:00:00", "2026-10-05 12:00:00"]
     assert view_after_move(limits, NOW)["end"] is None
+
+
+def test_arrows_move_by_the_length_shown():
+    before = view_after_step(DAY, -1, NOW)
+    assert before == {"length": 86400, "end": "2026-10-04T12:00:00Z"}
+    # Two days back, then one forward: still in the past
+    two_before = view_after_step(before, -1, NOW)
+    assert view_after_step(two_before, 1, NOW) == before
+
+
+def test_arrow_back_to_the_present_follows_the_new_data():
+    before = view_after_step(DAY, -1, NOW)
+    assert view_after_step(before, 1, NOW)["end"] is None
 
 
 def test_resolution_follows_the_length_shown():
