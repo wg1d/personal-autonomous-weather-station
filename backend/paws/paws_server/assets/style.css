@@ -125,6 +125,19 @@ body {
     color: var(--muted);
 }
 
+/* The sentence about the trends, on a card above the values */
+.summary {
+    margin: 12px 0 0;
+    padding: 10px 16px;
+    border-radius: 10px;
+    background: var(--card);
+    font-size: 1.05rem;
+}
+
+.summary:empty {
+    display: none;
+}
+
 .dot {
     display: inline-block;
     width: 10px;
