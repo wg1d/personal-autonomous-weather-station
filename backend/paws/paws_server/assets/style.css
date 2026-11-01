@@ -202,7 +202,7 @@ body {
     margin: 8px 0;
 }
 
-/* The tiles below the top: two columns on a phone, four on a computer */
+/* The tiles below the top: four columns on a computer, one on a phone */
 .tiles {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -221,6 +221,14 @@ body {
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 0.04em;
+}
+
+.tile-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0 12px;
 }
 
 .tile-value {
@@ -476,7 +484,7 @@ button:disabled {
 
 /* On a phone: the navigation panel becomes a thin bar at the bottom of
    the screen, with the tabs side by side and without the title; the
-   tiles take two columns; the controls are smaller, so that the graphs
+   tiles are one above the other; the controls are smaller, so that the graphs
    and their time axis fit on the screen at a glance */
 @media (max-width: 600px) {
     .root {
@@ -529,7 +537,7 @@ button:disabled {
     }
 
     .tiles {
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr;
         gap: 8px;
     }
 
