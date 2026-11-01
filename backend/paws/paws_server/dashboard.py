@@ -35,6 +35,7 @@ Dependencies: dash (which includes plotly).
 import base64
 import calendar
 from datetime import date, datetime, timedelta, timezone
+from urllib.parse import quote
 
 import plotly.io as pio
 from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
@@ -115,7 +116,7 @@ def vpd_drying(deficit):
             return drying
 
 
-# The other values written on the card of a quantity, in the Now tab:
+# The other values of a quantity, written below it in the Now tab:
 # column, name, unit, decimals, and the function that tells what the
 # value means, or None
 CARD_EXTRAS = {
@@ -123,7 +124,7 @@ CARD_EXTRAS = {
         ("dew_point_c", "Point de rosée", "°C", 1, dew_comfort),
         ("feels_like_c", "Ressenti", "°C", 1, None)],
     "humidity_pct": [
-        ("absolute_humidity_gm3", "Humidité absolue", "g/m³", 1, None),
+        ("absolute_humidity_gm3", "Absolue", "g/m³", 1, None),
         ("vpd_kpa", "Déficit de vapeur", "kPa", 2, vpd_drying)],
     "sea_level_hpa": [("pressure_hpa", "À la station", "hPa", 1, None)],
 }
@@ -436,9 +437,11 @@ def health(last, now):
                 "Aucune mesure reçue pour l'instant : vérifiez la station.")
     measured = parse_timestamp(last["timestamp"])
     age = now - measured
-    status = ("Dernière mesure · "
-              f"{french_date(to_local(measured), '%d %b, %H:%M')} "
-              f"(il y a {format_age(age)})")
+    # The time alone for a measurement of today, with its day otherwise
+    local = to_local(measured)
+    when = (f"de {local:%H:%M}" if local.date() == to_local(now).date()
+            else f"du {french_date(local, '%d %b à %H:%M')}")
+    status = f"Mesure {when} · il y a {format_age(age)}"
     if age > STALE_AFTER:
         return (True, status, "Aucune nouvelle mesure depuis "
                 f"{format_age(age)} : vérifiez la station.")
@@ -512,7 +515,7 @@ def pressure_outlook(change):
 
 def weather_summary(changes, last=None):
     """A short text about the trends of the last 3 hours, at the top of the
-    Now tab, then about the last measurement (last, see cards()). changes
+    Now tab, then about the last measurement (last, see hero()). changes
     holds the change of each quantity, by column (see trend()), None when
     unknown. Returns "" when nothing is known."""
     sentences = []
@@ -569,62 +572,58 @@ def watering_advice(rows, changes):
     """The advice about watering, from the highest vapour pressure deficit
     of the last day (rows): how much water the plants and the soil lost.
     The station does not measure the soil nor the rain: the advice tells
-    when watering is useful, if the soil is dry."""
+    when watering is useful, if the soil is dry. Returns (headline,
+    detail), or None without values."""
     deficits = [row["vpd_kpa"] for row in rows if row["vpd_kpa"] is not None]
     if not deficits:
-        return ""
+        return None
     highest = max(deficits)
     if highest < WATERING_LOW_VPD:
-        text = ("l'air est resté humide, les plantes ont perdu peu d'eau. "
-                "Inutile d'arroser si la terre est encore fraîche ; évitez "
-                "de mouiller les feuilles, l'humidité favorise les maladies.")
+        headline = "Pas nécessaire"
+        detail = ("L'air est resté humide, les plantes ont perdu peu d'eau. "
+                  "Évitez de mouiller les feuilles : l'humidité favorise "
+                  "les maladies.")
     elif highest < WATERING_HIGH_VPD:
-        text = ("évaporation moyenne sur la journée. Arrosez si la terre "
-                "est sèche sur 2 à 3 cm, le soir ou tôt le matin.")
+        headline = "Si la terre est sèche"
+        detail = ("Évaporation moyenne sur la journée. Arrosez si la terre "
+                  "est sèche sur 2 à 3 cm, le soir ou tôt le matin.")
     else:
-        text = (f"air très asséchant (jusqu'à {number(highest, 2)} kPa) : "
-                "le sol sèche vite. Si la terre est sèche, arrosez le soir "
-                "ou tôt le matin, au pied des plantes.")
+        headline = "Conseillé"
+        detail = (f"Air très asséchant (jusqu'à {number(highest, 2)} kPa) : "
+                  "le sol sèche vite. Si la terre est sèche, arrosez le "
+                  "soir ou tôt le matin, au pied des plantes.")
     pressure = changes.get("sea_level_hpa")
     if pressure is not None and pressure < -RAIN_PRESSURE_DROP:
-        text += " La pression baisse vite : la pluie pourrait arroser à "\
-                "votre place."
-    return text
+        detail += " La pression baisse vite : la pluie pourrait arroser "\
+                  "à votre place."
+    return headline, detail
 
 
 def laundry_advice(last, changes):
     """The advice about drying laundry outside, from the last measurement:
     the rain that a fast fall of the pressure announces, the dew, then the
     vapour pressure deficit. The wind and the sun, which also dry laundry,
-    are not measured."""
+    are not measured. Returns (headline, detail), or None without
+    values."""
     pressure = changes.get("sea_level_hpa")
     if pressure is not None and pressure < -RAIN_PRESSURE_DROP:
-        return ("la pression baisse vite, la pluie est probable : mieux "
-                "vaut rentrer le linge.")
+        return ("À rentrer", "La pression baisse vite, la pluie est "
+                "probable.")
     temperature, dew = last["temperature_c"], last["dew_point_c"]
     if temperature is not None and dew is not None \
             and temperature - dew <= DEW_SPREAD_C:
-        return ("l'air est saturé : le linge ne sèche plus, et la rosée va "
-                "le mouiller. Rentrez-le.")
+        return ("À rentrer", "L'air est saturé : le linge ne sèche plus, "
+                "et la rosée va le mouiller.")
     deficit = last["vpd_kpa"]
     if deficit is None:
-        return ""
+        return None
     if deficit >= VPD_DRYING[1][0]:
-        return "bon séchage : le linge sèche vite."
+        return "Bon séchage", "Le linge sèche vite."
     if deficit >= VPD_DRYING[0][0]:
-        return ("séchage lent : il sèchera mieux avec du vent ou du "
+        return ("Séchage lent", "Il sèchera mieux avec du vent ou du "
                 "soleil.")
-    return "l'air est trop humide, le linge ne sèchera presque pas dehors."
-
-
-def advice(last, rows, changes):
-    """The advice of the Now tab, as (subject, text) pairs: watering, and
-    laundry. Empty without measurement."""
-    if last is None:
-        return []
-    pairs = [("Arrosage", watering_advice(rows, changes)),
-             ("Linge", laundry_advice(last, changes))]
-    return [(subject, text) for subject, text in pairs if text]
+    return ("Pas de séchage", "L'air est trop humide, le linge ne sèchera "
+            "presque pas dehors.")
 
 
 def trend_text(change, unit):
@@ -640,62 +639,129 @@ def trend_text(change, unit):
 
 
 def sparkline(rows, column, color):
-    """A small curve of the last day, without axes, for a card."""
-    return {"data": [{"type": "scatter", "mode": "lines",
-                      "x": [row["local_time"] for row in rows],
-                      "y": [row[column] for row in rows],
-                      "line": {"color": color, "width": 2},
-                      "hoverinfo": "skip"}],
-            "layout": {"margin": {"l": 0, "r": 0, "t": 4, "b": 4},
-                       "xaxis": {"visible": False},
-                       "yaxis": {"visible": False},
-                       "showlegend": False,
-                       "paper_bgcolor": "rgba(0,0,0,0)",
-                       "plot_bgcolor": "rgba(0,0,0,0)"}}
+    """A small curve of the last day, without axes, as an SVG image: a
+    text that describes the line, which the browser draws at any size and
+    any zoom, like a letter. Returns the image as a "data:" address, the
+    text itself, which <img> shows without any file; None with fewer than
+    two values.
+
+    The curve is drawn in a box of 300 × 60 that the page stretches to
+    its width (preserveAspectRatio="none"); its line keeps its width
+    (vector-effect). A missing value cuts the line in pieces.
+    """
+    points = [(datetime.fromisoformat(row["local_time"]), row[column])
+              for row in rows]
+    values = [value for _, value in points if value is not None]
+    if len(values) < 2:
+        return None
+    first, last = points[0][0], points[-1][0]
+    span = (last - first).total_seconds() or 1
+    low, high = min(values), max(values)
+    height = (high - low) or 1
+    pieces, piece = [], []
+    for moment, value in points:
+        if value is None:
+            pieces.append(piece)
+            piece = []
+            continue
+        x = 300 * (moment - first).total_seconds() / span
+        y = 56 - 52 * (value - low) / height
+        piece.append(f"{x:.1f},{y:.1f}")
+    pieces.append(piece)
+    lines = "".join(
+        f'<polyline points="{" ".join(piece)}" fill="none" '
+        f'stroke="{color}" stroke-width="2" stroke-linejoin="round" '
+        'vector-effect="non-scaling-stroke"/>'
+        for piece in pieces if len(piece) > 1)
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 60" '
+           f'preserveAspectRatio="none">{lines}</svg>')
+    return "data:image/svg+xml;utf8," + quote(svg)
 
 
-def cards(last, rows, day):
-    """One card per quantity: the value of the last measurement, its
-    change over the last 3 hours, its other values (see CARD_EXTRAS), a
-    small curve of the last day, and the minimum and maximum of the local
-    day (day, such as "2026-10-05"). rows are the rows of the last day,
-    oldest first."""
+def extra_lines(last, column):
+    """The other values of a quantity that are known (see CARD_EXTRAS),
+    one text each, such as "Point de rosée 6,3 °C · air sec"."""
+    return [f"{other} {number(last[key], decimals)} {other_unit}"
+            + ("" if meaning is None else f" · {meaning(last[key])}")
+            for key, other, other_unit, decimals, meaning
+            in CARD_EXTRAS.get(column, [])
+            if last[key] is not None]
+
+
+def extremes_text(rows, day, column):
+    """The minimum and maximum of the local day, such as "min 7,0 à 02:30
+    · max 18,4 à 11:45", or "" without values."""
+    extremes = day_extremes(rows, day, column)
+    if extremes is None:
+        return ""
+    (low, low_time), (high, high_time) = extremes
+    return (f"min {number(low)} à {low_time} · "
+            f"max {number(high)} à {high_time}")
+
+
+def curve(rows, column, color):
+    """The small curve of a quantity, as an image, or nothing."""
+    image = sparkline(rows, column, color)
+    return [] if image is None else [html.Img(src=image, alt="",
+                                              className="sparkline")]
+
+
+def hero(last, rows, day, summary):
+    """The top of the Now tab: the temperature in large, what the dew
+    point and the feels-like temperature tell, its change and the
+    extremes of the day, its curve, then the summary of the weather."""
+    if last is None:
+        return []
+    column, _, unit, color = QUANTITIES[0]
+    value = "–" if last[column] is None else number(last[column])
+    return [
+        html.Div(className="hero-value", children=[
+            value, html.Span(f" {unit}", className="hero-unit")]),
+        *[html.Div(line, className="hero-line")
+          for line in extra_lines(last, column)],
+        html.Div(" · ".join(text for text in [
+            trend_text(trend(rows, last, column), unit),
+            extremes_text(rows, day, column)] if text),
+            className="hero-line muted"),
+        *curve(rows, column, color),
+        html.P(summary, className="hero-summary") if summary else None,
+    ]
+
+
+# Shorter names for the tiles, which are narrow on a phone
+TILE_NAMES = {"sea_level_hpa": "Pression (mer)"}
+
+
+def tiles(last, rows, day, changes):
+    """The tiles of the Now tab, below the top: one per other quantity,
+    with its value, its change, its curve, its other values and its
+    extremes; then the advice about laundry and watering."""
     if last is None:
         return []
     result = []
-    for column, name, unit, color in QUANTITIES:
+    for column, name, unit, color in QUANTITIES[1:]:
         value = "–" if last[column] is None else number(last[column])
-        extremes = day_extremes(rows, day, column)
-        today = ""
-        if extremes is not None:
-            (low, low_time), (high, high_time) = extremes
-            today = (f"Aujourd'hui : min {number(low)} à {low_time} · "
-                     f"max {number(high)} à {high_time}")
-        # The other values that are known, and what they mean, such as
-        # "Point de rosée 8,1 °C (air sec)"
-        others = " · ".join(
-            f"{other} {number(last[key], decimals)} {other_unit}"
-            + ("" if meaning is None else f" ({meaning(last[key])})")
-            for key, other, other_unit, decimals, meaning
-            in CARD_EXTRAS.get(column, [])
-            if last[key] is not None)
-        result.append(html.Div(className="card", style={"borderColor": color},
-                               children=[
-            html.Div(name, className="card-name"),
-            html.Div(className="card-line", children=[
-                html.Div([value, html.Span(f" {unit}",
-                                           className="card-unit")],
-                         className="card-value", style={"color": color}),
-                html.Div(trend_text(trend(rows, last, column), unit),
-                         className="card-trend"),
-            ]),
-            html.Div(others, className="card-others"),
-            # A picture of the curve: it cannot be dragged nor zoomed
-            dcc.Graph(figure=sparkline(rows, column, color),
-                      className="sparkline",
-                      config={"staticPlot": True}),
-            html.Div(today, className="card-extremes"),
+        result.append(html.Div(className="tile", children=[
+            html.Div(TILE_NAMES.get(column, name), className="tile-name"),
+            html.Div([value, html.Span(f" {unit}", className="tile-unit")],
+                     className="tile-value", style={"color": color}),
+            html.Div(trend_text(trend(rows, last, column), unit),
+                     className="tile-line"),
+            *curve(rows, column, color),
+            *[html.Div(line, className="tile-line")
+              for line in extra_lines(last, column)],
+            html.Div(extremes_text(rows, day, column),
+                     className="tile-line muted"),
         ]))
+    for name, pair in [("Linge", laundry_advice(last, changes)),
+                       ("Arrosage", watering_advice(rows, changes))]:
+        if pair is not None:
+            headline, detail = pair
+            result.append(html.Div(className="tile", children=[
+                html.Div(name, className="tile-name"),
+                html.Div(headline, className="tile-headline"),
+                html.Div(detail, className="tile-line"),
+            ]))
     return result
 
 
@@ -949,8 +1015,8 @@ def build_view(connection, view, now):
 
     view is the period shown (see shown()). Returns a dictionary:
     "stale", "status" and "alert" (the health of the station, see
-    health()), "date" (today, in words), "summary" (the trends, see
-    weather_summary()), "cards" (see cards()), "title"
+    health()), "date" (today, in words), "hero" and "tiles" (the Now tab,
+    see hero() and tiles()), "title"
     (the period shown, see period_title()) and "figure" (the graphs).
     """
     last = database.last_row(connection)
@@ -973,12 +1039,12 @@ def build_view(connection, view, now):
     if last is not None:
         changes = {column: trend(day_rows, last, column)
                    for column, _, _, _ in QUANTITIES}
+    day = f"{local_now:%Y-%m-%d}"
     return {"stale": stale, "status": status, "alert": alert,
-            "summary": weather_summary(changes, last),
-            "advice": [html.P([html.B(f"{subject} : "), text])
-                       for subject, text in advice(last, day_rows, changes)],
-            "date": french_date(local_now, "%A %d %B %Y").capitalize(),
-            "cards": cards(last, day_rows, f"{local_now:%Y-%m-%d}"),
+            "date": french_date(local_now, "%A %d %B").capitalize(),
+            "hero": hero(last, day_rows, day,
+                         weather_summary(changes, last)),
+            "tiles": tiles(last, day_rows, day, changes),
             "title": period_title(view, now),
             "figure": figure(values, points, start, stop, limits)}
 
@@ -1214,7 +1280,8 @@ def create_dashboard(open_database, log_path, backup_status):
     app = Dash(__name__, requests_pathname_prefix="/dashboard/",
                title="PAWS",
                meta_tags=[{"name": "viewport",
-                           "content": "width=device-width, initial-scale=1"}])
+                           "content": "width=device-width, initial-scale=1, "
+                                      "viewport-fit=cover"}])
     # The page that Dash sends holds the icon at the place of {%favicon%}
     # The page is in French: <html lang="fr"> tells it to the browser,
     # for the reading aloud and the hyphenation
@@ -1269,17 +1336,19 @@ def create_dashboard(open_database, log_path, backup_status):
         # Shown only when the station is silent, whatever the tab
         html.Div(id="alert", className="alert hidden"),
         html.Div(id="now-tab", children=[
-            # Today, then a dot, green or red, and the time of the last
-            # measurement
-            html.H2(id="today-date", className="today-date"),
-            html.Div(id="status", className="status"),
-            # What the trends of the last 3 hours tell
-            html.P(id="summary", className="summary"),
-            # Watering and laundry
-            html.Div(id="advice", className="advice"),
-            html.Div(id="cards", className="cards"),
-            html.H3("Comment lire ces valeurs", className="explanations"),
-            *explanations(),
+            # The top: today and the help button, the time of the last
+            # measurement with a dot, green or red, then the temperature
+            html.Div(className="hero", children=[
+                html.Div(className="hero-top", children=[
+                    html.Div([html.Div(id="today-date",
+                                       className="today-date"),
+                              html.Div(id="status", className="status")]),
+                    html.Button("?", id="help-open", className="help-button",
+                                title="Comment lire ces valeurs"),
+                ]),
+                html.Div(id="hero-body"),
+            ]),
+            html.Div(id="tiles", className="tiles"),
         ]),
         html.Div(id="graphs-tab", style={"display": "none"}, children=[
             html.Div(className="controls", children=[
@@ -1335,6 +1404,17 @@ def create_dashboard(open_database, log_path, backup_status):
                            "et le journal."])),
             html.Ul(id="upload-result", className="upload-result"),
         ]),
+        # How to read the values: a sheet over the page, hidden until the
+        # help button is pressed
+        html.Div(id="help", className="help hidden", children=[
+            html.Div(className="help-sheet", children=[
+                html.Div(className="help-header", children=[
+                    html.H2("Comment lire ces valeurs"),
+                    html.Button("✕", id="help-close", title="Fermer"),
+                ]),
+                *explanations(),
+            ]),
+        ]),
         # The period shown in the Graphs tab (see shown())
         dcc.Store(id="view", data={"length": 86400, "end": None}),
         # The periods of the Compare tab (see compare_dates())
@@ -1368,6 +1448,17 @@ def create_dashboard(open_database, log_path, backup_status):
             return tab;
         }""",
         Output("resized", "data"), Input("tab", "value"))
+
+    # The help sheet opens with the help button, and closes with its cross:
+    # the browser shows or hides it by its class, without the server
+    app.clientside_callback(
+        """function () {
+            const trigger = dash_clientside.callback_context.triggered_id;
+            return trigger === "help-open" ? "help" : "help hidden";
+        }""",
+        Output("help", "className"),
+        Input("help-open", "n_clicks"), Input("help-close", "n_clicks"),
+        prevent_initial_call=True)
 
     @app.callback(
         Output("download", "data"),
@@ -1530,9 +1621,9 @@ def create_dashboard(open_database, log_path, backup_status):
     @app.callback(
         Output("alert", "children"), Output("alert", "className"),
         Output("status", "children"), Output("status", "className"),
-        Output("today-date", "children"), Output("summary", "children"),
-        Output("advice", "children"),
-        Output("cards", "children"), Output("graph", "figure"), Output("period-title", "children"),
+        Output("today-date", "children"), Output("hero-body", "children"),
+        Output("tiles", "children"), Output("graph", "figure"),
+        Output("period-title", "children"),
         Output("next", "disabled"),
         Input("view", "data"), Input("refresh", "n_intervals"))
     def update(view, _refresh_count):
@@ -1548,10 +1639,8 @@ def create_dashboard(open_database, log_path, backup_status):
         alert_class = "alert" if result["alert"] else "alert hidden"
         status = [html.Span(className="dot"), result["status"]]
         return (result["alert"], alert_class, status, f"status {state}",
-                result["date"], result["summary"], result["advice"],
-                result["cards"],
-                result["figure"],
-                result["title"],
+                result["date"], result["hero"], result["tiles"],
+                result["figure"], result["title"],
                 view["end"] is None)
 
     return app

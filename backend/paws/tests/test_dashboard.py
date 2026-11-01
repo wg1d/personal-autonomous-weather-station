@@ -10,7 +10,7 @@ from paws_server.dashboard import (build_comparison, build_view,
                                    compare_after_move,
                                    compare_dates, day_extremes,
                                    dew_comfort, french_date, number,
-                                   laundry_advice, vpd_drying,
+                                   laundry_advice, sparkline, vpd_drying,
                                    watering_advice,
                                    format_age, health,
                                    midnights, resolution, shown,
@@ -60,22 +60,38 @@ def measurement(temperature, dew, deficit):
 def test_laundry_advice():
     steady = {"sea_level_hpa": 0.2}
     assert laundry_advice(measurement(23.4, 9.5, 1.7),
-                          steady).startswith("bon séchage")
+                          steady)[0] == "Bon séchage"
     assert laundry_advice(measurement(15.0, 9.0, 0.6),
-                          steady).startswith("séchage lent")
+                          steady)[0] == "Séchage lent"
     # Close to the dew point, or with a fast fall of the pressure, the
     # laundry goes in, whatever the deficit
-    assert "Rentrez-le" in laundry_advice(measurement(9.8, 8.5, 0.1), steady)
-    assert "rentrer" in laundry_advice(measurement(23.4, 9.5, 1.7),
-                                       {"sea_level_hpa": -4.0})
+    headline, detail = laundry_advice(measurement(9.8, 8.5, 0.1), steady)
+    assert headline == "À rentrer" and "rosée" in detail
+    headline, detail = laundry_advice(measurement(23.4, 9.5, 1.7),
+                                      {"sea_level_hpa": -4.0})
+    assert headline == "À rentrer" and "pluie" in detail
 
 
 def test_watering_advice_follows_the_driest_moment():
     rows = [{"vpd_kpa": 0.2}, {"vpd_kpa": 1.71}, {"vpd_kpa": None}]
-    text = watering_advice(rows, {"sea_level_hpa": 0.0})
-    assert text.startswith("air très asséchant (jusqu'à 1,71 kPa)")
-    assert "Inutile" in watering_advice([{"vpd_kpa": 0.3}], {})
-    assert watering_advice([], {}) == ""
+    headline, detail = watering_advice(rows, {"sea_level_hpa": 0.0})
+    assert headline == "Conseillé"
+    assert detail.startswith("Air très asséchant (jusqu'à 1,71 kPa)")
+    assert watering_advice([{"vpd_kpa": 0.3}], {})[0] == "Pas nécessaire"
+    assert watering_advice([], {}) is None
+
+
+def test_sparkline_is_an_svg_image():
+    rows = [{"local_time": f"2026-10-05 {hour:02d}:00:00",
+             "temperature_c": value}
+            for hour, value in [(10, 5.0), (11, None), (12, 7.0),
+                                (13, 9.0)]]
+    image = sparkline(rows, "temperature_c", "#d95926")
+    assert image.startswith("data:image/svg+xml;utf8,")
+    # The missing value cuts the line: the first piece holds a single
+    # point and is not drawn, the second one is
+    assert image.count("polyline") == 1
+    assert sparkline(rows[:1], "temperature_c", "#d95926") is None
 
 
 def test_dew_point_comfort():
@@ -142,7 +158,13 @@ def test_health_without_data_warns():
 def test_health_of_a_recent_measurement():
     last = {"timestamp": "2026-10-05T11:30:00Z"}
     assert health(last, NOW) == (
-        False, "Dernière mesure · 05 oct., 11:30 (il y a 30 min)", "")
+        False, "Mesure de 11:30 · il y a 30 min", "")
+
+
+def test_health_of_an_older_day_gives_its_date():
+    last = {"timestamp": "2026-10-03T11:30:00Z"}
+    _, status, _ = health(last, NOW)
+    assert status == "Mesure du 03 oct. à 11:30 · il y a 2 jours"
 
 
 def test_health_warns_after_two_hours():
