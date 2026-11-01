@@ -194,6 +194,13 @@ body {
     font-size: 1.05rem;
 }
 
+/* The forecast of the barometer, first in the summary */
+.hero-forecast {
+    margin-bottom: 4px;
+    font-weight: 600;
+    color: var(--accent);
+}
+
 /* The small curves: SVG images, stretched to the width of their block */
 .sparkline {
     display: block;

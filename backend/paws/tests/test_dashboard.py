@@ -9,7 +9,9 @@ from paws_server import database
 from paws_server.dashboard import (build_comparison, build_view,
                                    compare_after_move,
                                    compare_dates, day_extremes,
-                                   dew_comfort, french_date, number,
+                                   dew_comfort, forecast_text, french_date,
+                                   frost_advice, moon_phase, number,
+                                   sky_tile, yesterday_text,
                                    laundry_advice, sparkline, vpd_drying,
                                    watering_advice,
                                    format_age, health,
@@ -92,6 +94,45 @@ def test_sparkline_is_an_svg_image():
     # point and is not drawn, the second one is
     assert image.count("polyline") == 1
     assert sparkline(rows[:1], "temperature_c", "#d95926") is None
+
+
+def test_forecast_of_the_barometer():
+    last = {"sea_level_hpa": 1035.0}
+    assert forecast_text(last, {"sea_level_hpa": 0.0}) == (
+        "Prévision : beau temps stable")
+    assert forecast_text(last, {"sea_level_hpa": None}) == ""
+
+
+def test_temperature_against_yesterday():
+    last = {"temperature_c": 17.1}
+    assert yesterday_text(last, {"temperature_c": 15.0}) == (
+        "+2,1 °C par rapport à hier")
+    assert yesterday_text(last, None) == ""
+
+
+def test_frost_advice():
+    evening = datetime(2026, 11, 1, 20, 0)
+    noon = datetime(2026, 11, 1, 12, 0)
+    assert frost_advice(measurement(-1.0, -3.0, 0.1), noon)[0] == "Il gèle"
+    assert frost_advice(measurement(5.0, 0.5, 0.3), evening)[0] == (
+        "Gelée possible")
+    # The same air at noon, or a mild and humid evening: no frost tile
+    assert frost_advice(measurement(5.0, 0.5, 0.3), noon) is None
+    assert frost_advice(measurement(10.0, 8.0, 0.2), evening) is None
+
+
+def test_moon_phases():
+    assert moon_phase(0.5) == "Nouvelle lune"
+    assert moon_phase(14.8) == "Pleine lune"
+    assert moon_phase(22.1) == "Dernier quartier"
+
+
+def test_sky_tile_only_with_a_location():
+    assert sky_tile(None, NOW) is None
+    headline, lines = sky_tile((43.667, 1.376), NOW)
+    assert " – " in headline
+    assert lines[0].endswith("par rapport à hier)")
+    assert lines[1].startswith("Lune : ")
 
 
 def test_dew_point_comfort():

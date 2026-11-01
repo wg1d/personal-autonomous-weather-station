@@ -40,7 +40,7 @@ from urllib.parse import quote
 import plotly.io as pio
 from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
 
-from . import database, transfer
+from . import database, sky, transfer, weather
 from .protocol import TIMESTAMP_FORMAT
 
 # The periods of the buttons of the Graphs tab, and their length
@@ -208,6 +208,28 @@ EXPLANATIONS = [
         "pression : une pression qui baisse vite annonce souvent la pluie. "
         "Le vent et le soleil sèchent aussi le linge, mais la station ne "
         "les mesure pas.",
+    ]),
+    ("La prévision du baromètre", [
+        "Elle vient de la méthode Zambretti, celle des baromètres "
+        "prévisionnistes vendus dès 1915 et des stations météo du "
+        "commerce : la pression ramenée au niveau de la mer et sa "
+        "tendance sur 3 heures donnent l'une de 26 prévisions pour les "
+        "prochaines heures.",
+        "Une pression haute et stable annonce le beau temps ; une "
+        "pression basse qui baisse, la pluie. La méthode d'origine "
+        "tient aussi compte du vent et de la saison, que la station ne "
+        "mesure pas : c'est une estimation, moins sûre qu'une prévision "
+        "de Météo-France.",
+    ]),
+    ("Le gel", [
+        "La nuit, le sol et les plantes perdent leur chaleur vers le "
+        "ciel, et gèlent avant l'air mesuré à hauteur de l'abri : une "
+        "gelée est possible avec 2 ou 3 °C dans l'abri.",
+        "Par nuit claire et calme, la température descend vers le point "
+        "de rosée, où l'eau de l'air se condense et rend un peu de "
+        "chaleur. Le soir, un point de rosée proche de 0 °C annonce donc "
+        "une gelée possible. Les nuages et le vent la rendent moins "
+        "probable, mais la station ne les mesure pas.",
     ]),
     ("La température ressentie", [
         "Au-dessus de 27 °C, l'humidité freine l'évaporation de la sueur : "
@@ -707,10 +729,12 @@ def curve(rows, column, color):
                                               className="sparkline")]
 
 
-def hero(last, rows, day, summary):
+def hero(last, rows, day, summary, forecast="", yesterday=""):
     """The top of the Now tab: the temperature in large, what the dew
-    point and the feels-like temperature tell, its change and the
-    extremes of the day, its curve, then the summary of the weather."""
+    point and the feels-like temperature tell, its change, the
+    comparison with yesterday (yesterday, see yesterday_text()) and the
+    extremes of the day, its curve, then the forecast of the barometer
+    and the summary of the weather."""
     if last is None:
         return []
     column, _, unit, color = QUANTITIES[0]
@@ -721,11 +745,16 @@ def hero(last, rows, day, summary):
         *[html.Div(line, className="hero-line")
           for line in extra_lines(last, column)],
         html.Div(" · ".join(text for text in [
-            trend_text(trend(rows, last, column), unit),
-            extremes_text(rows, day, column)] if text),
-            className="hero-line muted"),
+            trend_text(trend(rows, last, column), unit), yesterday]
+            if text), className="hero-line muted"),
+        html.Div(extremes_text(rows, day, column),
+                 className="hero-line muted"),
         *curve(rows, column, color),
-        html.P(summary, className="hero-summary") if summary else None,
+        html.Div(className="hero-summary", children=[
+            html.Div(forecast, className="hero-forecast") if forecast
+            else None,
+            html.Div(summary) if summary else None,
+        ]) if forecast or summary else None,
     ]
 
 
@@ -733,10 +762,12 @@ def hero(last, rows, day, summary):
 TILE_NAMES = {"sea_level_hpa": "Pression (mer)"}
 
 
-def tiles(last, rows, day, changes):
+def tiles(last, rows, day, changes, advice_tiles):
     """The tiles of the Now tab, below the top: one per other quantity,
     with its value, its change, its curve, its other values and its
-    extremes; then the advice about laundry and watering."""
+    extremes; then the tiles of advice_tiles, (name, pair) where pair
+    is (headline, detail) or None, the detail being a text or a list of
+    texts."""
     if last is None:
         return []
     result = []
@@ -758,16 +789,135 @@ def tiles(last, rows, day, changes):
             html.Div(extremes_text(rows, day, column),
                      className="tile-line muted"),
         ]))
-    for name, pair in [("Linge", laundry_advice(last, changes)),
-                       ("Arrosage", watering_advice(rows, changes))]:
+    for name, pair in advice_tiles:
         if pair is not None:
             headline, detail = pair
+            lines = [detail] if isinstance(detail, str) else detail
             result.append(html.Div(className="tile", children=[
                 html.Div(name, className="tile-name"),
                 html.Div(headline, className="tile-headline"),
-                html.Div(detail, className="tile-line"),
+                *[html.Div(line, className="tile-line") for line in lines],
             ]))
     return result
+
+
+# --- Forecast, frost, sun and moon -----------------------------------------
+
+# The forecasts of the Zambretti method (see weather.zambretti()), in the
+# order of their numbers, from 1 to 32
+ZAMBRETTI_FORECASTS = [
+    "Beau temps stable", "Beau temps", "Beau, devenant moins stable",
+    "Assez beau, averses plus tard", "Averses, devenant plus instable",
+    "Instable, pluie plus tard", "Pluie par moments, empirant",
+    "Pluie par moments, devenant très instable", "Très instable, pluie",
+    "Beau temps stable", "Beau temps", "Beau, averses possibles",
+    "Assez beau, averses probables", "Averses et éclaircies",
+    "Variable, un peu de pluie", "Instable, pluie par moments",
+    "Pluie fréquente", "Très instable, pluie",
+    "Tempête, beaucoup de pluie", "Beau temps stable", "Beau temps",
+    "Devenant beau", "Assez beau, s'améliorant",
+    "Assez beau, averses possibles au début",
+    "Averses au début, s'améliorant", "Variable, s'améliorant",
+    "Plutôt instable, éclaircies plus tard",
+    "Instable, amélioration probable", "Instable, courtes éclaircies",
+    "Très instable, éclaircies par moments",
+    "Tempête, amélioration possible", "Tempête, beaucoup de pluie",
+]
+
+
+def forecast_text(last, changes):
+    """The forecast of the barometer for the next hours, such as
+    "Prévision : beau temps", or "" when the pressure or its trend is
+    missing."""
+    forecast_number = weather.zambretti(last["sea_level_hpa"],
+                                changes.get("sea_level_hpa"))
+    if forecast_number is None:
+        return ""
+    text = ZAMBRETTI_FORECASTS[forecast_number - 1]
+    return f"Prévision : {text[0].lower()}{text[1:]}"
+
+
+def yesterday_text(last, yesterday):
+    """The temperature now against yesterday at the same time, such as
+    "+2,1 °C par rapport à hier", or "" without a row of yesterday."""
+    if yesterday is None or last["temperature_c"] is None \
+            or yesterday["temperature_c"] is None:
+        return ""
+    change = last["temperature_c"] - yesterday["temperature_c"]
+    if round(change, 1) == 0:
+        return "comme hier à la même heure"
+    return f"{number(change, sign=True)} °C par rapport à hier"
+
+
+# Frost: the ground, and the plants on it, cool down below the air
+# measured at the height of the shelter. On a clear and calm night, the
+# temperature goes down towards the dew point, where the water of the air
+# condenses and gives back heat. Frost is possible at night when the air
+# is already cool and its dew point is near 0 °C, or when the air itself
+# is close to 0 °C
+FROST_AIR_C = 3.0
+FROST_DEW_C = 1.0
+FROST_COOL_AIR_C = 6.0
+# The hours of the evening and the night, in local time
+NIGHT_START = 16
+NIGHT_END = 9
+
+
+def frost_advice(last, local_now):
+    """The frost tile: (headline, detail) when it freezes, or when frost
+    is possible in the night, None otherwise."""
+    temperature, dew = last["temperature_c"], last["dew_point_c"]
+    if temperature is None:
+        return None
+    if temperature <= 0:
+        return ("Il gèle", "Protégez les plantes sensibles et les "
+                "conduites d'eau exposées.")
+    night = local_now.hour >= NIGHT_START or local_now.hour < NIGHT_END
+    dry_and_cool = (dew is not None and dew <= FROST_DEW_C
+                    and temperature <= FROST_COOL_AIR_C)
+    if night and (temperature <= FROST_AIR_C or dry_and_cool):
+        return ("Gelée possible", "Par nuit claire et calme, le sol et "
+                "les plantes peuvent geler avant l'air. Protégez les "
+                "plantes sensibles.")
+    return None
+
+
+def moon_phase(age):
+    """The name of the phase of the moon, for its age in days: eight
+    phases of equal length, the new moon centred on 0."""
+    names = ["Nouvelle lune", "Premier croissant", "Premier quartier",
+             "Gibbeuse croissante", "Pleine lune", "Gibbeuse décroissante",
+             "Dernier quartier", "Dernier croissant"]
+    eighth = sky.LUNAR_MONTH / 8
+    return names[int((age + eighth / 2) // eighth) % 8]
+
+
+def duration_text(length):
+    """Writes a duration of daylight: "10 h 17"."""
+    minutes = round(length.total_seconds() / 60)
+    return f"{minutes // 60} h {minutes % 60:02d}"
+
+
+def sky_tile(location, now):
+    """The sun and the moon tile: sunrise and sunset in local time, the
+    length of the day and its change since yesterday, and the moon.
+    location is (latitude, longitude) in degrees, or None: then no tile."""
+    if location is None:
+        return None
+    today = to_local(now).date()
+    times = sky.sun_times(today, *location)
+    before = sky.sun_times(today - timedelta(days=1), *location)
+    if times is None or before is None:
+        return None
+    sunrise, sunset = (to_local(moment) for moment in times)
+    length = times[1] - times[0]
+    change = round((length - (before[1] - before[0])).total_seconds() / 60)
+    age = sky.moon_age(now)
+    lit = round(100 * sky.moon_illumination(age))
+    return (f"{sunrise:%H:%M} – {sunset:%H:%M}",
+            [f"{duration_text(length)} de jour "
+             f"({change:+d} min par rapport à hier)",
+             f"Lune : {moon_phase(age).lower()}, éclairée à {lit} %"])
 
 
 # --- Graphs ----------------------------------------------------------------
@@ -1015,13 +1165,14 @@ def figure(values, points, start, stop, limits=None, label=None,
     return {"data": data, "layout": layout}
 
 
-def build_view(connection, view, now):
+def build_view(connection, view, now, location=None):
     """Computes everything the Graphs tab shows.
 
     view is the period shown (see shown()). Returns a dictionary:
     "stale", "status" and "alert" (the health of the station, see
     health()), "date" (today, in words), "hero" and "tiles" (the Now tab,
-    see hero() and tiles()), "title"
+    see hero() and tiles(); location is (latitude, longitude) of the
+    station, for the sun, or None), "title"
     (the period shown, see period_title()) and "figure" (the graphs).
     """
     last = database.last_row(connection)
@@ -1045,11 +1196,24 @@ def build_view(connection, view, now):
         changes = {column: trend(day_rows, last, column)
                    for column, _, _, _ in QUANTITIES}
     day = f"{local_now:%Y-%m-%d}"
+    forecast, yesterday, advice_tiles = "", "", []
+    if last is not None:
+        forecast = forecast_text(last, changes)
+        yesterday = yesterday_text(
+            last, database.row_near(connection, to_timestamp(
+                parse_timestamp(last["timestamp"]) - timedelta(days=1))))
+        advice_tiles = [
+            ("Gel", frost_advice(last, local_now)),
+            ("Linge", laundry_advice(last, changes)),
+            ("Arrosage", watering_advice(day_rows, changes)),
+            ("Soleil et lune", sky_tile(location, now)),
+        ]
     return {"stale": stale, "status": status, "alert": alert,
             "date": french_date(local_now, "%A %d %B").capitalize(),
             "hero": hero(last, day_rows, day,
-                         weather_summary(changes, last)),
-            "tiles": tiles(last, day_rows, day, changes),
+                         weather_summary(changes, last), forecast,
+                         yesterday),
+            "tiles": tiles(last, day_rows, day, changes, advice_tiles),
             "title": period_title(view, now),
             "figure": figure(values, points, start, stop, limits)}
 
@@ -1270,13 +1434,16 @@ def decode_upload(contents):
     return base64.b64decode(encoded).decode("utf-8", errors="replace")
 
 
-def create_dashboard(open_database, log_path, backup_status):
+def create_dashboard(open_database, log_path, backup_status,
+                     location=None):
     """Creates the Dash application.
 
     open_database is the function that opens the database, log_path the
     one that gives the path of the log of the station, and backup_status
     the one that gives the result of the last backup: the dashboard
     receives them from main.py, which knows where the data lives.
+    location is (latitude, longitude) of the station, for the sun, or
+    None.
     """
     # The dashboard is served under /dashboard/ (see main.py): the page
     # must ask for its files and its updates under this address. The
@@ -1637,7 +1804,7 @@ def create_dashboard(open_database, log_path, backup_status):
         connection = open_database()
         try:
             result = build_view(connection, view,
-                                datetime.now(timezone.utc))
+                                datetime.now(timezone.utc), location)
         finally:
             connection.close()
         state = "stale" if result["stale"] else "ok"
