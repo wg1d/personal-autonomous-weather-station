@@ -743,10 +743,14 @@ def tiles(last, rows, day, changes):
         value = "–" if last[column] is None else number(last[column])
         result.append(html.Div(className="tile", children=[
             html.Div(TILE_NAMES.get(column, name), className="tile-name"),
-            html.Div([value, html.Span(f" {unit}", className="tile-unit")],
-                     className="tile-value", style={"color": color}),
-            html.Div(trend_text(trend(rows, last, column), unit),
-                     className="tile-line"),
+            # The value, and its change on the right
+            html.Div(className="tile-row", children=[
+                html.Div([value, html.Span(f" {unit}",
+                                           className="tile-unit")],
+                         className="tile-value", style={"color": color}),
+                html.Div(trend_text(trend(rows, last, column), unit),
+                         className="tile-line"),
+            ]),
             *curve(rows, column, color),
             *[html.Div(line, className="tile-line")
               for line in extra_lines(last, column)],
