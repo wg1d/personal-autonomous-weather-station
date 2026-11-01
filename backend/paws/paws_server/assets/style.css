@@ -301,9 +301,70 @@ body {
     background: var(--card);
 }
 
+/* The sheet slides up from the bottom when it opens */
+.help:not(.hidden) .help-sheet {
+    animation: slide-up 0.25s ease-out;
+}
+
+@keyframes slide-up {
+    from {
+        transform: translateY(40px);
+        opacity: 0;
+    }
+}
+
+/* Each block unfolds smoothly: its height grows from 0 to the height of
+   its text (interpolate-size lets "auto" be animated, in the browsers
+   that know it; the others open the block at once), and its text fades
+   in */
+.explanation {
+    interpolate-size: allow-keywords;
+}
+
+.explanation::details-content {
+    block-size: 0;
+    overflow: hidden;
+    transition: block-size 0.3s ease, content-visibility 0.3s allow-discrete;
+}
+
+.explanation[open]::details-content {
+    block-size: auto;
+}
+
+.explanation[open] p {
+    animation: fade-in 0.3s ease-out;
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+}
+
+/* The title of a block, with an arrow on the right that turns when the
+   block opens, instead of the triangle of the browser */
 .explanation summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     cursor: pointer;
     font-weight: 600;
+    list-style: none;
+}
+
+.explanation summary::-webkit-details-marker {
+    display: none;
+}
+
+.explanation summary::after {
+    content: "›";
+    font-size: 1.4rem;
+    color: var(--muted);
+    transition: transform 0.3s ease;
+}
+
+.explanation[open] summary::after {
+    transform: rotate(90deg);
 }
 
 .explanation p {

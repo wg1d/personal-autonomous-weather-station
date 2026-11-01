@@ -584,9 +584,10 @@ def watering_advice(rows, changes):
                   "Évitez de mouiller les feuilles : l'humidité favorise "
                   "les maladies.")
     elif highest < WATERING_HIGH_VPD:
-        headline = "Si la terre est sèche"
-        detail = ("Évaporation moyenne sur la journée. Arrosez si la terre "
-                  "est sèche sur 2 à 3 cm, le soir ou tôt le matin.")
+        headline = "À vérifier"
+        detail = ("Évaporation moyenne sur la journée : touchez la terre, "
+                  "et arrosez si elle est sèche sur 2 à 3 cm, le soir ou "
+                  "tôt le matin.")
     else:
         headline = "Conseillé"
         detail = (f"Air très asséchant (jusqu'à {number(highest, 2)} kPa) : "
