@@ -18,6 +18,10 @@ Environment=PAWS_DATA_DIR=@HOME@/paws/data
 # The altitude of the station, in metres, for the pressure at sea level:
 # write the one of your station (Beauzelle, near Toulouse: 140 m)
 Environment=PAWS_ALTITUDE_M=140
+# Its position, in degrees, north and east positive, for the sunrise and
+# the sunset: write the one of your station
+Environment=PAWS_LATITUDE=43.667
+Environment=PAWS_LONGITUDE=1.376
 # The virtual environment too: it is reused from one deployment to the next
 Environment=UV_PROJECT_ENVIRONMENT=@HOME@/paws/venv
 # One worker: the load is tiny, and memory is shared with other services

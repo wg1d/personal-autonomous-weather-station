@@ -4,7 +4,8 @@ import pytest
 
 from paws_server import database
 from paws_server.weather import (absolute_humidity, dew_point, feels_like,
-                                 sea_level_factor, vapour_pressure_deficit)
+                                 sea_level_factor, vapour_pressure_deficit,
+                                 zambretti)
 
 
 def test_dew_point():
@@ -39,6 +40,27 @@ def test_vapour_pressure_deficit():
                                                                 abs=0.01)
     assert vapour_pressure_deficit(10.0, 100.0) == 0.0
     assert vapour_pressure_deficit(None, 50.0) is None
+
+
+def test_zambretti_follows_the_trend():
+    # High and steady: settled weather; low and falling: rain; each trend
+    # keeps to its own numbers
+    assert zambretti(1035.0, 0.0) == 10
+    assert zambretti(990.0, -3.0) == 8
+    assert 20 <= zambretti(1000.0, 2.0) <= 32
+    assert zambretti(1000.0, None) is None
+
+
+def test_row_near_a_time(tmp_path):
+    connection = database.connect(tmp_path / "test.db")
+    database.insert_rows(connection, [
+        ("2026-10-04T11:50:00Z", 1, 10.0, 50.0, 1000.0),
+        ("2026-10-04T12:30:00Z", 1, 12.0, 50.0, 1000.0)])
+    assert database.row_near(connection, "2026-10-04T12:00:00Z")[
+        "temperature_c"] == 10.0
+    # More than 20 minutes away from every row
+    assert database.row_near(connection, "2026-10-04T13:00:00Z") is None
+    connection.close()
 
 
 def test_sea_level_factor():

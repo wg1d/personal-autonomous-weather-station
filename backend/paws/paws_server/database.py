@@ -114,6 +114,24 @@ def last_row(connection):
     return dict(zip(["timestamp", *QUANTITIES], rows[0])) if rows else None
 
 
+def row_near(connection, timestamp, margin_minutes=20):
+    """Returns the valid row closest to a timestamp, within margin_minutes
+    on each side, with all the QUANTITIES, or None if there is none.
+
+    The rows of the station come every 15 minutes: the closest one is at
+    most 7 or 8 minutes away, unless some are missing. julianday() turns
+    a timestamp into a number of days, so that two of them can be
+    subtracted.
+    """
+    rows = connection.execute(
+        f"SELECT timestamp, {QUANTITY_COLUMNS} FROM measurements "
+        "WHERE time_valid = 1 "
+        "AND ABS(julianday(timestamp) - julianday(?)) * 1440 <= ? "
+        "ORDER BY ABS(julianday(timestamp) - julianday(?)) LIMIT 1",
+        (timestamp, margin_minutes, timestamp)).fetchall()
+    return dict(zip(["timestamp", *QUANTITIES], rows[0])) if rows else None
+
+
 def first_local_time(connection):
     """Returns the time of the oldest valid row, in local time, or None."""
     return connection.execute(

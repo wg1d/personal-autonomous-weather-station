@@ -16,6 +16,8 @@ sensor does not measure itself:
   air, whatever its temperature;
 - the vapour pressure deficit: how much more water the air could take,
   that is how fast it dries plants, soil and laundry;
+- the forecast of the barometer: the Zambretti method, which reads the
+  weather to come from the pressure and its trend;
 - the pressure at sea level: the pressure the station would measure at
   the altitude 0, which the weather maps and forecasts give, so that
   places at different altitudes can be compared.
@@ -100,3 +102,34 @@ def sea_level_factor(altitude):
     1.0168: about 17 hPa more.
     """
     return (1 - 0.0065 * altitude / 288.15) ** -5.255
+
+
+# The Zambretti forecaster, sold by Negretti & Zambra in 1915, turns the
+# pressure at sea level and its trend into one of 26 forecasts, numbered
+# here from 1 to 32 as in the usual tables. Each trend uses its own line:
+# a falling pressure gives the numbers 1 to 9, a steady one 10 to 19, a
+# rising one 20 to 32. A change of 1.6 hPa or more in 3 hours counts as
+# rising or falling
+ZAMBRETTI_TREND = 1.6
+ZAMBRETTI_LINES = {
+    "falling": (127, 0.12, 1, 9),
+    "steady": (144, 0.13, 10, 19),
+    "rising": (185, 0.16, 20, 32),
+}
+
+
+def zambretti(pressure, change):
+    """The number of the Zambretti forecast, from 1 to 32, for a pressure
+    at sea level (hPa) and its change over 3 hours (hPa). None when one
+    of them is missing. This simple form ignores the wind and the season,
+    which the original also uses."""
+    if pressure is None or change is None:
+        return None
+    if change <= -ZAMBRETTI_TREND:
+        trend = "falling"
+    elif change >= ZAMBRETTI_TREND:
+        trend = "rising"
+    else:
+        trend = "steady"
+    start, slope, lowest, highest = ZAMBRETTI_LINES[trend]
+    return min(max(round(start - slope * pressure), lowest), highest)

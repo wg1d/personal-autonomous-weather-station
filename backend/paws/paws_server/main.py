@@ -12,7 +12,9 @@ variable (by default "data", next to the code), so that a deployment
 replaces the code without touching the data.
 
 The altitude of the station, for the pressure at sea level, is given in
-metres by the PAWS_ALTITUDE_M environment variable (0 by default).
+metres by the PAWS_ALTITUDE_M environment variable (0 by default); its
+latitude and longitude, for the sunrise and the sunset, by PAWS_LATITUDE
+and PAWS_LONGITUDE, in degrees (no sun without them).
 
 Run (development computer):
     uv run uvicorn paws_server.main:app --port 8080
@@ -47,6 +49,17 @@ def open_database():
     environment variable (0 by default), for the pressure at sea level."""
     altitude = float(os.environ.get("PAWS_ALTITUDE_M", "0"))
     return database.connect(data_dir() / "measurements.db", altitude)
+
+
+def station_location():
+    """Returns (latitude, longitude) of the station, in degrees, from the
+    PAWS_LATITUDE and PAWS_LONGITUDE environment variables, for the sun;
+    None when they are not given."""
+    latitude = os.environ.get("PAWS_LATITUDE")
+    longitude = os.environ.get("PAWS_LONGITUDE")
+    if latitude is None or longitude is None:
+        return None
+    return float(latitude), float(longitude)
 
 
 def log_path():
@@ -108,4 +121,5 @@ def home():
 # web servers), and FastAPI is an ASGI application: WSGIMiddleware lets
 # FastAPI serve Dash under /dashboard, on the same port
 app.mount("/dashboard", WSGIMiddleware(
-    create_dashboard(open_database, log_path, backup_status).server))
+    create_dashboard(open_database, log_path, backup_status,
+                     station_location()).server))
