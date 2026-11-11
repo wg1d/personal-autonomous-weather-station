@@ -204,11 +204,16 @@ EXPLANATIONS = [
         "dernières 24 heures : plus il est fort, plus les plantes et le "
         "sol ont perdu d'eau. La station ne mesure ni la pluie ni "
         "l'humidité du sol : vérifiez la terre avec le doigt avant "
-        "d'arroser.",
+        "d'arroser. Il donne aussi le bon moment : le matin jusqu'à 3 "
+        "heures après le lever du soleil, ou le soir à partir de 2 heures "
+        "avant son coucher, quand l'eau s'évapore moins.",
         "Le conseil de linge regarde le déficit du moment, la rosée et la "
         "pression : une pression qui baisse vite annonce souvent la pluie. "
         "Le vent et le soleil sèchent aussi le linge, mais la station ne "
-        "les mesure pas.",
+        "les mesure pas. La nuit, l'air fraîchit et le linge reprend "
+        "l'humidité : le conseil propose de l'étendre 2 heures après le "
+        "lever du soleil, une fois la rosée partie, et de le rentrer une "
+        "heure avant son coucher.",
     ]),
     ("La prévision du baromètre", [
         "Elle vient de la méthode Zambretti, celle des baromètres "
@@ -591,31 +596,58 @@ WATERING_LOW_VPD = 0.6
 WATERING_HIGH_VPD = 1.2
 
 
-def watering_advice(rows, changes):
+# The good moments to water: in the morning, until 3 hours after sunrise,
+# and in the evening, from 2 hours before sunset. In the heat of the day,
+# the water evaporates before it reaches the roots
+WATERING_MORNING = timedelta(hours=3)
+WATERING_EVENING = timedelta(hours=2)
+
+
+def watering_moment(local_now, sun):
+    """When to water, for the watering advice: (word, sentence), such as
+    ("ce soir", "Attendez 16:30 : ..."). sun is (sunrise, sunset) of
+    today in local time, or None: then the advice gives no hour."""
+    if sun is None:
+        return "", "Arrosez le soir ou tôt le matin."
+    sunrise, sunset = sun
+    morning_end = sunrise + WATERING_MORNING
+    evening_start = sunset - WATERING_EVENING
+    if local_now < morning_end:
+        return " ce matin", (f"Arrosez avant {morning_end:%H:%M}, tant "
+                             "que le soleil chauffe peu.")
+    if local_now < evening_start:
+        return " ce soir", (f"Attendez {evening_start:%H:%M} : en pleine "
+                            "journée, l'eau s'évapore avant d'atteindre "
+                            "les racines.")
+    return " ce soir", "C'est le bon moment, le soleil chauffe peu."
+
+
+def watering_advice(rows, changes, local_now=None, sun=None):
     """The advice about watering, from the highest vapour pressure deficit
-    of the last day (rows): how much water the plants and the soil lost.
-    The station does not measure the soil nor the rain: the advice tells
-    when watering is useful, if the soil is dry. Returns (headline,
-    detail), or None without values."""
+    of the last day (rows): how much water the plants and the soil lost,
+    then the good moment to water, from the hour (local_now) and the sun
+    (see watering_moment()). The station does not measure the soil nor
+    the rain: the advice tells when watering is useful, if the soil is
+    dry. Returns (headline, detail), or None without values."""
     deficits = [row["vpd_kpa"] for row in rows if row["vpd_kpa"] is not None]
     if not deficits:
         return None
     highest = max(deficits)
     if highest < WATERING_LOW_VPD:
-        headline = "Pas nécessaire"
-        detail = ("L'air est resté humide, les plantes ont perdu peu d'eau. "
-                  "Évitez de mouiller les feuilles : l'humidité favorise "
-                  "les maladies.")
-    elif highest < WATERING_HIGH_VPD:
-        headline = "À vérifier"
+        return ("Pas nécessaire", "L'air est resté humide, les plantes "
+                "ont perdu peu d'eau. Évitez de mouiller les feuilles : "
+                "l'humidité favorise les maladies.")
+    moment, when = watering_moment(local_now, sun)
+    if highest < WATERING_HIGH_VPD:
+        headline = "À vérifier" + moment
         detail = ("Évaporation moyenne sur la journée : touchez la terre, "
-                  "et arrosez si elle est sèche sur 2 à 3 cm, le soir ou "
-                  "tôt le matin.")
+                  "et arrosez si elle est sèche sur 2 à 3 cm. ")
     else:
-        headline = "Conseillé"
+        headline = "Conseillé" + moment
         detail = (f"Air très asséchant (jusqu'à {number(highest, 2)} kPa) : "
-                  "le sol sèche vite. Si la terre est sèche, arrosez le "
-                  "soir ou tôt le matin, au pied des plantes.")
+                  "le sol sèche vite. Si la terre est sèche, arrosez au "
+                  "pied des plantes. ")
+    detail += when
     pressure = changes.get("sea_level_hpa")
     if pressure is not None and pressure < -RAIN_PRESSURE_DROP:
         detail += " La pression baisse vite : la pluie pourrait arroser "\
@@ -623,16 +655,38 @@ def watering_advice(rows, changes):
     return headline, detail
 
 
-def laundry_advice(last, changes):
-    """The advice about drying laundry outside, from the last measurement:
-    the rain that a fast fall of the pressure announces, the dew, then the
-    vapour pressure deficit. The wind and the sun, which also dry laundry,
-    are not measured. Returns (headline, detail), or None without
-    values."""
+# The laundry dries badly in the morning, while the dew of the night is
+# still there, and at the end of the day, when the air cools and its
+# humidity rises before sunset
+LAUNDRY_MORNING = timedelta(hours=2)
+LAUNDRY_EVENING = timedelta(hours=1)
+
+
+def laundry_advice(last, changes, local_now=None, sun=None):
+    """The advice about drying laundry outside: the rain that a fast fall
+    of the pressure announces, the night, the dew, then the vapour
+    pressure deficit of the last measurement, and the hour to hang it out
+    or bring it in. local_now is the local time, sun (sunrise, sunset) of
+    today in local time, or None: then the advice gives no hour. The wind
+    and the sun, which also dry laundry, are not measured. Returns
+    (headline, detail), or None without values."""
     pressure = changes.get("sea_level_hpa")
     if pressure is not None and pressure < -RAIN_PRESSURE_DROP:
         return ("À rentrer", "La pression baisse vite, la pluie est "
                 "probable.")
+    if sun is not None:
+        sunrise, sunset = sun
+        # The next morning: today before sunrise, tomorrow after sunset
+        # (the sunrise of tomorrow is within a few minutes of today's)
+        hang_out = sunrise + LAUNDRY_MORNING
+        if local_now < sunrise or local_now >= sunset:
+            day = "demain" if local_now >= sunset else "ce matin"
+            return ("Pas de séchage la nuit", "L'air fraîchit et "
+                    "l'humidité monte : un linge resté dehors se mouille. "
+                    f"Étendez-le {day} vers {hang_out:%H:%M}.")
+        if local_now >= sunset - LAUNDRY_EVENING:
+            return ("À rentrer", f"Le soleil se couche à {sunset:%H:%M} : "
+                    "l'air fraîchit et l'humidité remonte.")
     temperature, dew = last["temperature_c"], last["dew_point_c"]
     if temperature is not None and dew is not None \
             and temperature - dew <= DEW_SPREAD_C:
@@ -642,12 +696,21 @@ def laundry_advice(last, changes):
     if deficit is None:
         return None
     if deficit >= VPD_DRYING[1][0]:
-        return "Bon séchage", "Le linge sèche vite."
-    if deficit >= VPD_DRYING[0][0]:
-        return ("Séchage lent", "Il sèchera mieux avec du vent ou du "
-                "soleil.")
-    return ("Pas de séchage", "L'air est trop humide, le linge ne sèchera "
-            "presque pas dehors.")
+        headline, detail = "Bon séchage", "Le linge sèche vite."
+    elif deficit >= VPD_DRYING[0][0]:
+        headline, detail = ("Séchage lent", "Il sèchera mieux avec du "
+                            "vent ou du soleil.")
+    else:
+        return ("Pas de séchage", "L'air est trop humide, le linge ne "
+                "sèchera presque pas dehors.")
+    if sun is not None:
+        if local_now < hang_out:
+            detail += (" La rosée du matin s'évapore d'abord : il "
+                       f"séchera mieux après {hang_out:%H:%M}.")
+        else:
+            bring_in = sunset - LAUNDRY_EVENING
+            detail += f" Rentrez-le avant {bring_in:%H:%M}."
+    return headline, detail
 
 
 def trend_text(change, unit):
@@ -907,6 +970,17 @@ def duration_text(length):
     """Writes a duration of daylight: "10 h 17"."""
     minutes = round(length.total_seconds() / 60)
     return f"{minutes // 60} h {minutes % 60:02d}"
+
+
+def sun_today(location, now):
+    """The sunrise and the sunset of today, in local time, or None without
+    location, or when the sun does not rise or set."""
+    if location is None:
+        return None
+    times = sky.sun_times(to_local(now).date(), *location)
+    if times is None:
+        return None
+    return tuple(to_local(moment) for moment in times)
 
 
 def sky_tile(location, now):
@@ -1208,6 +1282,7 @@ def build_view(connection, view, now, location=None):
                    for column, _, _, _ in QUANTITIES}
     day = f"{local_now:%Y-%m-%d}"
     forecast, yesterday, advice_tiles = "", "", []
+    sun = sun_today(location, now)
     if last is not None:
         forecast = forecast_text(last, changes)
         yesterday = yesterday_text(
@@ -1215,8 +1290,9 @@ def build_view(connection, view, now, location=None):
                 parse_timestamp(last["timestamp"]) - timedelta(days=1))))
         advice_tiles = [
             ("Gel", frost_advice(last, local_now)),
-            ("Linge", laundry_advice(last, changes)),
-            ("Arrosage", watering_advice(day_rows, changes)),
+            ("Linge", laundry_advice(last, changes, local_now, sun)),
+            ("Arrosage", watering_advice(day_rows, changes, local_now,
+                                         sun)),
             ("Soleil et lune", sky_tile(location, now)),
         ]
     return {"stale": stale, "status": status, "alert": alert,

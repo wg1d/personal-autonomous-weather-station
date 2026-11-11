@@ -77,6 +77,44 @@ def test_laundry_advice():
     assert headline == "À rentrer" and "pluie" in detail
 
 
+# A day of November: the sun rises at 07:50 and sets at 17:30
+SUN = (datetime(2026, 11, 11, 7, 50), datetime(2026, 11, 11, 17, 30))
+
+
+def at(hour, minute=0):
+    return datetime(2026, 11, 11, hour, minute)
+
+
+def test_laundry_advice_follows_the_hour():
+    steady = {"sea_level_hpa": 0.2}
+    dry = measurement(15.0, 5.0, 1.2)
+    # At night, whatever the air: no drying, hang it out after the dew
+    headline, detail = laundry_advice(dry, steady, at(22), SUN)
+    assert headline == "Pas de séchage la nuit"
+    assert detail.endswith("Étendez-le demain vers 09:50.")
+    assert laundry_advice(dry, steady, at(6), SUN)[1].endswith(
+        "Étendez-le ce matin vers 09:50.")
+    # In the morning, the dew dries first; in the afternoon, the hour to
+    # bring it in; in the last hour of the day, bring it in now
+    assert "après 09:50" in laundry_advice(dry, steady, at(8, 30), SUN)[1]
+    headline, detail = laundry_advice(dry, steady, at(13), SUN)
+    assert headline == "Bon séchage"
+    assert detail.endswith("Rentrez-le avant 16:30.")
+    assert laundry_advice(dry, steady, at(16, 45), SUN)[0] == "À rentrer"
+
+
+def test_watering_advice_follows_the_hour():
+    rows = [{"vpd_kpa": 1.5}]
+    headline, detail = watering_advice(rows, {}, at(7), SUN)
+    assert headline == "Conseillé ce matin" and "avant 10:50" in detail
+    headline, detail = watering_advice(rows, {}, at(13), SUN)
+    assert headline == "Conseillé ce soir" and "Attendez 15:30" in detail
+    headline, detail = watering_advice(rows, {}, at(16), SUN)
+    assert headline == "Conseillé ce soir" and "bon moment" in detail
+    # Without the sun, no hour
+    assert watering_advice(rows, {})[0] == "Conseillé"
+
+
 def test_watering_advice_follows_the_driest_moment():
     rows = [{"vpd_kpa": 0.2}, {"vpd_kpa": 1.71}, {"vpd_kpa": None}]
     headline, detail = watering_advice(rows, {"sea_level_hpa": 0.0})
