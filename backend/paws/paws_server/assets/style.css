@@ -301,11 +301,22 @@ body {
     display: none;
 }
 
+/* While the help is open, the page behind it does not scroll */
+html:has(.help:not(.hidden)) {
+    overflow: hidden;
+}
+
+/* The sheet has a fixed height: a block that unfolds makes the text
+   longer inside it, without moving the sheet nor its title (dvh is the
+   height of the screen that the phone really shows; vh for the older
+   browsers). The scroll stays in the sheet (overscroll-behavior) */
 .help-sheet {
     width: 100%;
     max-width: 720px;
-    max-height: 85vh;
+    height: 85vh;
+    height: 85dvh;
     overflow-y: auto;
+    overscroll-behavior: contain;
     box-sizing: border-box;
     padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
     border-radius: 16px 16px 0 0;
