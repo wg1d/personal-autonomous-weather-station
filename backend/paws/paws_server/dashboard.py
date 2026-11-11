@@ -415,6 +415,35 @@ def view_after_step(view, direction, now):
     return {**view, "end": end}
 
 
+# The shortest and the longest periods that the zoom buttons reach
+ZOOM_SHORTEST = timedelta(hours=3)
+ZOOM_LONGEST = timedelta(days=2 * 365)
+
+
+def view_after_zoom(view, factor, now):
+    """The period shown after a click on a zoom button: half as long
+    (factor 0.5) or twice as long (2), around the same middle, within
+    ZOOM_SHORTEST and ZOOM_LONGEST. A phone cannot zoom the graphs with
+    two fingers: Plotly only moves them.
+
+    While the page follows the new data, it keeps ending at the present.
+    """
+    start, stop = shown(view, now)
+    length = min(max((stop - start) * factor, ZOOM_SHORTEST), ZOOM_LONGEST)
+    if view["end"] is None:
+        return {"length": length.total_seconds(), "end": None}
+    stop = start + (stop - start) / 2 + length / 2
+    end = None if stop >= now - timedelta(minutes=5) else to_timestamp(stop)
+    return {"length": length.total_seconds(), "end": end}
+
+
+def period_of(view):
+    """The period button that matches the length shown, or None."""
+    length = timedelta(seconds=view["length"])
+    matching = [key for key, value in PERIODS.items() if value == length]
+    return matching[0] if matching else None
+
+
 def resolution(length):
     """The points shown for a period of this length (a timedelta).
 
@@ -1647,6 +1676,12 @@ def decode_upload(contents):
     return base64.b64decode(encoded).decode("utf-8", errors="replace")
 
 
+def icon(name):
+    """An icon of the Lucide set, painted with the color of the text: its
+    drawing is chosen in style.css (see .icon)."""
+    return html.Span(className=f"icon icon-{name}")
+
+
 def create_dashboard(open_database, log_path, backup_status,
                      location=None):
     """Creates the Dash application.
@@ -1751,11 +1786,18 @@ def create_dashboard(open_database, log_path, backup_status,
                 html.Button("Aujourd'hui", id="today",
                             title="Revenir au présent"),
             ]),
-            # The period before, the period shown, the period after
+            # Zoom out, the period before, the period shown, the period
+            # after, zoom in. The icons are drawn as those of the tabs
             html.Div(className="steps", children=[
-                html.Button("◀", id="previous", title="La période d'avant"),
+                html.Button(icon("zoom-out"), id="zoom-out",
+                            title="Voir une période plus longue"),
+                html.Button(icon("chevron-left"), id="previous",
+                            title="La période d'avant"),
                 html.Div(id="period-title", className="period-title"),
-                html.Button("▶", id="next", title="La période d'après"),
+                html.Button(icon("chevron-right"), id="next",
+                            title="La période d'après"),
+                html.Button(icon("zoom-in"), id="zoom-in",
+                            title="Voir une période plus courte"),
             ]),
             graph("graph"),
         ]),
@@ -1892,23 +1934,27 @@ def create_dashboard(open_database, log_path, backup_status,
         Output("view", "data"), Output("period", "value"),
         Input("period", "value"), Input("today", "n_clicks"),
         Input("previous", "n_clicks"), Input("next", "n_clicks"),
+        Input("zoom-in", "n_clicks"), Input("zoom-out", "n_clicks"),
         Input("graph", "relayoutData"), State("view", "data"),
         prevent_initial_call=True)
-    def navigate(period, _today, _previous, _next, relayout, view):
-        # Called on a click on a period, an arrow or Today, or after the
-        # graphs were dragged or zoomed: ctx.triggered_id tells which
+    def navigate(period, _today, _previous, _next, _zoom_in, _zoom_out,
+                 relayout, view):
+        # Called on a click on a period, an arrow, a zoom button or Today,
+        # or after the graphs were dragged or zoomed: ctx.triggered_id
+        # tells which. When the length shown is no longer the one of a
+        # period button, none is selected, and a click on any of them sets
+        # its length again
         now = datetime.now(timezone.utc)
         limits = shown_limits(relayout)
         if ctx.triggered_id == "graph":
             if limits is None:
                 return no_update, no_update
             view = view_after_move(limits, now)
-            # The length shown is no longer the one of a button: none is
-            # selected, and a click on any of them sets its length again
-            length = timedelta(seconds=view["length"])
-            matching = [key for key, value in PERIODS.items()
-                        if value == length]
-            return view, (matching[0] if matching else None)
+            return view, period_of(view)
+        if ctx.triggered_id in ("zoom-in", "zoom-out"):
+            factor = 0.5 if ctx.triggered_id == "zoom-in" else 2
+            view = view_after_zoom(view, factor, now)
+            return view, period_of(view)
         if ctx.triggered_id == "today":
             return {**view, "end": None}, no_update
         if ctx.triggered_id in ("previous", "next"):
