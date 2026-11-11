@@ -89,16 +89,38 @@ body {
     display: none;
 }
 
+/* Dash puts the icon and the name of a tab in one more span: it is laid
+   out like the entry, so that the icon and the name line up */
+.tabs .dash-options-list-option-text {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
 .tabs label:has(input:checked) {
     background: var(--background);
     color: var(--accent);
     font-weight: 600;
 }
 
+/* The icon of a tab: a drawing of the Lucide set (lucide.dev, ISC
+   licence in icons/LICENSE), copied in assets/icons so that the page works
+   without internet. It is used as a stencil (mask), painted with the color
+   of the text: it turns to the accent color with the tab shown.
+   -webkit-mask is the name that Safari knows */
 .tab-icon {
     width: 1.4em;
-    text-align: center;
+    height: 1.4em;
+    flex-shrink: 0;
+    background-color: currentColor;
+    mask: var(--icon) center / contain no-repeat;
+    -webkit-mask: var(--icon) center / contain no-repeat;
 }
+
+.icon-now { --icon: url("icons/thermometer.svg"); }
+.icon-graphs { --icon: url("icons/chart-spline.svg"); }
+.icon-compare { --icon: url("icons/arrow-left-right.svg"); }
+.icon-data { --icon: url("icons/database.svg"); }
 
 /* The warning when the station is silent: hidden while it sends */
 .alert {
@@ -598,6 +620,12 @@ button:disabled {
 
     .tabs label:has(input:checked) {
         background: none;
+    }
+
+    /* On a phone, the icon above the name */
+    .tabs .dash-options-list-option-text {
+        flex-direction: column;
+        gap: 2px;
     }
 
     .tab-icon {

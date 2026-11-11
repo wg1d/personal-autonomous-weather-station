@@ -52,12 +52,13 @@ PERIODS = {
 }
 PERIOD_LABELS = {"24h": "24 heures", "7d": "7 jours", "30d": "30 jours",
                  "1y": "1 an"}
-# The tabs of the navigation panel: value, icon, name
+# The tabs of the navigation panel: value, name. The icon of a tab is
+# chosen in style.css (see .tab-icon)
 TABS = [
-    ("now", "◉", "Maintenant"),
-    ("graphs", "〜", "Courbes"),
-    ("compare", "⇄", "Comparer"),
-    ("data", "⬇", "Données"),
+    ("now", "Maintenant"),
+    ("graphs", "Courbes"),
+    ("compare", "Comparer"),
+    ("data", "Données"),
 ]
 
 # Shorter labels, shown on a phone instead (see style.css)
@@ -1500,9 +1501,10 @@ def create_dashboard(open_database, log_path, backup_status,
         # The tabs: radio buttons drawn as the entries of the panel
         dcc.RadioItems(
             id="tab", value="now", className="tabs",
-            options=[{"label": [html.Span(icon, className="tab-icon"),
-                                html.Span(name)], "value": value}
-                     for value, icon, name in TABS]),
+            options=[{"label": [
+                html.Span(className=f"tab-icon icon-{value}"),
+                html.Span(name)], "value": value}
+                     for value, name in TABS]),
       ]),
       html.Main(className="page", children=[
         # Shown only when the station is silent, whatever the tab
@@ -1599,12 +1601,12 @@ def create_dashboard(open_database, log_path, backup_status,
     ])
 
     @app.callback(
-        *[Output(f"{value}-tab", "style") for value, _, _ in TABS],
+        *[Output(f"{value}-tab", "style") for value, _ in TABS],
         Input("tab", "value"))
     def show_tab(tab):
         # The tab chosen is shown, the others hidden
         return [{} if tab == value else {"display": "none"}
-                for value, _, _ in TABS]
+                for value, _ in TABS]
 
     # Plotly sizes the graphs when it draws them, and again when the
     # window changes size; a hidden tab has no size. When a tab is shown,
