@@ -23,7 +23,8 @@ from paws_server.dashboard import (build_comparison, build_view,
                                    shown_limits, start_of, trend,
                                    to_timestamp, trend_text,
                                    weather_summary,
-                                   view_after_move, view_after_step)
+                                   view_after_move, view_after_step,
+                                   view_after_zoom)
 
 NOW = datetime(2026, 10, 5, 12, 0, tzinfo=timezone.utc)
 
@@ -355,6 +356,23 @@ def test_arrows_move_by_the_length_shown():
 def test_arrow_back_to_the_present_follows_the_new_data():
     before = view_after_step(DAY, -1, NOW)
     assert view_after_step(before, 1, NOW)["end"] is None
+
+
+def test_zoom_buttons_halve_and_double_the_length():
+    # At the present, the zoom keeps the end at the present
+    assert view_after_zoom(DAY, 0.5, NOW) == {"length": 43200, "end": None}
+    # In the past, around the same middle: 4 October 00:00
+    before = view_after_step(DAY, -1, NOW)
+    assert view_after_zoom(before, 0.5, NOW) == {
+        "length": 43200, "end": "2026-10-04T06:00:00Z"}
+    # Twice as long, around the same middle; once more, the period
+    # reaches the present: the page follows the new data again
+    twice = view_after_zoom(before, 2, NOW)
+    assert twice == {"length": 172800, "end": "2026-10-05T00:00:00Z"}
+    assert view_after_zoom(twice, 2, NOW)["end"] is None
+    # Never shorter than 3 hours
+    assert view_after_zoom({"length": 3 * 3600, "end": None}, 0.5,
+                           NOW)["length"] == 3 * 3600
 
 
 def test_resolution_follows_the_length_shown():

@@ -103,12 +103,13 @@ body {
     font-weight: 600;
 }
 
-/* The icon of a tab: a drawing of the Lucide set (lucide.dev, ISC
+/* An icon: a drawing of the Lucide set (lucide.dev, ISC
    licence in icons/LICENSE), copied in assets/icons so that the page works
    without internet. It is used as a stencil (mask), painted with the color
    of the text: it turns to the accent color with the tab shown.
    -webkit-mask is the name that Safari knows */
-.tab-icon {
+.tab-icon,
+.icon {
     width: 1.4em;
     height: 1.4em;
     flex-shrink: 0;
@@ -121,6 +122,10 @@ body {
 .icon-graphs { --icon: url("icons/chart-spline.svg"); }
 .icon-compare { --icon: url("icons/arrow-left-right.svg"); }
 .icon-data { --icon: url("icons/database.svg"); }
+.icon-zoom-in { --icon: url("icons/zoom-in.svg"); }
+.icon-zoom-out { --icon: url("icons/zoom-out.svg"); }
+.icon-chevron-left { --icon: url("icons/chevron-left.svg"); }
+.icon-chevron-right { --icon: url("icons/chevron-right.svg"); }
 
 /* The warning when the station is silent: hidden while it sends */
 .alert {
@@ -462,7 +467,12 @@ button {
     font-family: inherit;
 }
 
-/* The arrows, with the period shown between them */
+/* The arrows and the zoom buttons, with the period shown between them */
+.steps button {
+    display: flex;
+    padding: 6px 8px;
+}
+
 .steps {
     display: flex;
     align-items: center;
