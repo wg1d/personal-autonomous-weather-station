@@ -227,6 +227,16 @@ EXPLANATIONS = [
         "mesure pas : c'est une estimation, moins sûre qu'une prévision "
         "de Météo-France.",
     ]),
+    ("La tenue et la course à pied", [
+        "La tenue suit la température ressentie : moins de 0 °C, "
+        "manteau, bonnet et gants ; jusqu'à 8 °C, manteau ; jusqu'à "
+        "14 °C, veste ; jusqu'à 19 °C, pull léger ; au-delà, tee-shirt. "
+        "Le parapluie vient de la prévision du baromètre. La station ne "
+        "mesure pas le vent : par jour de vent, ajoutez une couche.",
+        "En courant, le corps chauffe : on s'habille comme s'il faisait "
+        "environ 10 °C de plus. Au-delà de 30 °C ressentis, le corps se "
+        "refroidit mal, et mieux vaut courir tôt le matin.",
+    ]),
     ("Le gel", [
         "La nuit, le sol et les plantes perdent leur chaleur vers le "
         "ciel, et gèlent avant l'air mesuré à hauteur de l'abri : une "
@@ -710,6 +720,119 @@ def laundry_advice(last, changes, local_now=None, sun=None):
         else:
             bring_in = sunset - LAUNDRY_EVENING
             detail += f" Rentrez-le avant {bring_in:%H:%M}."
+    return headline, detail
+
+
+def rain_expected(last, changes):
+    """How likely rain is in the next hours: "probable" when the pressure
+    falls fast or the forecast of the barometer announces rain, showers or
+    storm; "possible" when it says they are possible; None otherwise."""
+    pressure = changes.get("sea_level_hpa")
+    if pressure is not None and pressure < -RAIN_PRESSURE_DROP:
+        return "probable"
+    forecast_number = weather.zambretti(last["sea_level_hpa"], pressure)
+    if forecast_number is None:
+        return None
+    text = ZAMBRETTI_FORECASTS[forecast_number - 1].lower()
+    if not any(word in text for word in ("pluie", "averse", "tempête")):
+        return None
+    return "possible" if "possible" in text else "probable"
+
+
+def is_day(local_now, sun):
+    """Whether the sun is up; without the sun (sun is None), from 8:00 to
+    18:00."""
+    if sun is None:
+        return 8 <= local_now.hour < 18
+    return sun[0] <= local_now < sun[1]
+
+
+# What to wear outside: the clothes for a temperature below each limit,
+# in °C, as (limit, headline, detail). The station does not measure the
+# wind, which makes the cold feel stronger: a windy day needs one layer
+# more
+CLOTHES = [
+    (0, "Manteau, bonnet et gants",
+     "Il gèle : couvrez la tête, les mains et le cou."),
+    (8, "Manteau", "Il fait froid : un manteau chaud, et une écharpe."),
+    (14, "Veste", "Une veste, ou un pull épais."),
+    (19, "Pull léger", "Un pull léger ou une veste légère."),
+    (25, "Tee-shirt", "Une tenue légère suffit."),
+    (None, "Tenue légère", "Des vêtements légers et clairs, et buvez "
+     "souvent."),
+]
+# Above this temperature, in °C, a cap protects from the sun
+CAP_C = 22
+
+
+def clothes_advice(last, changes, local_now, sun):
+    """The clothes tile: what to wear outside, from the temperature felt
+    (the heat index in the heat, the air otherwise), a cap in the sun of
+    a warm day, an umbrella when rain is likely or possible (see
+    rain_expected()). Returns (headline,
+    detail), or None without temperature."""
+    temperature = last["feels_like_c"]
+    if temperature is None:
+        temperature = last["temperature_c"]
+    if temperature is None:
+        return None
+    for limit, headline, detail in CLOTHES:
+        if limit is None or temperature < limit:
+            break
+    if temperature >= CAP_C and is_day(local_now, sun):
+        detail += " Une casquette au soleil."
+    rain = rain_expected(last, changes)
+    if rain == "probable":
+        headline += " et parapluie"
+        detail += " Prenez un parapluie : la pluie est probable."
+    elif rain == "possible":
+        detail += " Un parapluie au cas où : des averses sont possibles."
+    return headline, detail
+
+
+# Running warms the body: a runner dresses as if it were about 10 °C
+# warmer than the air
+RUNNING_WARMTH_C = 10
+# What to wear for running, for the temperature it feels like, as for
+# CLOTHES
+RUNNING_CLOTHES = [
+    (5, "Collant, veste, bonnet et gants",
+     "Un collant, un haut à manches longues sous une veste légère, un "
+     "bonnet et des gants."),
+    (12, "Collant et manches longues",
+     "Un collant, un haut à manches longues, un bonnet léger et des "
+     "gants fins."),
+    (18, "Manches longues",
+     "Un collant ou un short, un haut à manches longues."),
+    (24, "Short et tee-shirt", "Un short et un tee-shirt."),
+    (None, "Tenue la plus légère",
+     "Un short, un débardeur, et emportez de l'eau."),
+]
+# Above this temperature felt, in °C, running is hard on the heart: the
+# body cools badly
+RUNNING_HOT_C = 30
+
+
+def running_advice(last, changes, local_now, sun):
+    """The running tile: what to wear for running (see RUNNING_CLOTHES),
+    a warning in the heat, a light at night, a rain jacket when rain is
+    likely or possible. Returns (headline, detail), or None without temperature."""
+    temperature = last["temperature_c"]
+    if temperature is None:
+        return None
+    feels = last["feels_like_c"]
+    if feels is not None and feels >= RUNNING_HOT_C:
+        return ("Trop chaud", f"On ressent {number(feels, 0)} °C : le "
+                "corps se refroidit mal. Courez tôt le matin, et buvez.")
+    for limit, headline, detail in RUNNING_CLOTHES:
+        if limit is None or temperature + RUNNING_WARMTH_C < limit:
+            break
+    if not is_day(local_now, sun):
+        detail += " Il fait nuit : une lampe frontale ou un gilet " \
+                  "réfléchissant."
+    rain = rain_expected(last, changes)
+    if rain is not None:
+        detail += f" Une veste coupe-pluie : la pluie est {rain}."
     return headline, detail
 
 
@@ -1290,9 +1413,12 @@ def build_view(connection, view, now, location=None):
                 parse_timestamp(last["timestamp"]) - timedelta(days=1))))
         advice_tiles = [
             ("Gel", frost_advice(last, local_now)),
+            ("Tenue", clothes_advice(last, changes, local_now, sun)),
             ("Linge", laundry_advice(last, changes, local_now, sun)),
             ("Arrosage", watering_advice(day_rows, changes, local_now,
                                          sun)),
+            ("Course à pied", running_advice(last, changes, local_now,
+                                             sun)),
             ("Soleil et lune", sky_tile(location, now)),
         ]
     return {"stale": stale, "status": status, "alert": alert,
