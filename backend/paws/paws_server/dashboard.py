@@ -215,7 +215,7 @@ EXPLANATIONS = [
         "prévisionnistes vendus dès 1915 et des stations météo du "
         "commerce : la pression ramenée au niveau de la mer et sa "
         "tendance sur 3 heures donnent l'une de 26 prévisions pour les "
-        "prochaines heures.",
+        "12 heures qui suivent la dernière mesure.",
         "Une pression haute et stable annonce le beau temps ; une "
         "pression basse qui baisse, la pluie. La méthode d'origine "
         "tient aussi compte du vent et de la saison, que la station ne "
@@ -826,16 +826,26 @@ ZAMBRETTI_FORECASTS = [
 ]
 
 
+# How far the Zambretti method looks ahead: about 12 hours
+FORECAST_SPAN = timedelta(hours=12)
+
+
 def forecast_text(last, changes):
-    """The forecast of the barometer for the next hours, such as
-    "Prévision : beau temps", or "" when the pressure or its trend is
-    missing."""
+    """The forecast of the barometer for the 12 hours after the last
+    measurement, such as "Prévision jusqu'à 02:00 : beau temps", or ""
+    when the pressure or its trend is missing. The end is that of the
+    forecast, not 12 hours after now: the last measurement can be an hour
+    old, as the station sends its measurements once an hour."""
     forecast_number = weather.zambretti(last["sea_level_hpa"],
                                 changes.get("sea_level_hpa"))
     if forecast_number is None:
         return ""
+    measured = to_local(parse_timestamp(last["timestamp"]))
+    end = measured + FORECAST_SPAN
+    day = "demain " if end.date() > measured.date() else ""
     text = ZAMBRETTI_FORECASTS[forecast_number - 1]
-    return f"Prévision : {text[0].lower()}{text[1:]}"
+    return (f"Prévision jusqu'à {day}{end:%H:%M} : "
+            f"{text[0].lower()}{text[1:]}")
 
 
 def yesterday_text(last, yesterday):
