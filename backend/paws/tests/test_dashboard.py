@@ -9,6 +9,7 @@ import pytest
 
 from paws_server import database
 from paws_server.dashboard import (build_comparison, build_view,
+                                   clothes_advice, running_advice,
                                    compare_after_move,
                                    compare_dates, day_extremes,
                                    dew_comfort, forecast_text, french_date,
@@ -113,6 +114,48 @@ def test_watering_advice_follows_the_hour():
     assert headline == "Conseillé ce soir" and "bon moment" in detail
     # Without the sun, no hour
     assert watering_advice(rows, {})[0] == "Conseillé"
+
+
+def air(temperature, feels=None, pressure=1030.0):
+    return {"temperature_c": temperature, "feels_like_c": feels,
+            "sea_level_hpa": pressure}
+
+
+def test_clothes_advice():
+    steady = {"sea_level_hpa": 0.0}
+    assert clothes_advice(air(-2.0), steady, at(13), SUN)[0] == (
+        "Manteau, bonnet et gants")
+    assert clothes_advice(air(11.0), steady, at(13), SUN)[0] == "Veste"
+    # A cap in the sun of a warm day, not at night
+    assert "casquette" in clothes_advice(air(24.0), steady, at(13), SUN)[1]
+    assert "casquette" not in clothes_advice(air(24.0), steady, at(22),
+                                             SUN)[1]
+    # The heat index counts more than the air
+    assert clothes_advice(air(28.0, 31.0), steady, at(13), SUN)[0] == (
+        "Tenue légère")
+    # An umbrella when the pressure falls fast
+    headline, detail = clothes_advice(air(11.0), {"sea_level_hpa": -4.0},
+                                      at(13), SUN)
+    assert headline == "Veste et parapluie" and "parapluie" in detail
+    # Showers only possible: the umbrella just in case (1013 hPa, steady:
+    # "Beau, averses possibles")
+    headline, detail = clothes_advice(air(11.0, pressure=1013.0), steady,
+                                      at(13), SUN)
+    assert headline == "Veste" and "au cas où" in detail
+    assert clothes_advice(air(None), steady, at(13), SUN) is None
+
+
+def test_running_advice():
+    steady = {"sea_level_hpa": 0.0}
+    # At 10 °C, a runner dresses as for 20 °C
+    headline, detail = running_advice(air(10.0), steady, at(13), SUN)
+    assert headline == "Short et tee-shirt" and "lampe" not in detail
+    assert running_advice(air(-6.0), steady, at(13), SUN)[0] == (
+        "Collant, veste, bonnet et gants")
+    assert "lampe frontale" in running_advice(air(10.0), steady, at(19),
+                                              SUN)[1]
+    assert running_advice(air(31.0, 34.0), steady, at(13), SUN)[0] == (
+        "Trop chaud")
 
 
 def test_watering_advice_follows_the_driest_moment():
