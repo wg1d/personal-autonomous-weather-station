@@ -3,6 +3,8 @@ comparison."""
 
 from datetime import date, datetime, timedelta, timezone
 
+import time
+
 import pytest
 
 from paws_server import database
@@ -18,7 +20,8 @@ from paws_server.dashboard import (build_comparison, build_view,
                                    midnights, resolution, shown,
                                    parts_of, pressure_outlook,
                                    shown_limits, start_of, trend,
-                                   trend_text, weather_summary,
+                                   to_timestamp, trend_text,
+                                   weather_summary,
                                    view_after_move, view_after_step)
 
 NOW = datetime(2026, 10, 5, 12, 0, tzinfo=timezone.utc)
@@ -96,10 +99,20 @@ def test_sparkline_is_an_svg_image():
     assert sparkline(rows[:1], "temperature_c", "#d95926") is None
 
 
-def test_forecast_of_the_barometer():
-    last = {"sea_level_hpa": 1035.0}
+def test_forecast_of_the_barometer(monkeypatch):
+    # The server runs in the time of Paris: 08:30 UTC in July is 10:30
+    monkeypatch.setenv("TZ", "Europe/Paris")
+    time.tzset()
+    measured = datetime(2026, 7, 1, 8, 30, tzinfo=timezone.utc)
+    last = {"sea_level_hpa": 1035.0, "timestamp": to_timestamp(measured)}
     assert forecast_text(last, {"sea_level_hpa": 0.0}) == (
-        "Prévision : beau temps stable")
+        "Prévision jusqu'à 22:30 : beau temps stable")
+    # Measured in the evening, the forecast ends the next morning
+    last["timestamp"] = to_timestamp(measured + timedelta(hours=11))
+    assert forecast_text(last, {"sea_level_hpa": 0.0}) == (
+        "Prévision jusqu'à demain 09:30 : beau temps stable")
+    monkeypatch.undo()
+    time.tzset()
     assert forecast_text(last, {"sea_level_hpa": None}) == ""
 
 
