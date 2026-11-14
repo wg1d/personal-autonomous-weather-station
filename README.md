@@ -1,6 +1,6 @@
 # PAWS — Personal Autonomous Weather Station <img src="docs/assets/images/logo.svg" alt="PAWS logo" width="40" align="center"/>
 
-Low-powered ESP32 IoT weather station — SD card logging, RTC timekeeping, direct Wi-Fi upload, phone-based fallback data gateway, time-series database, online dashboard and weather forecasting.
+Low-powered ESP32 IoT weather station — SD card or flash logging, RTC timekeeping, direct Wi-Fi upload, phone-based fallback data gateway, time-series database, online dashboard and weather forecasting.
 
 > 🌻 *And yes, that's a sunflower. A sunflower watches the sun. This weather station watches the weather. Close enough.*
 
@@ -44,6 +44,7 @@ pixi run backend-test     # run the backend tests
 pixi run deploy-backend   # deploy the committed backend to the server
 pixi run backup-backend   # make a backup of the data on the server now
 pixi run restore-backend  # put back a backup on the server (optional: a day)
+pixi run reset-backend    # empty the database on the server
 ```
 
 The first build downloads the ESP32 toolchain into `.pio-core/` (about 1.5 GB), inside the repository, so it does not interfere with an existing `~/.platformio`.
@@ -116,12 +117,13 @@ pixi run restore-backend 2026-10-07   # put back the backup of a day
 
 The restore takes the backup from the server, or from the cloud storage when the server no longer has it (a server installed again). The database it replaces is kept as `~/paws/data/measurements.db.before-restore`.
 
-To start again from an empty database, for example to remove test data before the real station starts (this deletes the data on the server and its backups):
+To start again from an empty database, for example to remove test data before the real station starts:
 
 ```bash
-ssh pi 'sudo systemctl stop paws-backend && rm -f ~/paws/data/measurements.db ~/paws/data/station.log ~/paws/data/backups/* && sudo systemctl start paws-backend'
-ssh pi 'rclone delete Proton:paws_backup'
+pixi run reset-backend
 ```
+
+It asks for a confirmation, then keeps the old database and log on the server as `measurements.db.before-reset` and `station.log.before-reset`. The backups still hold the old data until they expire, after 7 days.
 
 ### Environments
 
@@ -146,15 +148,18 @@ The primary goal of this project is to build a full, end-to-end weather station,
 | 2 | Power Management | ESP32 deep sleep + peripheral power cycling + RTC alarms | 🟢 Done |
 | 3 | Wi-Fi & Data Transmission | ESP32 automated Wi-Fi push + phone-based gateway fallback | 🟢 Done |
 | 4 | Firmware Architecture | State machine design + modular firmware rewrite with host tests | 🟢 Done |
-| 5 | Backend MVP | Server at home + SQLite database + dashboard + daily backup | 🟡 In progress |
-| 6 | Outdoor station | Soldered board, weatherproof enclosure, radiation shield (Stevenson screen), solar panel + battery, Wi-Fi range | ⬜ Planned |
-| 7 | Data collection | The station outdoors for months: power through the seasons, failures, outliers | ⬜ Planned |
-| 8 | Forecasting — basic | LSTM on temp/pressure/humidity, trained on the real data | ⬜ Planned |
-| 9 | Sensors: BH1750 + VEML6075 | Light + UV sensors | 💭 Idea |
-| 10 | Sensor: Soil moisture | Capacitive sensor | 💭 Idea |
-| 11 | Sensor: Rain gauge | Tipping bucket | 💭 Idea |
-| 12 | Sensor: Wind | Anemometer + wind vane | 💭 Idea |
-| 13 | Model retrain + watering | Expanded LSTM + Random Forest watering model | 💭 Idea |
+| 5 | Backend MVP | Server at home + SQLite database + dashboard + daily backup | 🟢 Done |
+| 6 | Outdoor station | Soldered board, weatherproof enclosure, radiation shield (Stevenson screen), solar panel + battery, Wi-Fi range | 🟡 In progress (outdoors since October 2026; battery monitor to come) |
+| 7 | Data collection | The station outdoors for months: power through the seasons, failures, outliers | 🟡 In progress (since 28 October 2026) |
+| 8 | Forecasting | A forecast learned from the data (LSTM), checked against the observed weather; it must beat the barometer forecast (Zambretti method) already on the dashboard | ⬜ Planned |
+| 9 | Sensor: Light | Waterproof BH1750 probe: clear or cloudy sky | 💭 Idea |
+| 10 | Sensor: Rain gauge | Tipping bucket: did it rain? | 💭 Idea |
+| 11 | Sensor: Wind | Anemometer + wind vane | 💭 Idea |
+| 12 | Sensor: UV | LTR390 behind a PTFE window | 💭 Idea |
+| 13 | Sensor: Soil moisture | Capacitive sensor | 💭 Idea |
+| 14 | Model retrain + watering | Expanded LSTM + Random Forest watering model | 💭 Idea |
+
+The sensor ideas are ordered by what they bring to the forecast.
 
 ## Related projects
 
