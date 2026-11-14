@@ -451,7 +451,19 @@ html:has(.help:not(.hidden)) {
     display: none;
 }
 
-.periods label:has(input:checked) {
+/* Dash colors the text of an option under the mouse, and after a click
+   (hover, focus-within), with its own blue: on the filled button, the
+   text would vanish. These rules, more precise, keep the colors of the
+   page: a light fill under the mouse, the dark text on the button chosen */
+.periods label:hover,
+.periods label:focus-within {
+    background: var(--background);
+    color: var(--accent);
+}
+
+.periods label:has(input:checked),
+.periods label:has(input:checked):hover,
+.periods label:has(input:checked):focus-within {
     background: var(--accent);
     color: var(--card);
 }
