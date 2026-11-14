@@ -148,18 +148,6 @@ EXPLANATIONS = [
         "Pour savoir si l'air est vraiment humide, le point de rosée est "
         "plus parlant.",
     ]),
-    ("L'humidité absolue", [
-        "C'est la masse de vapeur d'eau dans un mètre cube d'air, en "
-        "grammes : la quantité d'eau réelle, qui ne dépend pas de la "
-        "température.",
-        "Elle dit s'il faut aérer la maison : quand l'air dehors contient "
-        "moins d'eau que l'air dedans, ouvrir les fenêtres assèche la "
-        "maison, même s'il pleut ou si l'humidité relative dehors paraît "
-        "forte. En hiver, l'air à 5 °C et 90 % contient environ 6 g/m³ ; "
-        "l'air d'une pièce à 20 °C et 60 %, environ 10 g/m³. Une fois "
-        "réchauffé à 20 °C, l'air du dehors n'a plus qu'environ 35 % "
-        "d'humidité : il absorbe l'eau de la maison.",
-    ]),
     ("Le déficit de pression de vapeur", [
         "À une température donnée, l'air ne peut contenir qu'une quantité "
         "maximale de vapeur d'eau. Le déficit est l'écart entre ce maximum "
