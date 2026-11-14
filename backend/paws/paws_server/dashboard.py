@@ -555,14 +555,18 @@ def pressure_state(pressure, change):
 
 
 def humidity_state(last):
-    """What the Humidity tile tells: how the air feels, from its dew
-    point (see dew_comfort()), then the dew point, such as "Air sec ·
-    point de rosée 4,9 °C". "" without dew point."""
+    """What the Humidity tile tells: the dew point, then how the air
+    feels with it (see dew_comfort()), such as "Point de rosée 17,0 °C ·
+    un peu lourd". Below the first limit of DEW_COMFORT, no word: "air
+    sec" next to a humidity of 90 % on a cold day reads as a mistake,
+    although the cold air holds little water. "" without dew point."""
     dew = last["dew_point_c"]
     if dew is None:
         return ""
-    return f"{dew_comfort(dew).capitalize()} · point de rosée " \
-           f"{number(dew)} °C"
+    text = f"Point de rosée {number(dew)} °C"
+    if dew < DEW_COMFORT[0][0]:
+        return text
+    return f"{text} · {dew_comfort(dew)}"
 
 
 # When the temperature is this close to the dew point, the air is nearly

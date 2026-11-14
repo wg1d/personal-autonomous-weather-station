@@ -298,10 +298,10 @@ def test_pressure_state_follows_the_scale():
 
 
 def test_humidity_state_tells_how_the_air_feels():
-    assert humidity_state({"dew_point_c": 4.9}) == (
-        "Air sec · point de rosée 4,9 °C")
+    # Cold air holds little water: no "air sec" next to a high humidity
+    assert humidity_state({"dew_point_c": 4.9}) == "Point de rosée 4,9 °C"
     assert humidity_state({"dew_point_c": 17.0}) == (
-        "Un peu lourd · point de rosée 17,0 °C")
+        "Point de rosée 17,0 °C · un peu lourd")
     assert humidity_state({"dew_point_c": None}) == ""
 
 
