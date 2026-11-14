@@ -1,0 +1,97 @@
+# Barometer Forecast {.unnumbered}
+
+The dashboard shows a forecast for the hours after the last measurement, such as "Fine weather" or "Rain at times, worse later". It comes from the pressure alone, with a method of the barometers sold a century ago: the Zambretti method. It needs no training and no history of measurements, and works from the first hours of the station. This chapter explains how the pressure tells the weather to come, how the method turns it into a forecast, its code, and its limits.
+
+## The pressure and the weather
+
+The pressure of the air is the weight of the air above the station. It changes with the weather systems that cross the region:
+
+- in a **low**, a depression, the air rises; rising, it cools down, and its water vapour forms clouds, then rain;
+- in a **high**, an anticyclone, the air sinks and warms up; the clouds dissolve, and the weather stays dry.
+
+The trend says more than the value: a pressure that falls tells that a low comes closer, and the weather usually gets worse; a pressure that rises tells that it moves away. Weather services describe this trend by the change of the pressure over the last 3 hours.
+
+The method compares the pressure with fixed values: it needs the **pressure at sea level**, the same for every station whatever its altitude, not the pressure measured at the station, which is lower the higher it stands. The backend computes it from the altitude of the station (see [Setting the Station Location](../Appendix/08-station-location.qmd)).
+
+## The Zambretti method
+
+In 1915, the instrument makers Negretti & Zambra sold the *Zambretti forecaster*: a disc calculator that a barometer owner set with three readings, the pressure, its trend and the direction of the wind, with a correction for the season, to read one of 26 forecasts ([Wikipedia](https://en.wikipedia.org/wiki/Zambretti_Forecaster)).
+
+The forecasts are numbered from 1 to 32, as in the usual tables, some forecasts appearing under several numbers ([integritext.net](https://integritext.net/DrKFS/zambretti.htm)). Each trend has its own numbers; within a trend, the lower the number, the better the weather:
+
+| Trend | Numbers | From the best weather to the worst |
+|-------|---------|-----------------------------------|
+| Falling | 1 to 9 | Settled fine · Fine weather · Fine, becoming less settled · Fairly fine, showery later · Showery, becoming more unsettled · Unsettled, rain later · Rain at times, worse later · Rain at times, becoming very unsettled · Very unsettled, rain |
+| Steady | 10 to 19 | Settled fine · Fine weather · Fine, possibly showers · Fairly fine, showers likely · Showery, bright intervals · Changeable, some rain · Unsettled, rain at times · Rain at frequent intervals · Very unsettled, rain · Stormy, much rain |
+| Rising | 20 to 32 | Settled fine · Fine weather · Becoming fine · Fairly fine, improving · Fairly fine, possibly showers early · Showery early, improving · Changeable, mending · Rather unsettled, clearing later · Unsettled, probably improving · Unsettled, short fine intervals · Very unsettled, finer at times · Stormy, possibly improving · Stormy, much rain |
+
+## The algorithm
+
+The method takes two values: $p$, the pressure at sea level, in hPa, and $\Delta p$, its change over the last 3 hours, in hPa. It gives the number $Z$ of the forecast in three steps.
+
+**1. The trend.** A change of 1.6 hPa or more in 3 hours, up or down, counts as rising or falling; below, the pressure is steady:
+
+$$
+\text{trend} =
+\begin{cases}
+\text{falling} & \text{if } \Delta p \le -1.6 \\
+\text{rising} & \text{if } \Delta p \ge +1.6 \\
+\text{steady} & \text{otherwise}
+\end{cases}
+$$
+
+**2. The number.** Each trend has its own straight line, rounded to the nearest whole number, then kept within the numbers of the trend:
+
+| Trend | Line | Numbers |
+|-------|------|---------|
+| Falling | $Z = 127 - 0.12\,p$ | 1 to 9 |
+| Steady | $Z = 144 - 0.13\,p$ | 10 to 19 |
+| Rising | $Z = 185 - 0.16\,p$ | 20 to 32 |
+
+The higher the pressure, the lower the number, and the better the forecast. A pressure outside the usual range would give a number of another trend: this is why the number is kept within its own.
+
+**3. The forecast.** $Z$ gives the sentence in the table of the forecasts above.
+
+For example, with $p = 1000$ hPa and $\Delta p = -2$ hPa:
+
+1. $\Delta p \le -1.6$: the pressure is falling;
+2. $Z = 127 - 0.12 \times 1000 = 7$, within 1 to 9;
+3. forecast 7: *Rain at times, worse later*.
+
+Other cases, computed the same way:
+
+| $p$ | $\Delta p$ | Trend | $Z$ | Forecast |
+|-----|------------|-------|-----|----------|
+| 1020 hPa | 0 hPa | steady | 11 | Fine weather |
+| 1005 hPa | −0.5 hPa | steady | 13 | Fairly fine, showers likely |
+| 1030 hPa | +2 hPa | rising | 20 | Settled fine |
+| 980 hPa | +3 hPa | rising | 28 | Unsettled, probably improving |
+
+Without a pressure or without a change, for example during the first 3 hours of the station, there is no forecast.
+
+## The code
+
+The function `zambretti()`, in `backend/paws/paws_server/weather.py`, is this algorithm: `ZAMBRETTI_TREND` is the limit of step 1, and `ZAMBRETTI_LINES` holds, for each trend, the two numbers of its line and the first and last numbers of step 2. It returns the number $Z$; the dashboard keeps the table of the sentences.
+
+```{.python include="../../../backend/paws/paws_server/weather.py" snippet="zambretti"}
+```
+
+The dashboard computes $\Delta p$ as the last pressure minus the one of the last measurement at least 3 hours older. A test checks a case of each trend, and the case without a change.
+
+## On the dashboard
+
+The forecast is written under the temperature, in the top card of the Now tab, with the time until which it holds: 12 hours after the last measurement, the span of the original forecaster. The station uploads once an hour: the last measurement can be up to an hour old, and the forecast ends 12 hours after it, not 12 hours after the page was opened.
+
+## Its limits
+
+- **The wind is left out.** The original corrects the pressure with the direction of the wind; the station has no wind vane.
+- **The season is left out.** The original corrects for the season too, but the descriptions of this correction differ: the program [pywws](https://pywws.readthedocs.io/en/latest/_modules/pywws/ZambrettiCore.html) moves the pressure by 3.2 hPa from April to September in the northern hemisphere, other descriptions move the forecast by one number between summer and winter.
+- **The lines are a reconstruction.** The original is a disc, not a formula: the straight lines come from programs that copy it, and those programs do not all use the same values. The lines of this code are the ones published with the Zambretti example of [SAS](https://github.com/sassoftware/iot-zambretti-weather-forcasting).
+- **Its accuracy is not established.** Pages about the method often give 90 % of correct forecasts, or more; these figures come from web pages, not from a published study. A forecast of a national weather service, which uses the whole map of the pressure and not one barometer, is more reliable.
+- **One barometer sees only what passes over it.** A storm that forms quickly, or a shower from a cloud that the pressure does not feel, escapes it.
+
+The station keeps every pressure it measures: compared with the weather observed afterwards, its own data will tell how often the method is right where it stands.
+
+## Next Steps
+
+With months of measurements, a forecast learned from the data of the station itself becomes possible ([Roadmap](../02-roadmap.qmd)). The Zambretti method is then the reference: a learned forecast is only worth its cost if it does better.
