@@ -60,21 +60,36 @@ def connect(path, altitude=0):
         "CREATE TABLE IF NOT EXISTS measurements ("
         "timestamp TEXT PRIMARY KEY, "
         "time_valid INTEGER NOT NULL, "
-        "temperature_c REAL, humidity_pct REAL, pressure_hpa REAL)")
+        "temperature_c REAL, humidity_pct REAL, pressure_hpa REAL, "
+        "battery_v REAL, battery_ma REAL)")
+    # A database created before the format v2 has no column for the
+    # battery: they are added, empty for the rows already stored
+    existing = [column[1] for column in
+                connection.execute("PRAGMA table_info(measurements)")]
+    for column in COLUMNS:
+        if column not in existing:
+            connection.execute(
+                f"ALTER TABLE measurements ADD COLUMN {column} REAL")
     return connection
 
 
 def insert_rows(connection, rows):
     """Stores rows, ignores those whose timestamp is already stored.
 
+    Each row is a tuple in the order of COLUMNS; a shorter one, such as a
+    row of the format v1, has no value for the columns it leaves out.
     All the rows are written in one transaction: either all of them, or
     none if the server stops in the middle. Returns the number of rows
     actually inserted.
     """
+    rows = [tuple(row) + (None,) * (len(COLUMNS) - len(row))
+            for row in rows]
+    placeholders = ", ".join("?" * len(COLUMNS))
     with connection:
         before = connection.total_changes
         connection.executemany(
-            "INSERT OR IGNORE INTO measurements VALUES (?, ?, ?, ?, ?)", rows)
+            f"INSERT OR IGNORE INTO measurements ({', '.join(COLUMNS)}) "
+            f"VALUES ({placeholders})", rows)
         return connection.total_changes - before
 
 
@@ -94,7 +109,8 @@ def last_rows(connection, count):
 def all_rows(connection):
     """Returns every row, oldest first, as tuples in the order of COLUMNS."""
     return connection.execute(
-        "SELECT * FROM measurements ORDER BY timestamp").fetchall()
+        f"SELECT {', '.join(COLUMNS)} FROM measurements "
+        "ORDER BY timestamp").fetchall()
 
 
 def summary(connection):

@@ -4,8 +4,9 @@ File: backend/paws/paws_server/main.py
 
 Description:
 The backend server: receives the measurements and the log of the station
-(upload protocol v1), stores the measurements in SQLite and appends the log
-to a text file. It also serves the dashboard, under /dashboard/.
+(upload protocol, data formats v1 and v2), stores the measurements in
+SQLite and appends the log to a text file. It also serves the dashboard,
+under /dashboard/.
 
 The data lives in the folder given by the PAWS_DATA_DIR environment
 variable (by default "data", next to the code), so that a deployment
