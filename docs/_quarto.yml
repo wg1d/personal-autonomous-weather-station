@@ -136,6 +136,10 @@ website:
             text: "O4 – Shelter"
           - href: chapters/Outdoor/06-outdoors.qmd
             text: "O5 – Outdoors"
+      - section: "Forecasting"
+        contents:
+          - href: chapters/Forecasting/01-barometer-forecast.qmd
+            text: "Barometer Forecast"
       - section: "Appendices"
         contents:
           - section: "Electronics Notes"
@@ -156,6 +160,8 @@ website:
                 text: "Bench Check"
               - href: chapters/Appendix/07-multimeter-checks.qmd
                 text: "Multimeter Checks"
+              - href: chapters/Appendix/08-station-location.qmd
+                text: "Station Location"
 
 date: last-modified
 

@@ -98,18 +98,24 @@ def sea_level_factor(altitude):
     The formula of the standard atmosphere: the pressure falls by about
     1 hPa every 8 metres near the ground. It takes a temperature of 15 °C
     at sea level; the real temperature would change the result by less
-    than 1 hPa at a few hundred metres. At 140 metres, the factor is
-    1.0168: about 17 hPa more.
+    than 1 hPa at a few hundred metres. At 100 metres, the factor is
+    1.0119: about 12 hPa more.
     """
     return (1 - 0.0065 * altitude / 288.15) ** -5.255
 
 
+# start snippet zambretti
 # The Zambretti forecaster, sold by Negretti & Zambra in 1915, turns the
 # pressure at sea level and its trend into one of 26 forecasts, numbered
 # here from 1 to 32 as in the usual tables. Each trend uses its own line:
 # a falling pressure gives the numbers 1 to 9, a steady one 10 to 19, a
-# rising one 20 to 32. A change of 1.6 hPa or more in 3 hours counts as
-# rising or falling
+# rising one 20 to 32. The original is a disc calculator; these lines are the
+# form published with the Zambretti example of SAS
+# (github.com/sassoftware/iot-zambretti-weather-forcasting), of the same
+# family as the older ones of integritext.net/DrKFS/zambretti.htm.
+# A change of 1.6 hPa or more in 3 hours counts as rising or falling: in
+# the terms of the shipping forecast of the Met Office, up to 1.5 hPa the
+# pressure only changes "slowly"
 ZAMBRETTI_TREND = 1.6
 ZAMBRETTI_LINES = {
     "falling": (127, 0.12, 1, 9),
@@ -133,3 +139,4 @@ def zambretti(pressure, change):
         trend = "steady"
     start, slope, lowest, highest = ZAMBRETTI_LINES[trend]
     return min(max(round(start - slope * pressure), lowest), highest)
+# end snippet zambretti
