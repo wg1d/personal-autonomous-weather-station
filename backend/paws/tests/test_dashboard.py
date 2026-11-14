@@ -11,7 +11,8 @@ from paws_server import database
 from paws_server.dashboard import (build_comparison, build_view,
                                    clothes_advice, running_advice,
                                    compare_after_move,
-                                   compare_dates, day_extremes,
+                                   compare_dates, coverage_text,
+                                   day_extremes,
                                    dew_comfort, forecast, french_date,
                                    frost_advice, number,
                                    sun_events, value_range, yesterday_text,
@@ -585,12 +586,35 @@ def test_month_is_compared_with_another_month(connection):
     assert compared["length"] == 31 * 86400
     data = build_comparison(connection, compared, NOW)["data"]
     reference, comparison = data[:2]
-    assert reference["name"] == "Octobre 2026"
-    assert comparison["name"] == "Décembre 2025"
+    # Each one measured on its first day only
+    assert reference["name"] == "Octobre 2026 (mesures le 1)"
+    assert comparison["name"] == "Décembre 2025 (mesures le 1)"
     # One hour after the start of each month: drawn at the same place
     # (the middle of the hour, see hourly_summary())
     assert reference["x"] == comparison["x"] == ["2026-10-01 01:30:00"]
     assert comparison["y"] == [2.0]
+
+
+def test_compare_axis_shows_the_place_in_the_period(connection):
+    database.insert_rows(connection, [row("2026-10-01T01:00:00Z", 15.0)])
+    compared = compare_dates("month", "2026-10-01", "2025-12-01")
+    layout = build_comparison(connection, compared, NOW)["layout"]
+    assert layout["xaxis3"]["tickformat"] == "%d"
+    assert "tickformatstops" not in layout["xaxis"]
+
+
+def test_a_period_partly_measured_says_when():
+    october = datetime(2026, 10, 1)
+    rows = [{"local_time": "2026-10-28 08:00:00"},
+            {"local_time": "2026-10-31 23:00:00"}]
+    assert coverage_text("month", rows, october, timedelta(days=31)) == (
+        "mesures du 28 au 31")
+    whole = [{"local_time": "2026-10-01 00:15:00"},
+             {"local_time": "2026-10-31 23:45:00"}]
+    assert coverage_text("month", whole, october, timedelta(days=31)) == ""
+    assert coverage_text("month", [], october, timedelta(days=31)) == ""
+    assert coverage_text("month", rows[:1], october,
+                         timedelta(days=31)) == "mesures le 28"
 
 
 def test_drag_moves_both_periods_together():

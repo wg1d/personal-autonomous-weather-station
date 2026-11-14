@@ -1647,6 +1647,43 @@ def unit_label(unit, start):
     return french_date(start, "%a %d %b %Y")
 
 
+# The time axis of the Compare tab shows the place in the period, the
+# same for both periods, not the dates of the reference: the hour of a
+# day, the day of a week or of a month, the month of a year. Its labels,
+# and the time shown under the mouse
+COMPARE_TICKS = {"day": ("%H:%M", "%H:%M"), "week": ("%a", "%a %H:%M"),
+                 "month": ("%d", "le %d à %H:%M"), "year": ("%b", "%d %b")}
+# How the first and last measurements of a period are written, when the
+# data does not cover it all (when both fall on the same day or month,
+# the second text), and the margin allowed at each end
+COVERAGE = {
+    "day": ("de {} à {}", "à {}", "%H:%M", timedelta(hours=1)),
+    "week": ("du {} au {}", "le {}", "%a", timedelta(hours=6)),
+    "month": ("du {} au {}", "le {}", "%-d", timedelta(hours=6)),
+    "year": ("de {} à {}", "en {}", "%b", timedelta(days=2)),
+}
+
+
+def coverage_text(unit, values, start, length):
+    """When the measurements do not cover a period (start, its local
+    time, and length), when they were taken, such as "mesures du 28 au
+    31"; "" when they cover it, or without any."""
+    times = sorted(datetime.fromisoformat(value.get("local_time")
+                                          or value["day"])
+                   for value in values)
+    times = [moment for moment in times if start <= moment < start + length]
+    if not times:
+        return ""
+    text, single, form, margin = COVERAGE[unit]
+    if times[0] <= start + margin and times[-1] >= start + length - margin:
+        return ""
+    first, last = (french_date(moment, form) for moment in (times[0],
+                                                           times[-1]))
+    if first == last:
+        return "mesures " + single.format(first)
+    return "mesures " + text.format(first, last)
+
+
 def part_options(unit):
     """The list of the week or the month: "S1" to "S53", or "janv." to
     "déc." (for a month or a day)."""
@@ -1724,8 +1761,8 @@ def build_comparison(connection, compared, now):
     """The figure of the Compare tab.
 
     The time axis is the one of the reference; the comparison is moved
-    over it. A drag or a zoom stops when either period would leave the
-    data: no earlier than the oldest row, no later than the present.
+    over it. A drag or a zoom stops when both periods would leave the
+    data: as long as one of them shows measurements, the graphs move.
     """
     length = timedelta(seconds=compared["length"])
     reference = parse_timestamp(compared["reference"])
@@ -1739,25 +1776,45 @@ def build_comparison(connection, compared, now):
     limits = None
     oldest = database.first_local_time(connection)
     if oldest is not None:
-        # On the axis of the reference, the comparison is offset later.
-        # The periods chosen always fit: the current month, for example,
-        # goes on after the present
-        first = min(from_local(oldest) + max(offset, timedelta(0)),
-                    reference)
-        last = max(now + min(offset, timedelta(0)), reference + length)
+        # On the axis of the reference, the data of the comparison is
+        # offset by the gap between the periods: the graphs may go from
+        # the first data of either period to the last. With only a few
+        # weeks of data, stopping where either period runs out would
+        # leave no room to move. The periods chosen always fit: the
+        # current month, for example, goes on after the present
+        start = from_local(oldest)
+        first = min(start, start + offset, reference)
+        last = max(now, now + offset, reference + length)
         limits = (f"{to_local(first):{PLOTLY_TIME}}",
                   f"{to_local(last):{PLOTLY_TIME}}")
     # The legend names the periods chosen in the lists ("October 2026"),
     # or, once dragged or zoomed, the exact times shown
     if compared["chosen"]:
-        labels = [unit_label(compared["unit"], to_local(moment).date())
-                  for moment in (reference, comparison)]
+        # With, when the data does not cover the period, when it was
+        # measured, such as "Octobre 2026 (mesures du 28 au 31)"
+        labels = []
+        for moment, period_values in ((reference, values),
+                                      (comparison, compared_values)):
+            # Each period over its own length: October has 31 days, even
+            # drawn over the 30 days of November
+            local = to_local(moment)
+            label = unit_label(compared["unit"], local.date())
+            covered = coverage_text(compared["unit"], period_values, local,
+                                    unit_length(compared["unit"],
+                                                local.date()))
+            labels.append(f"{label} ({covered})" if covered else label)
     else:
         labels = [span_label(moment, moment + length)
                   for moment in (reference, comparison)]
-    return figure(values, points, reference, reference + length,
-                  limits, labels[0],
-                  (labels[1], moved(compared_values, points, offset)))
+    result = figure(values, points, reference, reference + length,
+                    limits, labels[0],
+                    (labels[1], moved(compared_values, points, offset)))
+    tick, hover = COMPARE_TICKS[compared["unit"]]
+    for suffix in ["", "2", "3"]:
+        axis = result["layout"]["xaxis" + suffix]
+        axis.pop("tickformatstops")
+        axis.update(tickformat=tick, hoverformat=hover)
+    return result
 
 
 # --- The page --------------------------------------------------------------
