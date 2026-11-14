@@ -72,4 +72,4 @@ On the server, with three years of made-up data, the export takes 7.6 s, and upl
 
 ## Next Steps
 
-Step B2 is complete: the dashboard shows, compares, exports and receives the measurements. The backend is published as version `v0.9.0`. [Step B3](03-1-operations.qmd) makes the data safe: a daily backup of the database, copied outside the house, and its restore.
+Step B2 is complete: the dashboard shows, compares, exports and receives the measurements. The backend is published as version `v0.9.0`. Later versions of the dashboard also compute values from the measurements, among them a forecast of the next hours: the [Barometer Forecast](02-4-barometer-forecast.qmd) explains it. [Step B3](03-1-operations.qmd) makes the data safe: a daily backup of the database, copied outside the house, and its restore.

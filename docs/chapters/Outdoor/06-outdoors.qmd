@@ -54,4 +54,4 @@ From 08:15, the wake-ups follow the alarm of the clock, every 15 minutes, and la
 
 ## Next Steps
 
-The station collects data, and the dashboard already uses it to forecast the weather of the next hours, from the pressure alone: the [Barometer Forecast](../Forecasting/01-barometer-forecast.qmd) explains how. On the station side, the next firmware steps add the battery monitor, the INA219.
+The station collects data. The next firmware steps add the battery monitor, the INA219.
