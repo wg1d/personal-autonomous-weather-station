@@ -197,8 +197,27 @@ body {
     margin-top: 10px;
 }
 
+/* The graphs of the battery take the height of the screen left below
+   the tiles and the controls, as those of the Courbes tab */
 #station-graph {
-    height: 520px;
+    height: max(320px, calc(100vh - 340px));
+}
+
+/* The name of a tile, with a small button on its right */
+.tile-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.small-button {
+    display: flex;
+    padding: 4px 6px;
+}
+
+.small-button .icon {
+    width: 1.1em;
+    height: 1.1em;
 }
 
 /* The Now tab. At the top, on a card: today and the help button, the
@@ -854,6 +873,10 @@ button:disabled {
     .tiles {
         grid-template-columns: 1fr;
         gap: 8px;
+    }
+
+    #station-graph {
+        height: 520px;
     }
 
     .hero-value {

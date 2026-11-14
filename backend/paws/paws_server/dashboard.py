@@ -1651,8 +1651,9 @@ LOG_DAYS = 7
 LOG_TAIL_BYTES = 512 * 1024
 # The problems of the last hours are told on the Now tab
 LOG_RECENT = timedelta(hours=24)
-# At most this many problems are listed, the newest first
-LOG_SHOWN = 10
+# At most this many problems are listed, the newest first: the graphs
+# below must still fit on the screen of a computer
+LOG_SHOWN = 5
 
 # The reasons of a restart written by the firmware, in French
 RESTART_REASONS = {
@@ -2236,10 +2237,15 @@ def create_dashboard(open_database, log_path, backup_status,
                     html.Div(id="battery-tile"),
                 ]),
                 html.Div(className="tile", children=[
-                    html.Div("Journal", className="tile-name"),
+                    # The name, and on its right a small button that
+                    # downloads the whole log
+                    html.Div(className="tile-top", children=[
+                        html.Div("Journal", className="tile-name"),
+                        html.Button(icon("download"), id="log-export",
+                                    className="small-button",
+                                    title="Télécharger le journal"),
+                    ]),
                     html.Div(id="log-tile"),
-                    html.Button([icon("download"), "Télécharger le journal"],
-                                id="log-export", className="icon-button"),
                     dcc.Download(id="log-download"),
                 ]),
             ]),
