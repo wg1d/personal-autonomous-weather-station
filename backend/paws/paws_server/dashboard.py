@@ -707,6 +707,10 @@ def laundry_advice(last, changes, local_now=None, sun=None):
     return headline, detail
 
 
+# The words of a forecast of the barometer that announce rain
+RAIN_TERMS = ("pluie", "averse", "tempête")
+
+
 def rain_expected(last, changes):
     """How likely rain is in the next hours: "probable" when the pressure
     falls fast or the forecast of the barometer announces rain, showers or
@@ -718,7 +722,7 @@ def rain_expected(last, changes):
     if forecast_number is None:
         return None
     text = ZAMBRETTI_FORECASTS[forecast_number - 1][0].lower()
-    if not any(word in text for word in ("pluie", "averse", "tempête")):
+    if not any(word in text for word in RAIN_TERMS):
         return None
     return "possible" if "possible" in text else "probable"
 
@@ -1118,7 +1122,8 @@ def forecast(last, changes, local_now):
     as ("Cet après-midi", "Beau temps stable", "sun", ["Pluie peu
     probable"]): the title named from the local hour local_now (see
     FORECAST_TITLES), the sky the name of its icon, the details the rain
-    (see rain_expected()), then the dew and the fog (see dew_outlook()).
+    (see rain_expected()) when the text itself does not speak of it, then
+    the dew and the fog (see dew_outlook()).
     None when the pressure or its trend is missing."""
     forecast_number = weather.zambretti(last["sea_level_hpa"],
                                         changes.get("sea_level_hpa"))
@@ -1127,7 +1132,9 @@ def forecast(last, changes, local_now):
     title = next(name for hour, name in FORECAST_TITLES
                  if local_now.hour < hour)
     text, sky_icon = ZAMBRETTI_FORECASTS[forecast_number - 1]
-    details = [RAIN_WORDS[rain_expected(last, changes)]]
+    details = []
+    if not any(word in text.lower() for word in RAIN_TERMS):
+        details.append(RAIN_WORDS[rain_expected(last, changes)])
     dew = dew_outlook(last, local_now)
     if dew:
         details.append(dew)

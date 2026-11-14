@@ -199,7 +199,8 @@ def test_forecast_names_the_part_of_the_day_ahead():
     # A low pressure that falls: rain, with its icon
     rain = forecast({**last, "sea_level_hpa": 985.0},
                     {"sea_level_hpa": -3.0}, datetime(2026, 7, 1, 10, 30))
-    assert rain[2] == "cloud-rain" and rain[3] == ["Pluie probable"]
+    # The text already speaks of rain: no rain line
+    assert rain[2] == "cloud-rain" and rain[3] == []
     assert forecast(last, {"sea_level_hpa": None},
                     datetime(2026, 7, 1, 10, 30)) is None
 
