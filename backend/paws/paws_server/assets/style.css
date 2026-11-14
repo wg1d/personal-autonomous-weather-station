@@ -162,6 +162,17 @@ body {
     display: none;
 }
 
+/* The title of a tab, such as "Conseils du moment", with the time of the
+   measurement it reads */
+.tab-title {
+    margin: 4px 4px 10px;
+}
+
+.tab-title h2 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
 /* The warning about the station, at the top of the Now tab: a low
    battery, or problems in its log. Amber: not as urgent as a silent
    station, in red */
@@ -816,7 +827,11 @@ button:disabled {
     .page {
         width: 100%;
         box-sizing: border-box;
-        padding: 8px 8px calc(72px + env(safe-area-inset-bottom));
+        /* On an iPhone, a page added to the home screen goes under the
+           bar of the clock and the battery at the top: room is kept for
+           it, as for the bar of the home gesture at the bottom */
+        padding: calc(8px + env(safe-area-inset-top)) 8px
+            calc(72px + env(safe-area-inset-bottom));
     }
 
     .sidebar {
