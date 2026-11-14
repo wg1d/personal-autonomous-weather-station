@@ -1541,27 +1541,12 @@ def figure(values, points, start, stop, limits=None, label=None,
     return {"data": data, "layout": layout}
 
 
-def build_view(connection, view, now, location=None, log_text=""):
-    """Computes everything the Graphs tab shows.
-
-    view is the period shown (see shown()). Returns a dictionary:
-    "stale", "status" and "alert" (the health of the station, see
-    health()), "date" (today, in words), "frost", "hero" and "tiles" (the
-    Now tab, see frost_banner(), hero() and tiles(); location is
-    (latitude, longitude) of the station, for the sun, or None),
-    "advice" (the Advice tab, see advice_tiles()), "station" (the
-    warning about the station on the Now tab, from the end of its log,
-    log_text, see station_banner()), "battery_figure" (the graphs of the
-    Station tab), "title"
-    (the period shown, see period_title()) and "figure" (the graphs).
-    """
-    last = database.last_row(connection)
-    stale, status, alert = health(last, now)
-    # The rows of the last day, for the cards
-    day_rows = database.rows_between(
-        connection, to_timestamp(now - timedelta(days=1)),
-        to_timestamp(now + timedelta(minutes=1)))
-    local_now = to_local(now)
+def build_graphs(connection, view, now):
+    """Computes the graphs of the Courbes and Station tabs, for the period
+    shown (view, see shown()): "title" (the period shown, see
+    period_title()), "figure" (the graphs of the weather) and
+    "battery_figure" (those of the battery). A drag of the graphs only
+    computes these, not the rest of the page."""
     start, stop = shown(view, now)
     # The period shown, and as much again on each side to drag into
     length = stop - start
@@ -1577,6 +1562,29 @@ def build_view(connection, view, now, location=None, log_text=""):
         if view["end"] is None:
             first = min(oldest, f"{to_local(start):{PLOTLY_TIME}}")
         limits = (first, f"{to_local(now):{PLOTLY_TIME}}")
+    return {"title": period_title(view, now),
+            "figure": figure(values, points, start, stop, limits),
+            "battery_figure": figure(values, points, start, stop, limits,
+                                     quantities=BATTERY_QUANTITIES,
+                                     domains=BATTERY_DOMAINS)}
+
+
+def build_now(connection, now, location=None, log_text=""):
+    """Computes the Now and Advice tabs. Returns a dictionary: "stale",
+    "status" and "alert" (the health of the station, see health()),
+    "date" (today, in words), "frost", "hero" and "tiles" (the Now tab,
+    see frost_banner(), hero() and tiles(); location is (latitude,
+    longitude) of the station, for the sun, or None), "advice" (the
+    Advice tab, see advice_tiles()) and "station" (the warning about the
+    station on the Now tab, from the end of its log, log_text, see
+    station_banner())."""
+    last = database.last_row(connection)
+    stale, status, alert = health(last, now)
+    # The rows of the last day, for the cards
+    day_rows = database.rows_between(
+        connection, to_timestamp(now - timedelta(days=1)),
+        to_timestamp(now + timedelta(minutes=1)))
+    local_now = to_local(now)
     changes = {}
     if last is not None:
         changes = {column: trend(day_rows, last, column)
@@ -1604,12 +1612,14 @@ def build_view(connection, view, now, location=None, log_text=""):
             "tiles": tiles(last, day_rows, day, changes),
             "advice": advice,
             "station": station_banner(
-                last, log_problems(log_text, now - LOG_RECENT)),
-            "title": period_title(view, now),
-            "figure": figure(values, points, start, stop, limits),
-            "battery_figure": figure(values, points, start, stop, limits,
-                                     quantities=BATTERY_QUANTITIES,
-                                     domains=BATTERY_DOMAINS)}
+                last, log_problems(log_text, now - LOG_RECENT))}
+
+
+def build_view(connection, view, now, location=None, log_text=""):
+    """Everything the page shows: build_now() and build_graphs() together,
+    in one dictionary, as the tests read it."""
+    return {**build_now(connection, now, location, log_text),
+            **build_graphs(connection, view, now)}
 
 
 # --- Station tab -----------------------------------------------------------
@@ -2260,6 +2270,11 @@ def create_dashboard(open_database, log_path, backup_status,
         # The advice drawn from the measurements: clothes, laundry,
         # watering, running
         html.Div(id="advice-tab", style={"display": "none"}, children=[
+            # The title, and the measurement the advice reads
+            html.Div(className="tab-title", children=[
+                html.H2("Conseils du moment"),
+                html.Div(id="advice-status", className="status"),
+            ]),
             html.Div(id="advice-tiles", className="tiles"),
         ]),
         html.Div(id="compare-tab", style={"display": "none"}, children=[
@@ -2347,6 +2362,9 @@ def create_dashboard(open_database, log_path, backup_status,
     # the page: Dash needs an output, the store "resized"
     app.clientside_callback(
         """function (tab) {
+            // A new tab starts at its top, not where the previous one was
+            // scrolled to
+            window.scrollTo(0, 0);
             setTimeout(function () {
                 window.dispatchEvent(new Event("resize"));
             }, 50);
@@ -2552,38 +2570,56 @@ def create_dashboard(open_database, log_path, backup_status,
         Output("today-date", "children"), Output("frost", "children"),
         Output("frost", "className"), Output("hero-body", "children"),
         Output("tiles", "children"), Output("advice-tiles", "children"),
-        Output("graph", "figure"),
-        Output("period-title", "children"),
-        Output("next", "disabled"),
+        Output("advice-status", "children"),
+        Output("advice-status", "className"),
         Output("station-alert", "children"),
         Output("station-alert", "className"),
-        Output("station-graph", "figure"),
-        Output("station-period-title", "children"),
-        Output("station-next", "disabled"),
-        Input("view", "data"), Input("refresh", "n_intervals"))
-    def update(view, _refresh_count):
-        # Called when the page opens, when the period shown changes, and
-        # at each refresh. There is no period after the present
+        Input("refresh", "n_intervals"))
+    def update_now(_refresh_count):
+        # Called when the page opens, and at each refresh: the Now and
+        # Advice tabs
         connection = open_database()
         try:
-            result = build_view(
-                connection, view, datetime.now(timezone.utc), location,
-                logs.read_tail(log_path(), LOG_TAIL_BYTES))
+            result = build_now(connection, datetime.now(timezone.utc),
+                               location,
+                               logs.read_tail(log_path(), LOG_RECENT_BYTES))
         finally:
             connection.close()
-        station_class = ("station-alert" if result["station"]
-                         else "station-alert hidden")
         state = "stale" if result["stale"] else "ok"
         alert_class = "alert" if result["alert"] else "alert hidden"
         status = [html.Span(className="dot"), result["status"]]
         frost_class = "frost" if result["frost"] else "frost hidden"
+        station_class = ("station-alert" if result["station"]
+                         else "station-alert hidden")
         return (result["alert"], alert_class, status, f"status {state}",
                 result["date"], result["frost"], frost_class,
                 result["hero"], result["tiles"], result["advice"],
-                result["figure"], result["title"],
-                view["end"] is None,
-                result["station"], station_class, result["battery_figure"],
-                result["title"], view["end"] is None)
+                # The advice reads the last measurement: its time, with
+                # the same dot as on the Now tab
+                status, f"status {state}",
+                result["station"], station_class)
+
+    @app.callback(
+        Output("graph", "figure"),
+        Output("period-title", "children"),
+        Output("next", "disabled"),
+        Output("station-graph", "figure"),
+        Output("station-period-title", "children"),
+        Output("station-next", "disabled"),
+        Input("view", "data"), Input("refresh", "n_intervals"))
+    def update_graphs(view, _refresh_count):
+        # Called when the page opens, when the period shown changes, and
+        # at each refresh: only the graphs, so that a drag is quick.
+        # There is no period after the present
+        connection = open_database()
+        try:
+            result = build_graphs(connection, view,
+                                  datetime.now(timezone.utc))
+        finally:
+            connection.close()
+        present = view["end"] is None
+        return (result["figure"], result["title"], present,
+                result["battery_figure"], result["title"], present)
 
     @app.callback(
         Output("battery-tile", "children"), Output("log-tile", "children"),
