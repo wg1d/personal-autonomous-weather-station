@@ -246,10 +246,12 @@ void test_f3_upload_sends_the_new_rows_once() {
 
     std::vector<std::string> rows = station.receivedRows();
     TEST_ASSERT_EQUAL(2, rows.size());
-    TEST_ASSERT_EQUAL_STRING("2026-10-01T13:45:03Z,1,18.40,62.00,1013.20",
-                             rows[0].c_str());
-    TEST_ASSERT_EQUAL_STRING("2026-10-01T14:00:03Z,1,18.40,62.00,1013.20",
-                             rows[1].c_str());
+    TEST_ASSERT_EQUAL_STRING(
+        "2026-10-01T13:45:03Z,1,18.40,62.00,1013.20,4.05,-1.25",
+        rows[0].c_str());
+    TEST_ASSERT_EQUAL_STRING(
+        "2026-10-01T14:00:03Z,1,18.40,62.00,1013.20,4.05,-1.25",
+        rows[1].c_str());
     // Everything was acknowledged: the cursor is at the end
     TEST_ASSERT_EQUAL(station.storage.csv.size(), station.storage.cursor);
 }
@@ -269,8 +271,9 @@ void test_n1_server_error_keeps_rows_for_next_upload() {
     // The row of 14:00 was sent at 15:00, with the four new ones
     std::vector<std::string> rows = station.receivedRows();
     TEST_ASSERT_EQUAL(5, rows.size());
-    TEST_ASSERT_EQUAL_STRING("2026-10-01T14:00:03Z,1,18.40,62.00,1013.20",
-                             rows[0].c_str());
+    TEST_ASSERT_EQUAL_STRING(
+        "2026-10-01T14:00:03Z,1,18.40,62.00,1013.20,4.05,-1.25",
+        rows[0].c_str());
 }
 
 void test_large_backlog_is_sent_in_several_requests() {

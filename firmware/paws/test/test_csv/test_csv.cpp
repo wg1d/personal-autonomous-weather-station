@@ -26,14 +26,16 @@ Record makeRecord() {
     record.values.temperatureC = 18.42f;
     record.values.humidityPct = 62.10f;
     record.values.pressureHpa = 1013.20f;
+    record.values.batteryV = 4.05f;
+    record.values.batteryMa = -1.25f;
     return record;
 }
 
 void test_complete_row() {
     char row[kCsvRowSize];
     TEST_ASSERT_TRUE(formatCsvRow(makeRecord(), row, sizeof(row)));
-    TEST_ASSERT_EQUAL_STRING("2026-10-01T14:15:00Z,1,18.42,62.10,1013.20",
-                             row);
+    TEST_ASSERT_EQUAL_STRING(
+        "2026-10-01T14:15:00Z,1,18.42,62.10,1013.20,4.05,-1.25", row);
 }
 
 void test_missing_value_gives_empty_field() {
@@ -41,15 +43,37 @@ void test_missing_value_gives_empty_field() {
     record.values.humidityPct = NAN;
     char row[kCsvRowSize];
     TEST_ASSERT_TRUE(formatCsvRow(record, row, sizeof(row)));
-    TEST_ASSERT_EQUAL_STRING("2026-10-01T14:15:00Z,1,18.42,,1013.20", row);
+    TEST_ASSERT_EQUAL_STRING(
+        "2026-10-01T14:15:00Z,1,18.42,,1013.20,4.05,-1.25", row);
 }
 
-void test_sensor_missing_gives_three_empty_fields() {
+void test_sensor_missing_gives_five_empty_fields() {
     Record record;
     record.timestamp = kQuarterPast;
     char row[kCsvRowSize];
     TEST_ASSERT_TRUE(formatCsvRow(record, row, sizeof(row)));
-    TEST_ASSERT_EQUAL_STRING("2026-10-01T14:15:00Z,0,,,", row);
+    TEST_ASSERT_EQUAL_STRING("2026-10-01T14:15:00Z,0,,,,,", row);
+}
+
+void test_battery_without_air_sensor() {
+    Record record = makeRecord();
+    record.values.temperatureC = NAN;
+    record.values.humidityPct = NAN;
+    record.values.pressureHpa = NAN;
+    char row[kCsvRowSize];
+    TEST_ASSERT_TRUE(formatCsvRow(record, row, sizeof(row)));
+    TEST_ASSERT_EQUAL_STRING("2026-10-01T14:15:00Z,1,,,,4.05,-1.25", row);
+}
+
+void test_longest_row_fits() {
+    // The widest values a station can write, all negative
+    Record record = makeRecord();
+    record.values.temperatureC = -40.0f;
+    record.values.humidityPct = 100.0f;
+    record.values.pressureHpa = 1100.0f;
+    record.values.batteryMa = -399.99f;
+    char row[kCsvRowSize];
+    TEST_ASSERT_TRUE(formatCsvRow(record, row, sizeof(row)));
 }
 
 void test_unreliable_time_is_flagged() {
@@ -57,8 +81,8 @@ void test_unreliable_time_is_flagged() {
     record.timeValid = false;
     char row[kCsvRowSize];
     TEST_ASSERT_TRUE(formatCsvRow(record, row, sizeof(row)));
-    TEST_ASSERT_EQUAL_STRING("2026-10-01T14:15:00Z,0,18.42,62.10,1013.20",
-                             row);
+    TEST_ASSERT_EQUAL_STRING(
+        "2026-10-01T14:15:00Z,0,18.42,62.10,1013.20,4.05,-1.25", row);
 }
 
 void test_negative_temperature() {
@@ -66,8 +90,8 @@ void test_negative_temperature() {
     record.values.temperatureC = -3.5f;
     char row[kCsvRowSize];
     TEST_ASSERT_TRUE(formatCsvRow(record, row, sizeof(row)));
-    TEST_ASSERT_EQUAL_STRING("2026-10-01T14:15:00Z,1,-3.50,62.10,1013.20",
-                             row);
+    TEST_ASSERT_EQUAL_STRING(
+        "2026-10-01T14:15:00Z,1,-3.50,62.10,1013.20,4.05,-1.25", row);
 }
 
 void test_buffer_too_small_is_refused() {
@@ -79,7 +103,9 @@ int main() {
     UNITY_BEGIN();
     RUN_TEST(test_complete_row);
     RUN_TEST(test_missing_value_gives_empty_field);
-    RUN_TEST(test_sensor_missing_gives_three_empty_fields);
+    RUN_TEST(test_sensor_missing_gives_five_empty_fields);
+    RUN_TEST(test_battery_without_air_sensor);
+    RUN_TEST(test_longest_row_fits);
     RUN_TEST(test_unreliable_time_is_flagged);
     RUN_TEST(test_negative_temperature);
     RUN_TEST(test_buffer_too_small_is_refused);

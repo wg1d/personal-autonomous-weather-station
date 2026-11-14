@@ -18,6 +18,7 @@
 #include <Adafruit_BME280.h>
 #include <Arduino.h>
 
+#include "Board.h"
 #include "Console.h"
 #include "ISensor.h"
 
@@ -35,7 +36,7 @@ public:
     Measurement read() override {
         Measurement measurement;  // all values missing until read
 
-        if (!bme_.begin(kBme280Address)) {
+        if (!beginWithRetries()) {
             console.println("   BME280 not responding");
             return measurement;
         }
@@ -63,5 +64,17 @@ public:
     }
 
 private:
+    // A sensor that does not answer at once gets a few more tries (see
+    // Board.h)
+    bool beginWithRetries() {
+        for (int attempt = 0; attempt < kSensorTries; ++attempt) {
+            if (bme_.begin(kBme280Address)) {
+                return true;
+            }
+            delay(kSensorRetryDelayMs);
+        }
+        return false;
+    }
+
     Adafruit_BME280 bme_;
 };

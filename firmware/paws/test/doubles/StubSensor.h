@@ -26,6 +26,8 @@ public:
             m.temperatureC = 18.4f;
             m.humidityPct = 62.0f;
             m.pressureHpa = 1013.2f;
+            m.batteryV = 4.05f;
+            m.batteryMa = -1.25f;
         }
         return m;
     }

@@ -3,8 +3,9 @@
  * File: src/main.cpp
  *
  * Description:
- * Firmware of the station: at each wake-up, the BME280 is read and the
- * row is appended to the CSV file in the flash memory, timestamped by
+ * Firmware of the station: at each wake-up, the BME280 and the INA219 (the
+ * battery) are read and the row is appended to the CSV file in the flash
+ * memory, timestamped by
  * the DS3231, whose alarm wakes the ESP32 up on the measurement grid.
  * Once per hour, the station connects to the home Wi-Fi and sends the new
  * rows to the server; once per day, it sets the DS3231 with NTP. A press
@@ -12,29 +13,31 @@
  * page to download or delete the data, for 3 minutes.
  *
  * Wiring: the pins of each board are in src/adapters/Board.h.
- * - BME280 and DS3231 on the I2C bus of the board
+ * - BME280, INA219 and DS3231 on the I2C bus of the board
  * - DS3231 SQW -> alarm pin of the board
  * - Button -> button pin of the board
  * - No SD card: the rows and the log are kept in the flash memory of the
  *   ESP32. On the bench station, an SD card module left wired stays off
  *   (pull-down on its OFF pin).
  * Dependencies: ESP32 Arduino core, RTClib, Adafruit BME280 Library,
+ * Adafruit INA219 Library,
  * lib/core, lib/ports, include/secrets.h (Wi-Fi, server and access
  * point settings).
  */
 
 #include <Arduino.h>
+#include <esp_system.h>
 #include <esp_task_wdt.h>
 
 #include "StateMachine.h"
 #include "adapters/AccessPointMaintenance.h"
 #include "adapters/Board.h"
-#include "adapters/Bme280Sensor.h"
 #include "adapters/Console.h"
 #include "adapters/Ds3231Clock.h"
 #include "adapters/Esp32Power.h"
 #include "adapters/FlashStorage.h"
 #include "adapters/SerialLog.h"
+#include "adapters/StationSensors.h"
 #include "adapters/WifiNetwork.h"
 #include "secrets.h"
 
@@ -59,7 +62,7 @@ const uint32_t kWatchdogS = 10 * 60;
 Console console;
 
 Ds3231Clock rtcClock;
-Bme280Sensor sensor;
+StationSensors sensor;
 FlashVolume volume;
 FlashStorage storage(volume);
 WifiNetwork network(kWifiSsid, kWifiPassword, kServerUrl);
@@ -68,11 +71,32 @@ AccessPointMaintenance maintenance(volume, kApSsid, kApPassword,
                                    PAWS_VERSION);
 SerialLog serialLog;
 
+/// The reasons of a restart other than a wake-up from deep sleep, written
+/// in the log: a station that stops, or restarts by itself, can then be
+/// understood from home. A normal wake-up writes nothing
+void reportResetReason() {
+    const char* reason = nullptr;
+    switch (esp_reset_reason()) {
+        case ESP_RST_DEEPSLEEP: return;  // the normal wake-up
+        case ESP_RST_POWERON:   reason = "power on"; break;
+        case ESP_RST_EXT:       reason = "reset pin"; break;
+        case ESP_RST_SW:        reason = "restart by the firmware"; break;
+        case ESP_RST_PANIC:     reason = "crash of the firmware"; break;
+        case ESP_RST_INT_WDT:
+        case ESP_RST_TASK_WDT:
+        case ESP_RST_WDT:       reason = "watchdog"; break;
+        case ESP_RST_BROWNOUT:  reason = "brownout, the voltage fell"; break;
+        default:                reason = "unknown"; break;
+    }
+    console.printf("   restart: %s\n", reason);
+}
+
 /// Runs one wake-up of the state machine, which ends in deep sleep
 void setup() {
     Serial.begin(115200);
     console.printf("\nPAWS firmware %s on %s%s\n", PAWS_VERSION, kBoardName,
                    kBenchDemo ? " (bench periods)" : "");
+    reportResetReason();
 
     // If this wake-up ever freezes (a library waiting forever, for
     // example), the watchdog restarts the chip: the next boot measures and

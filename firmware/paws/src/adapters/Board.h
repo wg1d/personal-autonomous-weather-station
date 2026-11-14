@@ -73,3 +73,10 @@ const esp_sleep_ext1_wakeup_mode_t kButtonWakeMode = ESP_EXT1_WAKEUP_ANY_HIGH;
 const bool kSerialIsNativeUsb = false;
 
 #endif
+
+/// How many times a sensor that does not answer on the I2C bus is asked
+/// again, and how long to wait between two tries. A chip may miss one
+/// request, for example while the bus settles after the wake-up: a row
+/// without values is lost for good, a few milliseconds are not
+const int kSensorTries = 3;
+const uint32_t kSensorRetryDelayMs = 50;

@@ -35,14 +35,18 @@ bool formatCsvRow(const Record& record, char* buffer, size_t size) {
     char temperature[16];
     char humidity[16];
     char pressure[16];
+    char batteryV[16];
+    char batteryMa[16];
     formatValue(record.values.temperatureC, temperature, sizeof(temperature));
     formatValue(record.values.humidityPct, humidity, sizeof(humidity));
     formatValue(record.values.pressureHpa, pressure, sizeof(pressure));
+    formatValue(record.values.batteryV, batteryV, sizeof(batteryV));
+    formatValue(record.values.batteryMa, batteryMa, sizeof(batteryMa));
 
     // snprintf never writes past the end of the buffer; it returns the
     // length the full row needs, which tells us whether it was cut
-    int length = snprintf(buffer, size, "%s,%d,%s,%s,%s", timestamp,
+    int length = snprintf(buffer, size, "%s,%d,%s,%s,%s,%s,%s", timestamp,
                           record.timeValid ? 1 : 0, temperature, humidity,
-                          pressure);
+                          pressure, batteryV, batteryMa);
     return length >= 0 && static_cast<size_t>(length) < size;
 }

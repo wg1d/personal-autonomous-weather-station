@@ -128,11 +128,11 @@ public:
             }
         });
         server.on("/download", HTTP_GET, [this, &server]() {
-            sendMeasurements(server, kCsvFileName, "measurements_v1.csv");
+            sendMeasurements(server, kCsvFileName, "measurements_v2.csv");
         });
         server.on("/previous", HTTP_GET, [this, &server]() {
             sendMeasurements(server, kOldCsvFileName,
-                             "measurements_v1_old.csv");
+                             "measurements_v2_old.csv");
         });
         server.on("/log", HTTP_GET, [this, &server]() {
             sendLog(server);
@@ -232,11 +232,18 @@ private:
 
     void deleteMeasurements(WebServer& server) {
         bool deleted = false;
-        if (fileSize(kCsvFileName) > 0 || fileSize(kOldCsvFileName) > 0) {
-            // Remove the cursor too: it points into the deleted file
+        if (fileSize(kCsvFileName) > 0 || fileSize(kOldCsvFileName) > 0
+            || fileSize(kV1CsvFileName) > 0
+            || fileSize(kV1OldCsvFileName) > 0) {
+            // Remove the cursors too: they point into the deleted files.
+            // The files of the format version 1, left by the firmware
+            // before the battery monitor, go with them
             LittleFS.remove(kCsvFileName);
             LittleFS.remove(kOldCsvFileName);
             LittleFS.remove(kCursorFileName);
+            LittleFS.remove(kV1CsvFileName);
+            LittleFS.remove(kV1OldCsvFileName);
+            LittleFS.remove(kV1CursorFileName);
             deleted = true;
             console.println("   measurements deleted");
         }
