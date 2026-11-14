@@ -1646,11 +1646,14 @@ STILL_MA = 0.5
 NIGHT_END_HOUR = 7
 
 # The days of the log shown in the Station tab, and the part of the end of
-# the log that is read for them: the log grows by about 30 KB a day
+# the log that is read for them: the log grows by about 33 KB a day (600
+# KB in 18 days on the server), about 230 KB for 7 days
 LOG_DAYS = 7
-LOG_TAIL_BYTES = 512 * 1024
-# The problems of the last hours are told on the Now tab
+LOG_TAIL_BYTES = 256 * 1024
+# The problems of the last hours are told on the Now tab, from a shorter
+# end of the log: the Now tab is the first page opened
 LOG_RECENT = timedelta(hours=24)
+LOG_RECENT_BYTES = 64 * 1024
 # At most this many problems are listed, the newest first: the graphs
 # below must still fit on the screen of a computer
 LOG_SHOWN = 5

@@ -106,26 +106,35 @@ def problems(text):
     """The lines of a log that tell a problem, oldest first, as (time,
     clock_set, line). time is the time of their entry, in UTC; for an
     entry written while the clock was not set, the time of the entry
-    before it, and clock_set is False."""
+    before it, and clock_set is False.
+
+    The log holds about a hundred entries a day: the time of an entry is
+    only read when one of its lines tells a problem, since reading a date
+    is slow on the small computer of the server.
+    """
     found = []
-    last_time = None
-    for entry in split_entries(text):
-        lines = entry.splitlines()
-        match = ENTRY_TIME.match(lines[0].strip()) if lines else None
-        clock_set = False
+    last_time = None   # the time of the last entry with a set clock
+    last_text = None   # its text, read only when needed
+    clock_set = False
+    for line in text.splitlines():
+        line = line.strip()
+        match = ENTRY_TIME.match(line)
         if match:
+            # Before 2020: the time of a clock that was not set
+            clock_set = match.group(1)[:4] >= str(VALID_SINCE.year)
+            if clock_set:
+                last_text, last_time = match.group(1), None
+            continue
+        answer = ANSWER.search(line)
+        bad_answer = answer and not answer.group(1).startswith("2")
+        if not (bad_answer or any(word in line for word in PROBLEMS)):
+            continue
+        if last_time is None and last_text is not None:
             try:
-                moment = datetime.strptime(
-                    match.group(1), "%Y-%m-%dT%H:%M:%SZ").replace(
+                last_time = datetime.strptime(
+                    last_text, "%Y-%m-%dT%H:%M:%SZ").replace(
                         tzinfo=timezone.utc)
             except ValueError:
-                moment = None
-            if moment is not None and moment >= VALID_SINCE:
-                last_time, clock_set = moment, True
-        for line in lines[1:]:
-            line = line.strip()
-            answer = ANSWER.search(line)
-            bad_answer = answer and not answer.group(1).startswith("2")
-            if bad_answer or any(word in line for word in PROBLEMS):
-                found.append((last_time, clock_set, line))
+                last_text = None
+        found.append((last_time, clock_set, line))
     return found
