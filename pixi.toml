@@ -17,6 +17,7 @@
 #   pixi run deploy-backend   # deploy the committed backend to the server
 #   pixi run backup-backend   # make a backup on the server now
 #   pixi run restore-backend  # put back a backup on the server [day]
+#   pixi run reset-backend    # empty the database on the server
 #
 # Not managed here: LaTeX (texlive with circuitikz, latexmk, pdf2svg),
 # only needed to regenerate the wiring diagrams (docs/assets/diagrams-src).
@@ -54,6 +55,7 @@ backend-test = { cmd = "uv run --locked pytest", cwd = "backend/paws" }
 deploy-backend = "bash scripts/deploy-backend.sh"
 backup-backend = "ssh pi 'sudo systemctl start paws-backup; cat ~/paws/data/backups/last_backup.json'"
 restore-backend = "bash scripts/restore-backend.sh"
+reset-backend = "bash scripts/reset-backend.sh"
 
 # Backend: a separate environment, because PlatformIO requires an old
 # version of uvicorn (for its own web interface) that FastAPI cannot use
