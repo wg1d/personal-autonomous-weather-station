@@ -41,7 +41,7 @@ from urllib.parse import quote
 import plotly.io as pio
 from dash import Dash, Input, Output, State, ctx, dcc, html, no_update
 
-from . import database, sky, transfer, weather
+from . import database, logs, sky, transfer, weather
 from .protocol import TIMESTAMP_FORMAT
 
 # The periods of the buttons of the Graphs tab, and their length
@@ -59,6 +59,7 @@ TABS = [
     ("now", "Maintenant"),
     ("graphs", "Courbes"),
     ("advice", "Conseils"),
+    ("station", "Station"),
     ("compare", "Comparer"),
     ("data", "Données"),
 ]
@@ -1387,7 +1388,11 @@ def graph_title(quantity, extras, days=False):
 # The scale of each graph: its limits are rounded to these steps, so that
 # it only changes when the values cross one of them, not at each move;
 # the humidity always goes from 0 to 100 %
-SCALE_STEPS = {"temperature_c": 5, "sea_level_hpa": 5}
+# The numbers of a value axis, when one decimal is not right: the steps
+# of the voltage are 0.05 V, the current needs no decimal
+TICK_FORMATS = {"battery_v": ".2~f", "battery_ma": ".0f"}
+SCALE_STEPS = {"temperature_c": 5, "sea_level_hpa": 5, "battery_v": 0.1,
+               "battery_ma": 50}
 HUMIDITY_SCALE = [0, 100]
 
 
@@ -1400,14 +1405,17 @@ def value_range(curves, start, stop, step):
               if y is not None and start[:len(x)] <= x <= stop[:len(x)]]
     if not values:
         return None
-    low = math.floor(min(values) / step) * step
-    high = math.ceil(max(values) / step) * step
-    return [low, high if high > low else low + step]
+    # Rounded again: 42 * 0.1 is 4.2000000000000002 for the computer
+    low = round(math.floor(min(values) / step) * step, 6)
+    high = round(math.ceil(max(values) / step) * step, 6)
+    return [low, high if high > low else round(low + step, 6)]
 
 
 def figure(values, points, start, stop, limits=None, label=None,
-           comparison=None):
-    """The three graphs, one above the other, sharing the time axis.
+           comparison=None, quantities=None, domains=None):
+    """The graphs, one above the other, sharing the time axis: by default
+    the three of the weather (QUANTITIES, placed by DOMAINS); in the
+    Station tab, those of the battery (quantities and domains).
 
     values are the points of the period from start to stop, plus a margin
     on each side, so that the graphs can be dragged before the page loads
@@ -1424,11 +1432,15 @@ def figure(values, points, start, stop, limits=None, label=None,
     check each of the thousands of values, which takes seconds on the
     small computer of the server.
     """
+    quantities = QUANTITIES if quantities is None else quantities
+    domains = DOMAINS if domains is None else domains
+    # Plotly names the axes x, x2, x3 and y, y2, y3
+    suffixes = ["" if index == 0 else str(index + 1)
+                for index in range(len(quantities))]
     data = []
     layout = {}
-    for index, quantity in enumerate(QUANTITIES):
-        # Plotly names the axes x, x2, x3 and y, y2, y3
-        suffix = "" if index == 0 else str(index + 1)
+    for index, quantity in enumerate(quantities):
+        suffix = suffixes[index]
         axes = {"xaxis": "x" + suffix, "yaxis": "y" + suffix}
         data += _curves(values, points, quantity, axes, label)
         if comparison is not None:
@@ -1441,13 +1453,14 @@ def figure(values, points, start, stop, limits=None, label=None,
         # Each graph has its own value axis, which keeps its scale (only
         # time moves), and a time axis that follows the first one
         # ("matches"); only the time axis of the bottom graph shows dates
-        layout["yaxis" + suffix] = {"domain": DOMAINS[index],
+        layout["yaxis" + suffix] = {"domain": domains[index],
                                     "anchor": "x" + suffix,
                                     "gridcolor": GRID,
                                     "fixedrange": True,
                                     # "1029,5", without a space between
-                                    # thousands
-                                    "tickformat": ".1~f"}
+                                    # thousands; "4,15" for a voltage
+                                    "tickformat": TICK_FORMATS.get(
+                                        quantity[0], ".1~f")}
         # A scale of round values, from the period shown only, not from
         # the margins (see value_range()); Plotly keeps it while the
         # graphs are dragged
@@ -1465,7 +1478,8 @@ def figure(values, points, start, stop, limits=None, label=None,
         # midnight tell the days apart
         layout["xaxis" + suffix] = {"anchor": "y" + suffix, "type": "date",
                                     "showgrid": False,
-                                    "showticklabels": index == 2,
+                                    "showticklabels": (
+                                        index == len(quantities) - 1),
                                     "tickformatstops": DATE_TICKS,
                                     "hoverformat": (
                                         "%A %d %B %Y" if points == "days"
@@ -1478,7 +1492,7 @@ def figure(values, points, start, stop, limits=None, label=None,
     # The graphs cannot be dragged nor zoomed out beyond the data: the
     # limits are given to the three time axes, which move together
     if limits is not None:
-        for suffix in ["", "2", "3"]:
+        for suffix in suffixes:
             layout["xaxis" + suffix].update(minallowed=limits[0],
                                             maxallowed=limits[1])
     if stop - start <= timedelta(days=31):
@@ -1499,9 +1513,9 @@ def figure(values, points, start, stop, limits=None, label=None,
                              else EXTRA_CURVES.get(quantity[0], []),
                              points == "days" and comparison is None),
          "x": 0.5, "xref": "paper",
-         "y": DOMAINS[index][1], "yref": "paper", "yanchor": "bottom",
+         "y": domains[index][1], "yref": "paper", "yanchor": "bottom",
          "showarrow": False, "font": {"size": 16}}
-        for index, quantity in enumerate(QUANTITIES)]
+        for index, quantity in enumerate(quantities)]
     layout.update(
         template=TEMPLATE,
         paper_bgcolor=CARD,
@@ -1527,7 +1541,7 @@ def figure(values, points, start, stop, limits=None, label=None,
     return {"data": data, "layout": layout}
 
 
-def build_view(connection, view, now, location=None):
+def build_view(connection, view, now, location=None, log_text=""):
     """Computes everything the Graphs tab shows.
 
     view is the period shown (see shown()). Returns a dictionary:
@@ -1535,7 +1549,10 @@ def build_view(connection, view, now, location=None):
     health()), "date" (today, in words), "frost", "hero" and "tiles" (the
     Now tab, see frost_banner(), hero() and tiles(); location is
     (latitude, longitude) of the station, for the sun, or None),
-    "advice" (the Advice tab, see advice_tiles()), "title"
+    "advice" (the Advice tab, see advice_tiles()), "station" (the
+    warning about the station on the Now tab, from the end of its log,
+    log_text, see station_banner()), "battery_figure" (the graphs of the
+    Station tab), "title"
     (the period shown, see period_title()) and "figure" (the graphs).
     """
     last = database.last_row(connection)
@@ -1586,8 +1603,214 @@ def build_view(connection, view, now, location=None):
                          sun_events(location, now)),
             "tiles": tiles(last, day_rows, day, changes),
             "advice": advice,
+            "station": station_banner(
+                last, log_problems(log_text, now - LOG_RECENT)),
             "title": period_title(view, now),
-            "figure": figure(values, points, start, stop, limits)}
+            "figure": figure(values, points, start, stop, limits),
+            "battery_figure": figure(values, points, start, stop, limits,
+                                     quantities=BATTERY_QUANTITIES,
+                                     domains=BATTERY_DOMAINS)}
+
+
+# --- Station tab -----------------------------------------------------------
+
+# The graphs of the battery, measured by the INA219: column, name, unit,
+# color, as QUANTITIES, and their place in the height of the figure
+BATTERY_QUANTITIES = [
+    ("battery_v", "Tension de la batterie", "V", "#e5a92b"),
+    ("battery_ma", "Courant de la batterie", "mA", "#c27ae0"),
+]
+BATTERY_DOMAINS = [[0.56, 1.0], [0.0, 0.44]]
+
+# The charge of a lithium polymer battery at rest, from its voltage: up to
+# each voltage, in V, the charge in %. The usual table of the makers of
+# these batteries, an estimate: the voltage also depends on the current,
+# on the temperature and on the age of the battery. The station measures
+# while it is awake and draws about 50 mA: a little below the voltage at
+# rest
+LIPO_CHARGE = [(3.27, 0), (3.61, 5), (3.69, 10), (3.71, 15), (3.73, 20),
+               (3.75, 25), (3.77, 30), (3.79, 35), (3.80, 40), (3.82, 45),
+               (3.84, 50), (3.85, 55), (3.87, 60), (3.91, 65), (3.95, 70),
+               (3.98, 75), (4.02, 80), (4.08, 85), (4.11, 90), (4.15, 95),
+               (4.20, 100)]
+
+# Below this voltage, in V, the battery is low: about 5 % of its charge
+# left (see LIPO_CHARGE), our limit for a warning on the Now tab
+BATTERY_LOW_V = 3.6
+
+# Below this current, in mA, the battery is said neither to charge nor to
+# discharge: about the finest step of the INA219
+STILL_MA = 0.5
+
+# Without the times of the sun, the night is said to end at this hour
+NIGHT_END_HOUR = 7
+
+# The days of the log shown in the Station tab, and the part of the end of
+# the log that is read for them: the log grows by about 30 KB a day
+LOG_DAYS = 7
+LOG_TAIL_BYTES = 512 * 1024
+# The problems of the last hours are told on the Now tab
+LOG_RECENT = timedelta(hours=24)
+# At most this many problems are listed, the newest first
+LOG_SHOWN = 10
+
+# The reasons of a restart written by the firmware, in French
+RESTART_REASONS = {
+    "power on": "mise sous tension",
+    "reset pin": "bouton reset",
+    "restart by the firmware": "redémarrage par le firmware",
+    "crash of the firmware": "plantage du firmware",
+    "watchdog": "chien de garde",
+    "brownout, the voltage fell": "chute de tension",
+    "unknown": "raison inconnue",
+}
+
+
+def battery_charge(voltage):
+    """The charge of the battery, in %, rounded to 5, from its voltage
+    (see LIPO_CHARGE): straight lines between the points of the table."""
+    if voltage <= LIPO_CHARGE[0][0]:
+        return 0
+    for (low_v, low_pct), (high_v, high_pct) in zip(LIPO_CHARGE,
+                                                    LIPO_CHARGE[1:]):
+        if voltage <= high_v:
+            share = (voltage - low_v) / (high_v - low_v)
+            return round((low_pct + share * (high_pct - low_pct)) / 5) * 5
+    return 100
+
+
+def current_text(current):
+    """What the current of the battery tells, such as "↑ +120 mA : la
+    batterie se charge"."""
+    if current >= STILL_MA:
+        return f"↑ {number(current, 0, sign=True)} mA : la batterie se charge"
+    if current <= -STILL_MA:
+        return (f"↓ {number(current, 0, sign=True)} mA : la batterie "
+                "alimente la station, mesuré pendant son réveil")
+    return "→ 0 mA : la batterie ne charge ni ne se décharge"
+
+
+def night_ends(rows, location, now):
+    """The voltage of the battery at the end of the last two nights, the
+    newest first: the last row before each sunrise (before NIGHT_END_HOUR
+    without location). rows are the rows of the last days, oldest first.
+    The end of the night is the lowest point of the battery: it tells
+    whether the sun of the day before filled it again."""
+    local_now = to_local(now)
+    ends = []
+    for back in range(3):
+        day = local_now.date() - timedelta(days=back)
+        times = None if location is None else sky.sun_times(day, *location)
+        end = (to_local(times[0]) if times is not None
+               else datetime.combine(day, datetime.min.time())
+               + timedelta(hours=NIGHT_END_HOUR))
+        if end > local_now:
+            continue
+        before = [row for row in rows
+                  if row["battery_v"] is not None
+                  and datetime.fromisoformat(row["local_time"]) <= end]
+        if before:
+            ends.append(before[-1]["battery_v"])
+        if len(ends) == 2:
+            break
+    return ends
+
+
+def battery_tile(last, rows, location, now):
+    """The Battery tile of the Station tab: (headline, lines), such as
+    ("4,05 V · environ 85 %", ["↑ +120 mA : la batterie se charge",
+    "Fin de nuit : 3,98 V (la veille 3,99 V)"]). rows are the rows of the
+    last days, for the ends of the nights (see night_ends())."""
+    if last is None or last["battery_v"] is None:
+        return ("Pas encore de mesure",
+                ["La station n'envoie pas encore la tension de sa "
+                 "batterie : l'INA219 n'est pas encore installé."])
+    voltage = last["battery_v"]
+    lines = []
+    if last["battery_ma"] is not None:
+        lines.append(current_text(last["battery_ma"]))
+    ends = night_ends(rows, location, now)
+    if ends:
+        text = f"Fin de nuit : {number(ends[0], 2)} V"
+        if len(ends) > 1:
+            text += f" (la veille {number(ends[1], 2)} V)"
+        lines.append(text)
+    return (f"{number(voltage, 2)} V · environ {battery_charge(voltage)} %",
+            lines)
+
+
+def problem_text(line):
+    """A problem of the log (see logs.problems()), in French when it is a
+    known message of the firmware, as it is otherwise."""
+    if line.startswith("restart: "):
+        reason = line[len("restart: "):]
+        return f"Redémarrage : {RESTART_REASONS.get(reason, reason)}"
+    if line.endswith(" not responding"):
+        return f"{line[:-len(' not responding')]} ne répond pas"
+    if line == "Wi-Fi not reachable":
+        return "Wi-Fi injoignable"
+    if line == "NTP not answering":
+        return "L'heure par internet (NTP) ne répond pas"
+    return line
+
+
+def log_problems(log_text, since):
+    """The problems of the log since a time (UTC), the newest first, as
+    (when, text): when is the local time, such as "14 nov. 03:15", or
+    "après 14 nov. 03:15" for an entry written while the clock was not
+    set."""
+    shown = []
+    for moment, clock_set, line in logs.problems(log_text):
+        if moment is None or moment < since:
+            continue
+        when = french_date(to_local(moment), "%d %b %H:%M")
+        shown.append((when if clock_set else f"après {when}",
+                      problem_text(line)))
+    return shown[::-1]
+
+
+def log_tile(problems):
+    """The Log tile of the Station tab, from the problems of the last
+    LOG_DAYS days (see log_problems()): (ok, headline, lines), ok telling
+    whether there is none."""
+    if not problems:
+        return (True, f"Aucun problème sur {LOG_DAYS} jours", [])
+    count = len(problems)
+    headline = (f"{count} problème{'s' if count > 1 else ''} sur "
+                f"{LOG_DAYS} jours")
+    lines = [f"{when} · {text}" for when, text in problems[:LOG_SHOWN]]
+    if count > LOG_SHOWN:
+        lines.append(f"… et {count - LOG_SHOWN} de plus dans le journal")
+    return False, headline, lines
+
+
+def station_banner(last, recent_problems):
+    """The warning about the station at the top of the Now tab: a low
+    battery (see BATTERY_LOW_V), and the problems of the last hours of the
+    log; "" when all is well."""
+    texts = []
+    if last is not None and last["battery_v"] is not None \
+            and last["battery_v"] < BATTERY_LOW_V:
+        texts.append(f"Batterie faible ({number(last['battery_v'], 2)} V) : "
+                     "vérifiez le panneau solaire.")
+    if recent_problems:
+        count = len(recent_problems)
+        texts.append(f"{count} problème{'s' if count > 1 else ''} dans le "
+                     "journal depuis 24 h : voir l'onglet Station.")
+    return " ".join(texts)
+
+
+def build_station(connection, log_text, now, location=None):
+    """Computes the tiles of the Station tab: "battery" and "log", each
+    (headline, lines); "log_ok" tells whether the log shows no problem."""
+    last = database.last_row(connection)
+    rows = database.rows_between(
+        connection, to_timestamp(now - timedelta(days=3)),
+        to_timestamp(now + timedelta(minutes=1)))
+    log_ok, headline, lines = log_tile(
+        log_problems(log_text, now - timedelta(days=LOG_DAYS)))
+    return {"battery": battery_tile(last, rows, location, now),
+            "log": (headline, lines), "log_ok": log_ok}
 
 
 # --- Compare tab -----------------------------------------------------------
@@ -1914,6 +2137,41 @@ def create_dashboard(open_database, log_path, backup_status,
                         children=[dcc.Dropdown(id=list_id, clearable=False,
                                                searchable=False)])
 
+    def time_controls(prefix):
+        # The period buttons, Aujourd'hui, then the steps: zoom out, the
+        # period before, the period shown, the period after, zoom in. The
+        # Courbes and Station tabs have each their own, with the prefix
+        # "" or "station-" in their ids; both move the same period shown
+        return [
+            html.Div(className="controls", children=[
+                # Each button holds a long and a short label: style.css
+                # shows one or the other, depending on the screen
+                dcc.RadioItems(
+                    id=f"{prefix}period", value="24h", className="periods",
+                    options=[{"label": [
+                                  html.Span(label, className="long"),
+                                  html.Span(SHORT_LABELS[period],
+                                            className="short")],
+                              "value": period}
+                             for period, label in PERIOD_LABELS.items()]),
+                html.Button("Aujourd'hui", id=f"{prefix}today",
+                            title="Revenir au présent"),
+            ]),
+            # The icons are drawn as those of the tabs
+            html.Div(className="steps", children=[
+                html.Button(icon("zoom-out"), id=f"{prefix}zoom-out",
+                            title="Voir une période plus longue"),
+                html.Button(icon("chevron-left"), id=f"{prefix}previous",
+                            title="La période d'avant"),
+                html.Div(id=f"{prefix}period-title",
+                         className="period-title"),
+                html.Button(icon("chevron-right"), id=f"{prefix}next",
+                            title="La période d'après"),
+                html.Button(icon("zoom-in"), id=f"{prefix}zoom-in",
+                            title="Voir une période plus courte"),
+            ]),
+        ]
+
     def period_choice(choice_id, label, line):
         # The lists of a period: the day of the month, the week or the
         # month, and the year. Only the ones the unit needs are shown.
@@ -1946,6 +2204,9 @@ def create_dashboard(open_database, log_path, backup_status,
         # Shown only when the station is silent, whatever the tab
         html.Div(id="alert", className="alert hidden"),
         html.Div(id="now-tab", children=[
+            # Shown only when the battery is low, or the log of the station
+            # tells a problem
+            html.Div(id="station-alert", className="station-alert hidden"),
             # Shown only when it freezes, or may freeze in the night
             html.Div(id="frost", className="frost hidden"),
             # The top: today and the help button, the time of the last
@@ -1963,34 +2224,29 @@ def create_dashboard(open_database, log_path, backup_status,
             html.Div(id="tiles", className="tiles"),
         ]),
         html.Div(id="graphs-tab", style={"display": "none"}, children=[
-            html.Div(className="controls", children=[
-                # Each button holds a long and a short label: style.css
-                # shows one or the other, depending on the screen
-                dcc.RadioItems(
-                    id="period", value="24h", className="periods",
-                    options=[{"label": [
-                                  html.Span(label, className="long"),
-                                  html.Span(SHORT_LABELS[period],
-                                            className="short")],
-                              "value": period}
-                             for period, label in PERIOD_LABELS.items()]),
-                html.Button("Aujourd'hui", id="today",
-                            title="Revenir au présent"),
-            ]),
-            # Zoom out, the period before, the period shown, the period
-            # after, zoom in. The icons are drawn as those of the tabs
-            html.Div(className="steps", children=[
-                html.Button(icon("zoom-out"), id="zoom-out",
-                            title="Voir une période plus longue"),
-                html.Button(icon("chevron-left"), id="previous",
-                            title="La période d'avant"),
-                html.Div(id="period-title", className="period-title"),
-                html.Button(icon("chevron-right"), id="next",
-                            title="La période d'après"),
-                html.Button(icon("zoom-in"), id="zoom-in",
-                            title="Voir une période plus courte"),
-            ]),
+            *time_controls(""),
             graph("graph"),
+        ]),
+        # The health of the station: its battery and the problems of its
+        # log, then the graphs of the battery
+        html.Div(id="station-tab", style={"display": "none"}, children=[
+            html.Div(className="tiles", children=[
+                html.Div(className="tile", children=[
+                    html.Div("Batterie", className="tile-name"),
+                    html.Div(id="battery-tile"),
+                ]),
+                html.Div(className="tile", children=[
+                    html.Div("Journal", className="tile-name"),
+                    html.Div(id="log-tile"),
+                    html.Button([icon("download"), "Télécharger le journal"],
+                                id="log-export", className="icon-button"),
+                    dcc.Download(id="log-download"),
+                ]),
+            ]),
+            html.Div(className="station-graphs", children=[
+                *time_controls("station-"),
+                graph("station-graph"),
+            ]),
         ]),
         # The advice drawn from the measurements: clothes, laundry,
         # watering, running
@@ -2150,37 +2406,50 @@ def create_dashboard(open_database, log_path, backup_status,
 
     @app.callback(
         Output("view", "data"), Output("period", "value"),
-        Input("period", "value"), Input("today", "n_clicks"),
-        Input("previous", "n_clicks"), Input("next", "n_clicks"),
-        Input("zoom-in", "n_clicks"), Input("zoom-out", "n_clicks"),
-        Input("graph", "relayoutData"), State("view", "data"),
+        Output("station-period", "value"),
+        *[Input(f"{prefix}{name}", prop) for prefix in ("", "station-")
+          for name, prop in (("period", "value"), ("today", "n_clicks"),
+                             ("previous", "n_clicks"), ("next", "n_clicks"),
+                             ("zoom-in", "n_clicks"),
+                             ("zoom-out", "n_clicks"))],
+        Input("graph", "relayoutData"),
+        Input("station-graph", "relayoutData"), State("view", "data"),
         prevent_initial_call=True)
     def navigate(period, _today, _previous, _next, _zoom_in, _zoom_out,
-                 relayout, view):
+                 station_period, _station_today, _station_previous,
+                 _station_next, _station_zoom_in, _station_zoom_out,
+                 relayout, station_relayout, view):
         # Called on a click on a period, an arrow, a zoom button or Today,
-        # or after the graphs were dragged or zoomed: ctx.triggered_id
-        # tells which. When the length shown is no longer the one of a
-        # period button, none is selected, and a click on any of them sets
-        # its length again
+        # or after the graphs were dragged or zoomed, in the Courbes or the
+        # Station tab: ctx.triggered_id tells which. Both tabs show the
+        # same period, and both period buttons follow it. When the length
+        # shown is no longer the one of a period button, none is selected,
+        # and a click on any of them sets its length again
         now = datetime.now(timezone.utc)
-        limits = shown_limits(relayout)
-        if ctx.triggered_id == "graph":
+        trigger = ctx.triggered_id or ""
+        in_station = trigger.startswith("station-")
+        trigger = trigger.removeprefix("station-")
+        if trigger == "graph":
+            limits = shown_limits(station_relayout if in_station
+                                  else relayout)
             if limits is None:
-                return no_update, no_update
+                return no_update, no_update, no_update
             view = view_after_move(limits, now)
-            return view, period_of(view)
-        if ctx.triggered_id in ("zoom-in", "zoom-out"):
-            factor = 0.5 if ctx.triggered_id == "zoom-in" else 2
+            return view, period_of(view), period_of(view)
+        if trigger in ("zoom-in", "zoom-out"):
+            factor = 0.5 if trigger == "zoom-in" else 2
             view = view_after_zoom(view, factor, now)
-            return view, period_of(view)
-        if ctx.triggered_id == "today":
-            return {**view, "end": None}, no_update
-        if ctx.triggered_id in ("previous", "next"):
-            direction = -1 if ctx.triggered_id == "previous" else 1
-            return view_after_step(view, direction, now), no_update
-        if period is None:
-            return no_update, no_update
-        return {**view, "length": PERIODS[period].total_seconds()}, no_update
+            return view, period_of(view), period_of(view)
+        if trigger == "today":
+            return {**view, "end": None}, no_update, no_update
+        if trigger in ("previous", "next"):
+            direction = -1 if trigger == "previous" else 1
+            return view_after_step(view, direction, now), no_update, no_update
+        chosen = station_period if in_station else period
+        if chosen is None:
+            return no_update, no_update, no_update
+        return ({**view, "length": PERIODS[chosen].total_seconds()},
+                chosen, chosen)
 
     sides = ("reference", "comparison")
     lists = ("day", "part", "year")
@@ -2277,16 +2546,24 @@ def create_dashboard(open_database, log_path, backup_status,
         Output("graph", "figure"),
         Output("period-title", "children"),
         Output("next", "disabled"),
+        Output("station-alert", "children"),
+        Output("station-alert", "className"),
+        Output("station-graph", "figure"),
+        Output("station-period-title", "children"),
+        Output("station-next", "disabled"),
         Input("view", "data"), Input("refresh", "n_intervals"))
     def update(view, _refresh_count):
         # Called when the page opens, when the period shown changes, and
         # at each refresh. There is no period after the present
         connection = open_database()
         try:
-            result = build_view(connection, view,
-                                datetime.now(timezone.utc), location)
+            result = build_view(
+                connection, view, datetime.now(timezone.utc), location,
+                logs.read_tail(log_path(), LOG_TAIL_BYTES))
         finally:
             connection.close()
+        station_class = ("station-alert" if result["station"]
+                         else "station-alert hidden")
         state = "stale" if result["stale"] else "ok"
         alert_class = "alert" if result["alert"] else "alert hidden"
         status = [html.Span(className="dot"), result["status"]]
@@ -2295,6 +2572,44 @@ def create_dashboard(open_database, log_path, backup_status,
                 result["date"], result["frost"], frost_class,
                 result["hero"], result["tiles"], result["advice"],
                 result["figure"], result["title"],
-                view["end"] is None)
+                view["end"] is None,
+                result["station"], station_class, result["battery_figure"],
+                result["title"], view["end"] is None)
+
+    @app.callback(
+        Output("battery-tile", "children"), Output("log-tile", "children"),
+        Input("tab", "value"), Input("refresh", "n_intervals"))
+    def show_station(tab, _refresh_count):
+        # Called when a tab is chosen, and at each refresh: only the
+        # Station tab reads the log, which takes longer than the database
+        if tab != "station":
+            return no_update, no_update
+        connection = open_database()
+        try:
+            result = build_station(
+                connection, logs.read_tail(log_path(), LOG_TAIL_BYTES),
+                datetime.now(timezone.utc), location)
+        finally:
+            connection.close()
+        tiles = []
+        for headline, lines in (result["battery"], result["log"]):
+            tiles.append([html.Div(headline, className="tile-headline"),
+                          *[html.Div(line, className="tile-line")
+                            for line in lines]])
+        # A dot, green or red, before the headline of the log, as for the
+        # health of the station
+        dot = "dot" if result["log_ok"] else "dot bad"
+        tiles[1][0] = html.Div([html.Span(className=dot),
+                                result["log"][0]],
+                               className="tile-headline")
+        return tiles[0], tiles[1]
+
+    @app.callback(
+        Output("log-download", "data"),
+        Input("log-export", "n_clicks"), prevent_initial_call=True)
+    def export_log(_clicks):
+        # Sends the whole log of the station to the browser, which saves it
+        name = f"paws_log_{datetime.now():%Y-%m-%d}.txt"
+        return dcc.send_file(str(log_path()), filename=name)
 
     return app

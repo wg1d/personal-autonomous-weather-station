@@ -21,7 +21,8 @@ from . import weather
 from .protocol import COLUMNS
 
 # The quantities that the queries of the dashboard return: the three
-# measurements, then the computed ones, each with its SQL expression
+# measurements of the air, the computed ones, then the battery, each with
+# its SQL expression
 QUANTITIES = {
     "temperature_c": "temperature_c",
     "humidity_pct": "humidity_pct",
@@ -32,6 +33,8 @@ QUANTITIES = {
                              "humidity_pct)",
     "vpd_kpa": "vpd(temperature_c, humidity_pct)",
     "sea_level_hpa": "sea_level(pressure_hpa)",
+    "battery_v": "battery_v",
+    "battery_ma": "battery_ma",
 }
 # All the quantities, separated by commas, for a SELECT
 QUANTITY_COLUMNS = ", ".join(QUANTITIES.values())

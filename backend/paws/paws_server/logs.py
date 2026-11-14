@@ -19,6 +19,7 @@ Dependencies: Python standard library.
 """
 
 import re
+from datetime import datetime, timezone
 
 # The first line of an entry of the log
 ENTRY_START = re.compile(r"^=== .+ ===$")
@@ -66,3 +67,65 @@ def merge(path, text):
     if new:
         append(path, "".join(new))
     return len(entries), len(new)
+
+
+# The lines of an entry that tell something went wrong, or a restart:
+# words written by the firmware (see its console messages)
+PROBLEMS = ("not responding", "timed out", "cannot ", "not mounted",
+            "NOT stored", "not answering", "not reachable", "too long",
+            "restart:")
+# The answer of the server to an upload, such as "server answered 400"
+ANSWER = re.compile(r"server answered (\d+)")
+# The time of an entry, in its first line
+ENTRY_TIME = re.compile(r"^=== (\S+) ===$")
+# Before this date, the time of an entry is the one of a clock that was
+# not set (2000-01-01, or 1970-01-01)
+VALID_SINCE = datetime(2020, 1, 1, tzinfo=timezone.utc)
+
+
+def read_tail(path, size):
+    """The last size bytes of a log, cut at the start of an entry, or ""
+    if the file does not exist. The log grows by about 30 KB a day: its
+    end is enough for the last days, without reading months of it."""
+    try:
+        with open(path, "rb") as log:
+            log.seek(0, 2)
+            start = max(0, log.tell() - size)
+            log.seek(start)
+            text = log.read().decode("utf-8", errors="replace")
+    except OSError:
+        return ""
+    if start == 0:
+        return text  # the whole log
+    # The first entry is cut: start at the next one, or nothing
+    entry = text.find("\n=== ")
+    return "" if entry < 0 else text[entry + 1:]
+
+
+def problems(text):
+    """The lines of a log that tell a problem, oldest first, as (time,
+    clock_set, line). time is the time of their entry, in UTC; for an
+    entry written while the clock was not set, the time of the entry
+    before it, and clock_set is False."""
+    found = []
+    last_time = None
+    for entry in split_entries(text):
+        lines = entry.splitlines()
+        match = ENTRY_TIME.match(lines[0].strip()) if lines else None
+        clock_set = False
+        if match:
+            try:
+                moment = datetime.strptime(
+                    match.group(1), "%Y-%m-%dT%H:%M:%SZ").replace(
+                        tzinfo=timezone.utc)
+            except ValueError:
+                moment = None
+            if moment is not None and moment >= VALID_SINCE:
+                last_time, clock_set = moment, True
+        for line in lines[1:]:
+            line = line.strip()
+            answer = ANSWER.search(line)
+            bad_answer = answer and not answer.group(1).startswith("2")
+            if bad_answer or any(word in line for word in PROBLEMS):
+                found.append((last_time, clock_set, line))
+    return found
