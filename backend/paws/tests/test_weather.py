@@ -65,8 +65,8 @@ def test_row_near_a_time(tmp_path):
 
 def test_sea_level_factor():
     assert sea_level_factor(0) == 1.0
-    # At 140 metres, about 17 hPa more for 1000 hPa
-    assert 1000 * sea_level_factor(140) == pytest.approx(1016.8, abs=0.1)
+    # At 100 metres, about 12 hPa more for 1000 hPa
+    assert 1000 * sea_level_factor(100) == pytest.approx(1011.9, abs=0.1)
 
 
 def test_queries_return_the_computed_quantities(tmp_path):
