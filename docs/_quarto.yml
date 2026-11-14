@@ -136,6 +136,10 @@ website:
             text: "O4 – Shelter"
           - href: chapters/Outdoor/06-outdoors.qmd
             text: "O5 – Outdoors"
+      - section: "Forecasting"
+        contents:
+          - href: chapters/Forecasting/01-barometer-forecast.qmd
+            text: "Barometer Forecast"
       - section: "Appendices"
         contents:
           - section: "Electronics Notes"
