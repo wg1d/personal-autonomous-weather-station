@@ -1,0 +1,57 @@
+# O5 · Outdoors {.unnumbered}
+
+The station leaves the desk: it goes into its shelter, in the garden, and starts the data collection. This chapter switches it on and checks that it works.
+
+## Before switching on
+
+The data collection starts with an empty database on the server, without the rows of the bench tests. One command empties it, after asking for a confirmation; the old database and the old log stay on the server, with the suffix `.before-reset`:
+
+```bash
+pixi run reset-backend
+```
+
+## Switching on
+
+The station is switched on in the garden, with the switch of the Grove Shield, before the lid is closed. At its first wake-up, the station measures, uploads at once, and sets its clock with NTP. Then it measures every 15 minutes and uploads every hour.
+
+Two checks tell that everything works:
+
+- **the dashboard** shows the first measurement, a few seconds after the switch;
+- **the maintenance button**, pressed under the shelter, starts the maintenance mode: the phone finds the access point of the station and opens its page, which shows the measurements stored.
+
+The log of the station, on the server (`station.log`), shows both, as on the first morning of our station (28 October 2026, times in UTC):
+
+```text
+=== 2026-10-28T08:00:28Z ===
+PAWS firmware v0.9.0-36-g56fd949-dirty on XIAO ESP32-S3
+-> BOOT
+-> MEASURE
+-> STORE
+   stored: 2026-10-28T08:00:28Z,1,21.25,54.82,1011.27
+-> UPLOAD
+   Wi-Fi connected in 2000 ms
+   sent 106 bytes of measurements, server answered 200 {"received":1,"inserted":1,"duplicates":0}
+   sent 496 bytes of log, server answered 200 {"received":18}
+-> TIME_SYNC
+   NTP time received
+   clock set to 08:00:34
+-> SCHEDULE
+   alarm set for 08:15:00
+-> SLEEP
+   awake for 3476 ms
+
+=== 2026-10-28T08:03:43Z ===
+PAWS firmware v0.9.0-36-g56fd949-dirty on XIAO ESP32-S3
+-> BOOT
+-> MAINTENANCE
+   access point "PAWS-maintenance" started, page: http://192.168.4.1
+   access point stopped
+-> MEASURE
+...
+```
+
+From 08:15, the wake-ups follow the alarm of the clock, every 15 minutes, and last less than half a second when the station does not upload.
+
+## Next Steps
+
+The station collects data. The next firmware steps add the battery monitor, the INA219.
