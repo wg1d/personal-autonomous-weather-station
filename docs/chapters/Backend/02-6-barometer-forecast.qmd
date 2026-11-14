@@ -112,7 +112,7 @@ The dashboard computes $\Delta p$ as the last pressure minus the one of the last
 
 ## On the dashboard
 
-The forecast is written under the temperature, in the top card of the Now tab, with the time until which it holds: 12 hours after the last measurement, the span of the original forecaster. The station uploads once an hour: the last measurement can be up to an hour old, and the forecast ends 12 hours after it, not 12 hours after the page was opened.
+The forecast is written at the bottom of the top card of the [Now tab](02-1-now.qmd#reading-the-values), with an icon of its sky. The original forecaster looks about 12 hours ahead: rather than an hour, the title names the part of the day this covers, from the hour the page is read, such as "Cet après-midi" in the morning or "Demain matin" in the evening. Below the text, a line gives the rain when the text does not speak of it, and from noon, the lowest temperature of the night with the dew or the fog to expect.
 
 ## Its limits
 
