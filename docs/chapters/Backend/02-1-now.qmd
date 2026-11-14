@@ -1,4 +1,4 @@
-# B2 · Now {.unnumbered}
+# B2 · The Dashboard and the Weather Now {.unnumbered}
 
 Step B1 stores the data of the station on the server. Step B2 shows it in a dashboard, opened in a browser on a computer or a phone of the home network. The dashboard has five tabs, one per chapter of B2:
 
