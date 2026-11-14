@@ -762,6 +762,12 @@ button:disabled {
         background: none;
     }
 
+    /* The Compare tab needs the width of a computer: it is left out of
+       the bar of a phone */
+    .tabs label:has(input[value="compare"]) {
+        display: none;
+    }
+
     /* On a phone, the icon above the name */
     .tabs .dash-options-list-option-text {
         flex-direction: column;
