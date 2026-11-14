@@ -112,6 +112,8 @@ website:
                 text: "Weather Now"
               - href: chapters/Backend/02-2-graphs.qmd
                 text: "Graphs"
+              - href: chapters/Backend/02-3-advice.qmd
+                text: "Advice for the Day"
               - href: chapters/Backend/02-4-compare.qmd
                 text: "Compare"
               - href: chapters/Backend/02-5-data.qmd
