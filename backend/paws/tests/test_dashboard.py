@@ -12,17 +12,19 @@ from paws_server.dashboard import (build_comparison, build_view,
                                    clothes_advice, running_advice,
                                    compare_after_move,
                                    compare_dates, day_extremes,
-                                   dew_comfort, forecast_text, french_date,
-                                   frost_advice, moon_phase, number,
-                                   sky_tile, yesterday_text,
-                                   laundry_advice, sparkline, vpd_drying,
+                                   dew_comfort, forecast, french_date,
+                                   frost_advice, number,
+                                   sun_text, yesterday_text,
+                                   sunrise_tomorrow,
+                                   laundry_advice, sparkline,
                                    watering_advice,
                                    format_age, health,
                                    midnights, resolution, shown,
-                                   parts_of, pressure_outlook,
+                                   parts_of, pressure_state,
                                    shown_limits, start_of, trend,
                                    to_timestamp, trend_text,
-                                   weather_summary,
+                                   feels_text, meaning_text,
+                                   dew_outlook, humidity_state,
                                    view_after_move, view_after_step,
                                    view_after_zoom)
 
@@ -51,12 +53,6 @@ def test_dates_and_numbers_in_french():
     assert french_date(moment, "%A %d %B %Y") == "jeudi 29 octobre 2026"
     assert number(11.44) == "11,4"
     assert number(1.2, sign=True) == "+1,2"
-
-
-def test_vpd_drying():
-    assert vpd_drying(0.27) == "séchage faible"
-    assert vpd_drying(0.7) == "séchage moyen"
-    assert vpd_drying(1.7) == "séchage fort"
 
 
 def measurement(temperature, dew, deficit):
@@ -124,37 +120,43 @@ def air(temperature, feels=None, pressure=1030.0):
 
 def test_clothes_advice():
     steady = {"sea_level_hpa": 0.0}
-    assert clothes_advice(air(-2.0), steady, at(13), SUN)[0] == (
-        "Manteau, bonnet et gants")
-    assert clothes_advice(air(11.0), steady, at(13), SUN)[0] == "Veste"
+    assert clothes_advice(air(-2.0), steady, at(13), SUN) == (
+        "Manteau, bonnet et gants",
+        ["-2 °C, il gèle : couvrez la tête, les mains et le cou."])
+    assert clothes_advice(air(11.0), steady, at(13), SUN) == (
+        "Veste ou pull épais", ["11 °C, c'est frais."])
     # A cap in the sun of a warm day, not at night
-    assert "casquette" in clothes_advice(air(24.0), steady, at(13), SUN)[1]
-    assert "casquette" not in clothes_advice(air(24.0), steady, at(22),
-                                             SUN)[1]
+    assert clothes_advice(air(24.0), steady, at(13), SUN)[1] == [
+        "24 °C, il fait bon.", "Une casquette au soleil."]
+    assert clothes_advice(air(24.0), steady, at(22), SUN)[1] == [
+        "24 °C, il fait bon."]
     # The heat index counts more than the air
-    assert clothes_advice(air(28.0, 31.0), steady, at(13), SUN)[0] == (
-        "Tenue légère")
+    assert clothes_advice(air(28.0, 31.0), steady, at(13), SUN)[:2] == (
+        "Tenue légère et claire",
+        ["31 °C ressentis, il fait chaud : buvez souvent.",
+         "Une casquette au soleil."])
     # An umbrella when the pressure falls fast
-    headline, detail = clothes_advice(air(11.0), {"sea_level_hpa": -4.0},
-                                      at(13), SUN)
-    assert headline == "Veste et parapluie" and "parapluie" in detail
+    assert clothes_advice(air(11.0), {"sea_level_hpa": -4.0}, at(13),
+                          SUN)[1][1:] == [
+        "Un parapluie : la pluie est probable."]
     # Showers only possible: the umbrella just in case (1013 hPa, steady:
     # "Beau, averses possibles")
-    headline, detail = clothes_advice(air(11.0, pressure=1013.0), steady,
-                                      at(13), SUN)
-    assert headline == "Veste" and "au cas où" in detail
+    assert clothes_advice(air(11.0, pressure=1013.0), steady, at(13),
+                          SUN)[1][1:] == [
+        "Un parapluie au cas où : des averses sont possibles."]
     assert clothes_advice(air(None), steady, at(13), SUN) is None
 
 
 def test_running_advice():
     steady = {"sea_level_hpa": 0.0}
     # At 10 °C, a runner dresses as for 20 °C
-    headline, detail = running_advice(air(10.0), steady, at(13), SUN)
-    assert headline == "Short et tee-shirt" and "lampe" not in detail
+    assert running_advice(air(10.0), steady, at(13), SUN) == (
+        "Short et tee-shirt",
+        ["Pas besoin de trop se couvrir pour courir."])
     assert running_advice(air(-6.0), steady, at(13), SUN)[0] == (
         "Collant, veste, bonnet et gants")
-    assert "lampe frontale" in running_advice(air(10.0), steady, at(19),
-                                              SUN)[1]
+    assert running_advice(air(10.0), steady, at(19), SUN)[1][1:] == [
+        "Il fait nuit : une lampe frontale ou un gilet réfléchissant."]
     assert running_advice(air(31.0, 34.0), steady, at(13), SUN)[0] == (
         "Trop chaud")
 
@@ -181,21 +183,45 @@ def test_sparkline_is_an_svg_image():
     assert sparkline(rows[:1], "temperature_c", "#d95926") is None
 
 
-def test_forecast_of_the_barometer(monkeypatch):
-    # The server runs in the time of Paris: 08:30 UTC in July is 10:30
-    monkeypatch.setenv("TZ", "Europe/Paris")
-    time.tzset()
-    measured = datetime(2026, 7, 1, 8, 30, tzinfo=timezone.utc)
-    last = {"sea_level_hpa": 1035.0, "timestamp": to_timestamp(measured)}
-    assert forecast_text(last, {"sea_level_hpa": 0.0}) == (
-        "Prévision jusqu'à 22:30 : beau temps stable")
-    # Measured in the evening, the forecast ends the next morning
-    last["timestamp"] = to_timestamp(measured + timedelta(hours=11))
-    assert forecast_text(last, {"sea_level_hpa": 0.0}) == (
-        "Prévision jusqu'à demain 09:30 : beau temps stable")
-    monkeypatch.undo()
-    time.tzset()
-    assert forecast_text(last, {"sea_level_hpa": None}) == ""
+def test_forecast_names_the_part_of_the_day_ahead():
+    last = {"sea_level_hpa": 1035.0, "temperature_c": 15.0,
+            "dew_point_c": 6.2}
+    steady = {"sea_level_hpa": 0.0}
+    assert forecast(last, steady, datetime(2026, 7, 1, 10, 30)) == (
+        "Cet après-midi", "Beau temps stable", "sun",
+        ["Pluie peu probable"])
+    assert forecast(last, steady, datetime(2026, 7, 1, 15, 0))[0] == (
+        "Ce soir et cette nuit")
+    assert forecast(last, steady, datetime(2026, 7, 1, 21, 0))[0] == (
+        "Demain matin")
+    assert forecast(last, steady, datetime(2026, 7, 1, 3, 0))[0] == (
+        "Ce matin")
+    # A low pressure that falls: rain, with its icon
+    rain = forecast({**last, "sea_level_hpa": 985.0},
+                    {"sea_level_hpa": -3.0}, datetime(2026, 7, 1, 10, 30))
+    assert rain[2] == "cloud-rain" and rain[3] == ["Pluie probable"]
+    assert forecast(last, {"sea_level_hpa": None},
+                    datetime(2026, 7, 1, 10, 30)) is None
+
+
+
+def test_dew_outlook_for_the_night_and_the_morning():
+    dry = {"temperature_c": 15.0, "dew_point_c": 5.6}
+    near = {"temperature_c": 7.0, "dew_point_c": 5.6}
+    assert dew_outlook(dry, datetime(2026, 7, 1, 21, 0)) == (
+        "En fin de nuit : vers 6 °C au plus bas, rosée ou brouillard "
+        "possibles par ciel clair")
+    assert dew_outlook(near, datetime(2026, 7, 1, 21, 0)).endswith(
+        "rosée ou brouillard probables")
+    assert "givre" in dew_outlook({"temperature_c": 4.0,
+                                   "dew_point_c": -1.0},
+                                  datetime(2026, 7, 1, 21, 0))
+    # In the morning, only when the air is nearly saturated
+    assert dew_outlook(dry, datetime(2026, 7, 1, 9, 0)) == ""
+    assert dew_outlook(near, datetime(2026, 7, 1, 9, 0)) == (
+        "Rosée ou brouillard probables")
+    assert dew_outlook({"temperature_c": None, "dew_point_c": 5.6},
+                       datetime(2026, 7, 1, 21, 0)) == ""
 
 
 def test_temperature_against_yesterday():
@@ -216,18 +242,21 @@ def test_frost_advice():
     assert frost_advice(measurement(10.0, 8.0, 0.2), evening) is None
 
 
-def test_moon_phases():
-    assert moon_phase(0.5) == "Nouvelle lune"
-    assert moon_phase(14.8) == "Pleine lune"
-    assert moon_phase(22.1) == "Dernier quartier"
-
-
-def test_sky_tile_only_with_a_location():
-    assert sky_tile(None, NOW) is None
-    headline, lines = sky_tile((48.853, 2.349), NOW)
-    assert " – " in headline
-    assert lines[0].endswith("par rapport à hier)")
-    assert lines[1].startswith("Lune : ")
+def test_sunrise_of_tomorrow_only_in_the_evening(monkeypatch):
+    monkeypatch.setenv("TZ", "Europe/Paris")
+    time.tzset()
+    paris = (48.853, 2.349)
+    evening = datetime(2026, 11, 14, 20, 0, tzinfo=timezone.utc)
+    assert sunrise_tomorrow(paris, evening).date() == date(2026, 11, 15)
+    noon = datetime(2026, 11, 14, 11, 0, tzinfo=timezone.utc)
+    assert sunrise_tomorrow(paris, noon) is None
+    assert sunrise_tomorrow(None, evening) is None
+    # The line of the top card: today's times, then tomorrow's sunrise
+    assert sun_text(paris, noon).startswith("Lever ")
+    assert " · lever demain " in sun_text(paris, evening)
+    assert sun_text(None, noon) == ""
+    monkeypatch.undo()
+    time.tzset()
 
 
 def test_dew_point_comfort():
@@ -256,23 +285,31 @@ def test_trend_text():
     assert trend_text(None, "%") == ""
 
 
-def test_pressure_outlook_follows_the_scale():
-    assert pressure_outlook(0.04).startswith("Pression stable")
-    assert pressure_outlook(-1.5).startswith("Pression en légère baisse")
-    assert pressure_outlook(2.0).startswith("Pression en hausse :")
-    assert pressure_outlook(-4.1) == ("Pression en forte baisse : pluie et "
-                                      "vent probables.")
-    assert pressure_outlook(-6.5).endswith("risque de tempête.")
+def test_pressure_state_follows_the_scale():
+    assert pressure_state(1013.0, 0.04) == "Pression moyenne · stable"
+    assert pressure_state(1025.0, 1.5) == (
+        "Pression haute · en légère hausse")
+    assert pressure_state(1000.0, -4.1) == (
+        "Pression basse · en forte baisse")
+    assert pressure_state(990.0, -6.5) == (
+        "Pression basse · en très forte baisse")
+    assert pressure_state(1013.0, None) == "Pression moyenne"
+    assert pressure_state(None, 1.0) == ""
 
 
-def test_summary_tells_only_clear_changes():
-    changes = {"temperature_c": 2.5, "humidity_pct": -3.0,
-               "sea_level_hpa": -4.1}
-    assert weather_summary(changes) == (
-        "Pression en forte baisse : pluie et vent probables. "
-        "Il fait de plus en plus chaud.")
-    assert weather_summary({"temperature_c": None, "humidity_pct": None,
-                            "sea_level_hpa": None}) == ""
+def test_humidity_state_tells_how_the_air_feels():
+    assert humidity_state({"dew_point_c": 4.9}) == (
+        "Air sec · point de rosée 4,9 °C")
+    assert humidity_state({"dew_point_c": 17.0}) == (
+        "Un peu lourd · point de rosée 17,0 °C")
+    assert humidity_state({"dew_point_c": None}) == ""
+
+
+def test_feels_like_only_when_it_differs():
+    assert feels_text({"temperature_c": 30.0, "feels_like_c": 33.4}) == (
+        "Ressenti 33 °C")
+    assert feels_text({"temperature_c": 30.0, "feels_like_c": 30.4}) == ""
+    assert feels_text({"temperature_c": 12.0, "feels_like_c": None}) == ""
 
 
 def test_extremes_of_the_local_day_only():

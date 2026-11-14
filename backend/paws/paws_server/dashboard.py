@@ -57,6 +57,7 @@ PERIOD_LABELS = {"24h": "24 heures", "7d": "7 jours", "30d": "30 jours",
 TABS = [
     ("now", "Maintenant"),
     ("graphs", "Courbes"),
+    ("advice", "Conseils"),
     ("compare", "Comparer"),
     ("data", "Données"),
 ]
@@ -102,33 +103,6 @@ def dew_comfort(dew):
         if limit is None or dew < limit:
             return feeling
 
-
-# How fast the air dries, from its vapour pressure deficit: up to each
-# limit, in kPa
-VPD_DRYING = [(0.4, "séchage faible"), (1.0, "séchage moyen"),
-              (None, "séchage fort")]
-
-
-def vpd_drying(deficit):
-    """How fast the air dries with this vapour pressure deficit, such as
-    "séchage fort"."""
-    for limit, drying in VPD_DRYING:
-        if limit is None or deficit < limit:
-            return drying
-
-
-# The other values of a quantity, written below it in the Now tab:
-# column, name, unit, decimals, and the function that tells what the
-# value means, or None
-CARD_EXTRAS = {
-    "temperature_c": [
-        ("dew_point_c", "Point de rosée", "°C", 1, dew_comfort),
-        ("feels_like_c", "Ressenti", "°C", 1, None)],
-    "humidity_pct": [
-        ("absolute_humidity_gm3", "Absolue", "g/m³", 1, None),
-        ("vpd_kpa", "Déficit de vapeur", "kPa", 2, vpd_drying)],
-    "sea_level_hpa": [("pressure_hpa", "À la station", "hPa", 1, None)],
-}
 
 # How to read the values, at the bottom of the Now tab: one block per
 # subject, closed until clicked, with its title and its paragraphs
@@ -545,60 +519,49 @@ def day_extremes(rows, day, column):
             max(values, key=lambda pair: pair[0]))
 
 
-# What the change of the pressure over 3 hours tells, from the scale
-# used by weather services (the UK Met Office): below 0.1 hPa, the
-# pressure is steady; then, up to each limit, in hPa, what a rise and a
-# fall usually mean. A low pressure makes the air rise, cool down and form
-# clouds: a falling pressure often brings rain. These are tendencies, not
-# forecasts: the sentences say "often" or "likely"
-PRESSURE_STEADY = "Pression stable : peu de changement du temps."
-PRESSURE_OUTLOOK = [
-    (1.5, "Pression en légère hausse : peu de changement du temps.",
-     "Pression en légère baisse : peu de changement du temps."),
-    (3.5, "Pression en hausse : le temps s'améliore souvent.",
-     "Pression en baisse : le temps se dégrade souvent."),
-    (6.0, "Pression en forte hausse : éclaircies, souvent avec du vent.",
-     "Pression en forte baisse : pluie et vent probables."),
-    (None, "Pression en très forte hausse : vent fort probable.",
-     "Pression en très forte baisse : risque de tempête."),
-]
+# The change of the pressure over 3 hours, from the scale used by weather
+# services (the UK Met Office): below 0.1 hPa, the pressure is steady;
+# then, up to each limit, in hPa, the word of the change
+PRESSURE_STEADY = 0.1
+PRESSURE_CHANGES = [(1.5, "légère "), (3.5, ""), (6.0, "forte "),
+                    (None, "très forte ")]
 
-# Below these changes in 3 hours, the temperature and the humidity are
-# said steady
-STEADY_TEMPERATURE = 1.0
-STEADY_HUMIDITY = 10.0
+# The pressure at sea level is 1013 hPa on average: below the first
+# limit, in hPa, it is said low, above the second, high
+PRESSURE_LOW = 1006
+PRESSURE_HIGH = 1020
 
 
-def pressure_outlook(change):
-    """The sentence about the change of the pressure over 3 hours, in
-    hPa, such as "Pression en forte baisse : pluie et vent probables."."""
+def pressure_state(pressure, change):
+    """What the Pressure tile tells: the level of the pressure at sea
+    level and its change over 3 hours (see PRESSURE_CHANGES), such as
+    "Pression haute · en légère hausse"; without change, the level
+    only. "" without pressure."""
+    if pressure is None:
+        return ""
+    level = ("basse" if pressure < PRESSURE_LOW
+             else "haute" if pressure > PRESSURE_HIGH else "moyenne")
+    text = f"Pression {level}"
+    if change is None:
+        return text
     size = round(abs(change), 1)
-    if size < 0.1:
-        return PRESSURE_STEADY
-    for limit, rising, falling in PRESSURE_OUTLOOK:
+    if size < PRESSURE_STEADY:
+        return f"{text} · stable"
+    for limit, word in PRESSURE_CHANGES:
         if limit is None or size <= limit:
-            return rising if change > 0 else falling
+            way = "hausse" if change > 0 else "baisse"
+            return f"{text} · en {word}{way}"
 
 
-def weather_summary(changes, last=None):
-    """A short text about the trends of the last 3 hours, at the top of the
-    Now tab, then about the last measurement (last, see hero()). changes
-    holds the change of each quantity, by column (see trend()), None when
-    unknown. Returns "" when nothing is known."""
-    sentences = []
-    if changes.get("sea_level_hpa") is not None:
-        sentences.append(pressure_outlook(changes["sea_level_hpa"]))
-    temperature = changes.get("temperature_c")
-    if temperature is not None and abs(temperature) >= STEADY_TEMPERATURE:
-        sentences.append("Il fait de plus en plus chaud." if temperature > 0
-                         else "Il fait de plus en plus frais.")
-    humidity = changes.get("humidity_pct")
-    if humidity is not None and abs(humidity) >= STEADY_HUMIDITY:
-        sentences.append("L'air devient plus humide." if humidity > 0
-                         else "L'air devient plus sec.")
-    if last is not None:
-        sentences += now_sentences(last)
-    return " ".join(sentences)
+def humidity_state(last):
+    """What the Humidity tile tells: how the air feels, from its dew
+    point (see dew_comfort()), then the dew point, such as "Air sec ·
+    point de rosée 4,9 °C". "" without dew point."""
+    dew = last["dew_point_c"]
+    if dew is None:
+        return ""
+    return f"{dew_comfort(dew).capitalize()} · point de rosée " \
+           f"{number(dew)} °C"
 
 
 # When the temperature is this close to the dew point, the air is nearly
@@ -607,26 +570,8 @@ def weather_summary(changes, last=None):
 DEW_SPREAD_C = 2.0
 
 
-def now_sentences(last):
-    """What the dew point and the feels-like temperature of the last
-    measurement tell, when they tell something."""
-    sentences = []
-    temperature = last["temperature_c"]
-    dew = last["dew_point_c"]
-    if temperature is not None and dew is not None \
-            and temperature - dew <= DEW_SPREAD_C:
-        water = "givre" if temperature <= 0 else "rosée"
-        sentences.append("L'air est presque saturé d'eau : "
-                         f"{water} ou brouillard probable.")
-    feels = last["feels_like_c"]
-    if feels is not None and feels - temperature >= 1:
-        sentences.append("Avec l'humidité, on ressent "
-                         f"{number(feels, 0)} °C.")
-    return sentences
-
-
 # A fall of the pressure larger than this in 3 hours, in hPa, often
-# brings rain (see PRESSURE_OUTLOOK)
+# brings rain (see PRESSURE_CHANGES)
 RAIN_PRESSURE_DROP = 3.5
 
 # Below this deficit all day long, in kPa, plants lose little water; above
@@ -694,6 +639,11 @@ def watering_advice(rows, changes, local_now=None, sun=None):
     return headline, detail
 
 
+# How fast the air dries laundry, from its vapour pressure deficit, in
+# kPa: slowly from the first limit, fast from the second
+DRYING_SLOW_KPA = 0.4
+DRYING_FAST_KPA = 1.0
+
 # The laundry dries badly in the morning, while the dew of the night is
 # still there, and at the end of the day, when the air cools and its
 # humidity rises before sunset
@@ -734,9 +684,9 @@ def laundry_advice(last, changes, local_now=None, sun=None):
     deficit = last["vpd_kpa"]
     if deficit is None:
         return None
-    if deficit >= VPD_DRYING[1][0]:
+    if deficit >= DRYING_FAST_KPA:
         headline, detail = "Bon séchage", "Le linge sèche vite."
-    elif deficit >= VPD_DRYING[0][0]:
+    elif deficit >= DRYING_SLOW_KPA:
         headline, detail = ("Séchage lent", "Il sèchera mieux avec du "
                             "vent ou du soleil.")
     else:
@@ -762,7 +712,7 @@ def rain_expected(last, changes):
     forecast_number = weather.zambretti(last["sea_level_hpa"], pressure)
     if forecast_number is None:
         return None
-    text = ZAMBRETTI_FORECASTS[forecast_number - 1].lower()
+    text = ZAMBRETTI_FORECASTS[forecast_number - 1][0].lower()
     if not any(word in text for word in ("pluie", "averse", "tempête")):
         return None
     return "possible" if "possible" in text else "probable"
@@ -777,65 +727,65 @@ def is_day(local_now, sun):
 
 
 # What to wear outside: the clothes for a temperature below each limit,
-# in °C, as (limit, headline, detail). The station does not measure the
-# wind, which makes the cold feel stronger: a windy day needs one layer
-# more
+# in °C, as (limit, clothes, why), why telling what the temperature
+# feels like, after it. The station does not measure the wind, which
+# makes the cold feel stronger: a windy day needs one layer more
 CLOTHES = [
     (0, "Manteau, bonnet et gants",
-     "Il gèle : couvrez la tête, les mains et le cou."),
-    (8, "Manteau", "Il fait froid : un manteau chaud, et une écharpe."),
-    (14, "Veste", "Une veste, ou un pull épais."),
-    (19, "Pull léger", "Un pull léger ou une veste légère."),
-    (25, "Tee-shirt", "Une tenue légère suffit."),
-    (None, "Tenue légère", "Des vêtements légers et clairs, et buvez "
-     "souvent."),
+     "il gèle : couvrez la tête, les mains et le cou."),
+    (8, "Manteau et écharpe", "il fait froid : couvrez-vous bien."),
+    (14, "Veste ou pull épais", "c'est frais."),
+    (19, "Pull léger ou veste légère", "c'est doux."),
+    (25, "Tee-shirt", "il fait bon."),
+    (None, "Tenue légère et claire", "il fait chaud : buvez souvent."),
 ]
 # Above this temperature, in °C, a cap protects from the sun
 CAP_C = 22
 
 
+def rain_note(rain, item):
+    """The sentence about the rain expected (see rain_expected()) and
+    the item that keeps dry, or None when no rain is expected."""
+    if rain == "probable":
+        return f"{item.capitalize()} : la pluie est probable."
+    if rain == "possible":
+        return f"{item.capitalize()} au cas où : des averses sont possibles."
+    return None
+
+
 def clothes_advice(last, changes, local_now, sun):
-    """The clothes tile: what to wear outside, from the temperature felt
-    (the heat index in the heat, the air otherwise), a cap in the sun of
-    a warm day, an umbrella when rain is likely or possible (see
-    rain_expected()). Returns (headline,
-    detail), or None without temperature."""
-    temperature = last["feels_like_c"]
+    """What to wear outside, from the temperature felt (the heat index in
+    the heat, the air otherwise): (clothes, notes), the notes being the
+    sentences that tell why: what the temperature feels like, a cap in
+    the sun of a warm day, an umbrella when rain is likely or possible
+    (see rain_expected()). None without temperature."""
+    temperature, felt = last["feels_like_c"], " ressentis"
     if temperature is None:
-        temperature = last["temperature_c"]
+        temperature, felt = last["temperature_c"], ""
     if temperature is None:
         return None
-    for limit, headline, detail in CLOTHES:
+    for limit, clothes, why in CLOTHES:
         if limit is None or temperature < limit:
             break
+    notes = [f"{number(temperature, 0)} °C{felt}, {why}"]
     if temperature >= CAP_C and is_day(local_now, sun):
-        detail += " Une casquette au soleil."
-    rain = rain_expected(last, changes)
-    if rain == "probable":
-        headline += " et parapluie"
-        detail += " Prenez un parapluie : la pluie est probable."
-    elif rain == "possible":
-        detail += " Un parapluie au cas où : des averses sont possibles."
-    return headline, detail
+        notes.append("Une casquette au soleil.")
+    notes.append(rain_note(rain_expected(last, changes), "un parapluie"))
+    return clothes, [note for note in notes if note is not None]
 
 
 # Running warms the body: a runner dresses as if it were about 10 °C
 # warmer than the air
 RUNNING_WARMTH_C = 10
 # What to wear for running, for the temperature it feels like, as for
-# CLOTHES
+# CLOTHES, with what it means for a runner
 RUNNING_CLOTHES = [
     (5, "Collant, veste, bonnet et gants",
-     "Un collant, un haut à manches longues sous une veste légère, un "
-     "bonnet et des gants."),
-    (12, "Collant et manches longues",
-     "Un collant, un haut à manches longues, un bonnet léger et des "
-     "gants fins."),
-    (18, "Manches longues",
-     "Un collant ou un short, un haut à manches longues."),
-    (24, "Short et tee-shirt", "Un short et un tee-shirt."),
-    (None, "Tenue la plus légère",
-     "Un short, un débardeur, et emportez de l'eau."),
+     "couvrez-vous bien, même en courant."),
+    (12, "Collant et manches longues", "il fait froid, même en courant."),
+    (18, "Manches longues", "en courant, une couche légère suffit."),
+    (24, "Short et tee-shirt", "pas besoin de trop se couvrir pour courir."),
+    (None, "Short et débardeur", "en courant, le plus léger possible."),
 ]
 # Above this temperature felt, in °C, running is hard on the heart: the
 # body cools badly
@@ -843,26 +793,49 @@ RUNNING_HOT_C = 30
 
 
 def running_advice(last, changes, local_now, sun):
-    """The running tile: what to wear for running (see RUNNING_CLOTHES),
-    a warning in the heat, a light at night, a rain jacket when rain is
-    likely or possible. Returns (headline, detail), or None without temperature."""
+    """What to wear for running (see RUNNING_CLOTHES): (clothes, notes),
+    the notes being the sentences that tell why: what the temperature
+    means for a runner, the heat, a light at night, a rain jacket when
+    rain is likely or possible. None without temperature."""
     temperature = last["temperature_c"]
     if temperature is None:
         return None
     feels = last["feels_like_c"]
     if feels is not None and feels >= RUNNING_HOT_C:
-        return ("Trop chaud", f"On ressent {number(feels, 0)} °C : le "
-                "corps se refroidit mal. Courez tôt le matin, et buvez.")
-    for limit, headline, detail in RUNNING_CLOTHES:
+        return ("Trop chaud", [f"On ressent {number(feels, 0)} °C : le "
+                               "corps se refroidit mal. Courez tôt le "
+                               "matin, et buvez."])
+    for limit, clothes, why in RUNNING_CLOTHES:
         if limit is None or temperature + RUNNING_WARMTH_C < limit:
             break
+    # The temperature is already given to go out: the sentence alone
+    notes = [why[0].upper() + why[1:]]
     if not is_day(local_now, sun):
-        detail += " Il fait nuit : une lampe frontale ou un gilet " \
-                  "réfléchissant."
-    rain = rain_expected(last, changes)
-    if rain is not None:
-        detail += f" Une veste coupe-pluie : la pluie est {rain}."
-    return headline, detail
+        notes.append("Il fait nuit : une lampe frontale ou un gilet "
+                     "réfléchissant.")
+    notes.append(rain_note(rain_expected(last, changes),
+                           "une veste coupe-pluie"))
+    return clothes, [note for note in notes if note is not None]
+
+
+def outfit_tile(clothes, running):
+    """The Clothes tile of the Advice tab: one part to go out (clothes,
+    see clothes_advice()), one to run (running, see running_advice()),
+    split by a thin line, each with its name on the left, the clothes in
+    bold and their notes below. Nothing without clothes."""
+    if clothes is None:
+        return []
+    rows = [("Sortir", clothes)] + (
+        [("Courir", running)] if running is not None else [])
+    return [html.Div(className="tile", children=[
+        html.Div("Tenue", className="tile-name"),
+        *[html.Div(className="outfit-row", children=[
+            html.Div(name, className="outfit-name"),
+            html.Div([html.Div(what, className="outfit-headline"),
+                      *[html.Div(note, className="tile-line")
+                        for note in notes]]),
+        ]) for name, (what, notes) in rows],
+    ])]
 
 
 def trend_text(change, unit):
@@ -917,16 +890,6 @@ def sparkline(rows, column, color):
     return "data:image/svg+xml;utf8," + quote(svg)
 
 
-def extra_lines(last, column):
-    """The other values of a quantity that are known (see CARD_EXTRAS),
-    one text each, such as "Point de rosée 6,3 °C · air sec"."""
-    return [f"{other} {number(last[key], decimals)} {other_unit}"
-            + ("" if meaning is None else f" · {meaning(last[key])}")
-            for key, other, other_unit, decimals, meaning
-            in CARD_EXTRAS.get(column, [])
-            if last[key] is not None]
-
-
 def extremes_text(rows, day, column):
     """The minimum and maximum of the local day, such as "min 7,0 à 02:30
     · max 18,4 à 11:45", or "" without values."""
@@ -945,12 +908,40 @@ def curve(rows, column, color):
                                               className="sparkline")]
 
 
-def hero(last, rows, day, summary, forecast="", yesterday=""):
-    """The top of the Now tab: the temperature in large, what the dew
-    point and the feels-like temperature tell, its change, the
-    comparison with yesterday (yesterday, see yesterday_text()) and the
-    extremes of the day, its curve, then the forecast of the barometer
-    and the summary of the weather."""
+def feels_text(last):
+    """The feels-like temperature, such as "Ressenti 31 °C", when it
+    differs from the temperature by 1 °C or more, or ""."""
+    feels, temperature = last["feels_like_c"], last["temperature_c"]
+    if feels is None or temperature is None or abs(feels - temperature) < 1:
+        return ""
+    return f"Ressenti {number(feels, 0)} °C"
+
+
+def forecast_block(forecast):
+    """The forecast at the bottom of the top card: the icon of its sky,
+    the part of the day it covers, its text and its details (see
+    forecast()), or nothing."""
+    if forecast is None:
+        return []
+    title, text, sky_icon, details = forecast
+    return [html.Div(className="hero-forecast", children=[
+        # A coloured icon, an image of its own (not a stencil painted
+        # with the color of the text, as the other icons)
+        html.Img(src=f"/dashboard/assets/icons/sky-{sky_icon}.svg",
+                 alt="", className="forecast-icon"),
+        html.Div([html.Div(title, className="forecast-title"),
+                  html.Div(text, className="forecast-text"),
+                  *[html.Div(line, className="forecast-line")
+                    for line in details]]),
+    ])]
+
+
+def hero(last, rows, day, forecast=None, yesterday="", sun=""):
+    """The top of the Now tab, the summary: the temperature in large, the
+    feels-like temperature when it differs, its change, the comparison
+    with yesterday (yesterday, see yesterday_text()) and the extremes of
+    the day, the sunrise and the sunset (sun, see sun_text()), its curve,
+    then the forecast of the barometer (see forecast())."""
     if last is None:
         return []
     column, _, unit, color = QUANTITIES[0]
@@ -958,19 +949,15 @@ def hero(last, rows, day, summary, forecast="", yesterday=""):
     return [
         html.Div(className="hero-value", children=[
             value, html.Span(f" {unit}", className="hero-unit")]),
-        *[html.Div(line, className="hero-line")
-          for line in extra_lines(last, column)],
+        html.Div(feels_text(last), className="hero-line"),
         html.Div(" · ".join(text for text in [
             trend_text(trend(rows, last, column), unit), yesterday]
             if text), className="hero-line muted"),
         html.Div(extremes_text(rows, day, column),
                  className="hero-line muted"),
+        html.Div(sun, className="hero-line muted"),
         *curve(rows, column, color),
-        html.Div(className="hero-summary", children=[
-            html.Div(forecast, className="hero-forecast") if forecast
-            else None,
-            html.Div(summary) if summary else None,
-        ]) if forecast or summary else None,
+        *forecast_block(forecast),
     ]
 
 
@@ -978,12 +965,21 @@ def hero(last, rows, day, summary, forecast="", yesterday=""):
 TILE_NAMES = {"sea_level_hpa": "Pression (mer)"}
 
 
-def tiles(last, rows, day, changes, advice_tiles):
+def meaning_text(last, column, change):
+    """What a tile of the Now tab tells about the present, below its
+    curve: how the air feels for the humidity (see humidity_state()), the
+    level and the change of the pressure (see pressure_state()), or ""."""
+    if column == "humidity_pct":
+        return humidity_state(last)
+    if column == "sea_level_hpa":
+        return pressure_state(last[column], change)
+    return ""
+
+
+def tiles(last, rows, day, changes):
     """The tiles of the Now tab, below the top: one per other quantity,
-    with its value, its change, its curve, its other values and its
-    extremes; then the tiles of advice_tiles, (name, pair) where pair
-    is (headline, detail) or None, the detail being a text or a list of
-    texts."""
+    all alike, with its value, its change, its curve, what it means and
+    its extremes."""
     if last is None:
         return []
     result = []
@@ -1000,67 +996,137 @@ def tiles(last, rows, day, changes, advice_tiles):
                          className="tile-line"),
             ]),
             *curve(rows, column, color),
-            *[html.Div(line, className="tile-line")
-              for line in extra_lines(last, column)],
+            html.Div(meaning_text(last, column, changes.get(column)),
+                     className="tile-line"),
             html.Div(extremes_text(rows, day, column),
                      className="tile-line muted"),
         ]))
-    for name, pair in advice_tiles:
-        if pair is not None:
-            headline, detail = pair
-            lines = [detail] if isinstance(detail, str) else detail
-            result.append(html.Div(className="tile", children=[
-                html.Div(name, className="tile-name"),
-                html.Div(headline, className="tile-headline"),
-                *[html.Div(line, className="tile-line") for line in lines],
-            ]))
     return result
 
 
-# --- Forecast, frost, sun and moon -----------------------------------------
+def advice_tile(name, pair):
+    """A tile of advice: its name, then pair, (headline, detail), the
+    detail being a text or a list of texts."""
+    headline, detail = pair
+    lines = [detail] if isinstance(detail, str) else detail
+    return html.Div(className="tile", children=[
+        html.Div(name, className="tile-name"),
+        html.Div(headline, className="tile-headline"),
+        *[html.Div(line, className="tile-line") for line in lines],
+    ])
+
+
+def advice_tiles(clothes, running, pairs):
+    """The tiles of the Advice tab: the clothes (see outfit_tile()), then
+    one per (name, pair) of pairs whose pair is not None (see
+    advice_tile())."""
+    return outfit_tile(clothes, running) + [
+        advice_tile(name, pair) for name, pair in pairs if pair is not None]
+
+
+def frost_banner(pair):
+    """The frost warning at the top of the Now tab, from (headline,
+    detail) (see frost_advice()), or nothing."""
+    if pair is None:
+        return []
+    headline, detail = pair
+    return [html.Strong(headline), f" · {detail}"]
+
+
+# --- Forecast, frost and sun -----------------------------------------------
 
 # The forecasts of the Zambretti method (see weather.zambretti()), in the
-# order of their numbers, from 1 to 32
+# order of their numbers, from 1 to 32, each with the icon of its sky:
+# sun, sun and cloud, rain, or storm
 ZAMBRETTI_FORECASTS = [
-    "Beau temps stable", "Beau temps", "Beau, devenant moins stable",
-    "Assez beau, averses plus tard", "Averses, devenant plus instable",
-    "Instable, pluie plus tard", "Pluie par moments, empirant",
-    "Pluie par moments, devenant très instable", "Très instable, pluie",
-    "Beau temps stable", "Beau temps", "Beau, averses possibles",
-    "Assez beau, averses probables", "Averses et éclaircies",
-    "Variable, un peu de pluie", "Instable, pluie par moments",
-    "Pluie fréquente", "Très instable, pluie",
-    "Tempête, beaucoup de pluie", "Beau temps stable", "Beau temps",
-    "Devenant beau", "Assez beau, s'améliorant",
-    "Assez beau, averses possibles au début",
-    "Averses au début, s'améliorant", "Variable, s'améliorant",
-    "Plutôt instable, éclaircies plus tard",
-    "Instable, amélioration probable", "Instable, courtes éclaircies",
-    "Très instable, éclaircies par moments",
-    "Tempête, amélioration possible", "Tempête, beaucoup de pluie",
+    ("Beau temps stable", "sun"),
+    ("Beau temps", "sun"),
+    ("Beau, devenant moins stable", "cloud-sun"),
+    ("Assez beau, averses plus tard", "cloud-sun"),
+    ("Averses, devenant plus instable", "cloud-rain"),
+    ("Instable, pluie plus tard", "cloud-rain"),
+    ("Pluie par moments, empirant", "cloud-rain"),
+    ("Pluie par moments, devenant très instable", "cloud-rain"),
+    ("Très instable, pluie", "cloud-rain"),
+    ("Beau temps stable", "sun"),
+    ("Beau temps", "sun"),
+    ("Beau, averses possibles", "cloud-sun"),
+    ("Assez beau, averses probables", "cloud-sun"),
+    ("Averses et éclaircies", "cloud-rain"),
+    ("Variable, un peu de pluie", "cloud-rain"),
+    ("Instable, pluie par moments", "cloud-rain"),
+    ("Pluie fréquente", "cloud-rain"),
+    ("Très instable, pluie", "cloud-rain"),
+    ("Tempête, beaucoup de pluie", "cloud-lightning"),
+    ("Beau temps stable", "sun"),
+    ("Beau temps", "sun"),
+    ("Devenant beau", "sun"),
+    ("Assez beau, s'améliorant", "cloud-sun"),
+    ("Assez beau, averses possibles au début", "cloud-sun"),
+    ("Averses au début, s'améliorant", "cloud-sun"),
+    ("Variable, s'améliorant", "cloud-sun"),
+    ("Plutôt instable, éclaircies plus tard", "cloud-sun"),
+    ("Instable, amélioration probable", "cloud-sun"),
+    ("Instable, courtes éclaircies", "cloud-rain"),
+    ("Très instable, éclaircies par moments", "cloud-rain"),
+    ("Tempête, amélioration possible", "cloud-lightning"),
+    ("Tempête, beaucoup de pluie", "cloud-lightning"),
 ]
 
+# The part of the day that the forecast covers, named from the local hour
+# when the page is read: the method looks about 12 hours ahead, so in
+# the evening it reaches the next morning, not the whole next day. Up
+# to each hour (excluded), the name
+FORECAST_TITLES = [(6, "Ce matin"), (12, "Cet après-midi"),
+                   (18, "Ce soir et cette nuit"), (24, "Demain matin")]
 
-# How far the Zambretti method looks ahead: about 12 hours
-FORECAST_SPAN = timedelta(hours=12)
+# The words of the rain line, from rain_expected()
+RAIN_WORDS = {None: "Pluie peu probable", "possible": "Pluie possible",
+              "probable": "Pluie probable"}
 
 
-def forecast_text(last, changes):
-    """The forecast of the barometer for the 12 hours after the last
-    measurement, such as "Prévision jusqu'à 02:00 : beau temps", or ""
-    when the pressure or its trend is missing. The end is that of the
-    forecast, not 12 hours after now: the last measurement can be an hour
-    old, as the station sends its measurements once an hour."""
-    forecast_number = weather.zambretti(last["sea_level_hpa"],
-                                changes.get("sea_level_hpa"))
-    if forecast_number is None:
+def dew_outlook(last, local_now):
+    """The dew, the frost and the fog to expect. From noon to 6:00, the
+    end of the night, the coldest time, just before the morning: on a
+    clear and calm night, the air seldom cools much below its dew point,
+    where its water condenses; such as "En fin de nuit : vers 6 °C au
+    plus bas, rosée ou brouillard possibles par ciel clair". In the
+    morning, a warning only when the air is nearly saturated (see
+    DEW_SPREAD_C).
+    "" otherwise, or without values."""
+    temperature, dew = last["temperature_c"], last["dew_point_c"]
+    if temperature is None or dew is None:
         return ""
-    measured = to_local(parse_timestamp(last["timestamp"]))
-    end = measured + FORECAST_SPAN
-    day = "demain " if end.date() > measured.date() else ""
-    text = ZAMBRETTI_FORECASTS[forecast_number - 1]
-    return (f"Prévision jusqu'à {day}{end:%H:%M} : "
-            f"{text[0].lower()}{text[1:]}")
+    near = temperature - dew <= DEW_SPREAD_C
+    if 6 <= local_now.hour < 12:
+        water = "givre" if temperature <= 0 else "rosée"
+        return f"{water.capitalize()} ou brouillard probables" if near \
+            else ""
+    water = "givre" if dew <= 0 else "rosée"
+    chance = "probables" if near else "possibles par ciel clair"
+    return (f"En fin de nuit : vers {number(dew, 0)} °C au plus bas, "
+            f"{water} ou brouillard {chance}")
+
+
+def forecast(last, changes, local_now):
+    """The forecast of the barometer: (title, text, sky, details), such
+    as ("Cet après-midi", "Beau temps stable", "sun", ["Pluie peu
+    probable"]): the title named from the local hour local_now (see
+    FORECAST_TITLES), the sky the name of its icon, the details the rain
+    (see rain_expected()), then the dew and the fog (see dew_outlook()).
+    None when the pressure or its trend is missing."""
+    forecast_number = weather.zambretti(last["sea_level_hpa"],
+                                        changes.get("sea_level_hpa"))
+    if forecast_number is None:
+        return None
+    title = next(name for hour, name in FORECAST_TITLES
+                 if local_now.hour < hour)
+    text, sky_icon = ZAMBRETTI_FORECASTS[forecast_number - 1]
+    details = [RAIN_WORDS[rain_expected(last, changes)]]
+    dew = dew_outlook(last, local_now)
+    if dew:
+        details.append(dew)
+    return title, text, sky_icon, details
 
 
 def yesterday_text(last, yesterday):
@@ -1108,22 +1174,6 @@ def frost_advice(last, local_now):
     return None
 
 
-def moon_phase(age):
-    """The name of the phase of the moon, for its age in days: eight
-    phases of equal length, the new moon centred on 0."""
-    names = ["Nouvelle lune", "Premier croissant", "Premier quartier",
-             "Gibbeuse croissante", "Pleine lune", "Gibbeuse décroissante",
-             "Dernier quartier", "Dernier croissant"]
-    eighth = sky.LUNAR_MONTH / 8
-    return names[int((age + eighth / 2) // eighth) % 8]
-
-
-def duration_text(length):
-    """Writes a duration of daylight: "10 h 17"."""
-    minutes = round(length.total_seconds() / 60)
-    return f"{minutes // 60} h {minutes % 60:02d}"
-
-
 def sun_today(location, now):
     """The sunrise and the sunset of today, in local time, or None without
     location, or when the sun does not rise or set."""
@@ -1135,26 +1185,30 @@ def sun_today(location, now):
     return tuple(to_local(moment) for moment in times)
 
 
-def sky_tile(location, now):
-    """The sun and the moon tile: sunrise and sunset in local time, the
-    length of the day and its change since yesterday, and the moon.
-    location is (latitude, longitude) in degrees, or None: then no tile."""
-    if location is None:
+def sun_text(location, now):
+    """The sunrise and the sunset of today, such as "Lever 07:57 ·
+    coucher 17:12"; after the sunset, the sunset and the sunrise of
+    tomorrow, such as "Coucher 17:12 · lever demain 07:59". "" without
+    location, or when the sun does not rise or set."""
+    today = sun_today(location, now)
+    if today is None:
+        return ""
+    sunrise, sunset = today
+    tomorrow = sunrise_tomorrow(location, now)
+    if tomorrow is not None:
+        return f"Coucher {sunset:%H:%M} · lever demain {tomorrow:%H:%M}"
+    return f"Lever {sunrise:%H:%M} · coucher {sunset:%H:%M}"
+
+
+def sunrise_tomorrow(location, now):
+    """In the evening, after the sunset of today, the sunrise of
+    tomorrow, in local time; None before, or without location."""
+    today = sun_today(location, now)
+    local_now = to_local(now)
+    if today is None or local_now < today[1]:
         return None
-    today = to_local(now).date()
-    times = sky.sun_times(today, *location)
-    before = sky.sun_times(today - timedelta(days=1), *location)
-    if times is None or before is None:
-        return None
-    sunrise, sunset = (to_local(moment) for moment in times)
-    length = times[1] - times[0]
-    change = round((length - (before[1] - before[0])).total_seconds() / 60)
-    age = sky.moon_age(now)
-    lit = round(100 * sky.moon_illumination(age))
-    return (f"{sunrise:%H:%M} – {sunset:%H:%M}",
-            [f"{duration_text(length)} de jour "
-             f"({change:+d} min par rapport à hier)",
-             f"Lune : {moon_phase(age).lower()}, éclairée à {lit} %"])
+    times = sky.sun_times(local_now.date() + timedelta(days=1), *location)
+    return None if times is None else to_local(times[0])
 
 
 # --- Graphs ----------------------------------------------------------------
@@ -1407,9 +1461,10 @@ def build_view(connection, view, now, location=None):
 
     view is the period shown (see shown()). Returns a dictionary:
     "stale", "status" and "alert" (the health of the station, see
-    health()), "date" (today, in words), "hero" and "tiles" (the Now tab,
-    see hero() and tiles(); location is (latitude, longitude) of the
-    station, for the sun, or None), "title"
+    health()), "date" (today, in words), "frost", "hero" and "tiles" (the
+    Now tab, see frost_banner(), hero() and tiles(); location is
+    (latitude, longitude) of the station, for the sun, or None),
+    "advice" (the Advice tab, see advice_tiles()), "title"
     (the period shown, see period_title()) and "figure" (the graphs).
     """
     last = database.last_row(connection)
@@ -1433,29 +1488,27 @@ def build_view(connection, view, now, location=None):
         changes = {column: trend(day_rows, last, column)
                    for column, _, _, _ in QUANTITIES}
     day = f"{local_now:%Y-%m-%d}"
-    forecast, yesterday, advice_tiles = "", "", []
-    sun = sun_today(location, now)
+    prediction, yesterday, frost, advice = None, "", None, []
     if last is not None:
-        forecast = forecast_text(last, changes)
+        prediction = forecast(last, changes, local_now)
         yesterday = yesterday_text(
             last, database.row_near(connection, to_timestamp(
                 parse_timestamp(last["timestamp"]) - timedelta(days=1))))
-        advice_tiles = [
-            ("Gel", frost_advice(last, local_now)),
-            ("Tenue", clothes_advice(last, changes, local_now, sun)),
-            ("Linge", laundry_advice(last, changes, local_now, sun)),
-            ("Arrosage", watering_advice(day_rows, changes, local_now,
-                                         sun)),
-            ("Course à pied", running_advice(last, changes, local_now,
-                                             sun)),
-            ("Soleil et lune", sky_tile(location, now)),
-        ]
+        frost = frost_advice(last, local_now)
+        sun = sun_today(location, now)
+        advice = advice_tiles(
+            clothes_advice(last, changes, local_now, sun),
+            running_advice(last, changes, local_now, sun),
+            [("Linge", laundry_advice(last, changes, local_now, sun)),
+             ("Arrosage", watering_advice(day_rows, changes, local_now,
+                                          sun))])
     return {"stale": stale, "status": status, "alert": alert,
             "date": french_date(local_now, "%A %d %B").capitalize(),
-            "hero": hero(last, day_rows, day,
-                         weather_summary(changes, last), forecast,
-                         yesterday),
-            "tiles": tiles(last, day_rows, day, changes, advice_tiles),
+            "frost": frost_banner(frost),
+            "hero": hero(last, day_rows, day, prediction, yesterday,
+                         sun_text(location, now)),
+            "tiles": tiles(last, day_rows, day, changes),
+            "advice": advice,
             "title": period_title(view, now),
             "figure": figure(values, points, start, stop, limits)}
 
@@ -1757,6 +1810,8 @@ def create_dashboard(open_database, log_path, backup_status,
         # Shown only when the station is silent, whatever the tab
         html.Div(id="alert", className="alert hidden"),
         html.Div(id="now-tab", children=[
+            # Shown only when it freezes, or may freeze in the night
+            html.Div(id="frost", className="frost hidden"),
             # The top: today and the help button, the time of the last
             # measurement with a dot, green or red, then the temperature
             html.Div(className="hero", children=[
@@ -1800,6 +1855,11 @@ def create_dashboard(open_database, log_path, backup_status,
                             title="Voir une période plus courte"),
             ]),
             graph("graph"),
+        ]),
+        # The advice drawn from the measurements: clothes, laundry,
+        # watering, running
+        html.Div(id="advice-tab", style={"display": "none"}, children=[
+            html.Div(id="advice-tiles", className="tiles"),
         ]),
         html.Div(id="compare-tab", style={"display": "none"}, children=[
             # The unit, then the reference and the comparison, on one line
@@ -2053,8 +2113,10 @@ def create_dashboard(open_database, log_path, backup_status,
     @app.callback(
         Output("alert", "children"), Output("alert", "className"),
         Output("status", "children"), Output("status", "className"),
-        Output("today-date", "children"), Output("hero-body", "children"),
-        Output("tiles", "children"), Output("graph", "figure"),
+        Output("today-date", "children"), Output("frost", "children"),
+        Output("frost", "className"), Output("hero-body", "children"),
+        Output("tiles", "children"), Output("advice-tiles", "children"),
+        Output("graph", "figure"),
         Output("period-title", "children"),
         Output("next", "disabled"),
         Input("view", "data"), Input("refresh", "n_intervals"))
@@ -2070,8 +2132,10 @@ def create_dashboard(open_database, log_path, backup_status,
         state = "stale" if result["stale"] else "ok"
         alert_class = "alert" if result["alert"] else "alert hidden"
         status = [html.Span(className="dot"), result["status"]]
+        frost_class = "frost" if result["frost"] else "frost hidden"
         return (result["alert"], alert_class, status, f"status {state}",
-                result["date"], result["hero"], result["tiles"],
+                result["date"], result["frost"], frost_class,
+                result["hero"], result["tiles"], result["advice"],
                 result["figure"], result["title"],
                 view["end"] is None)
 
