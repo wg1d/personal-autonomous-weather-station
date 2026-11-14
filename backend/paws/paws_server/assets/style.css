@@ -121,6 +121,8 @@ body {
 .icon-now { --icon: url("icons/thermometer.svg"); }
 .icon-graphs { --icon: url("icons/chart-spline.svg"); }
 .icon-advice { --icon: url("icons/lightbulb.svg"); }
+.icon-sunrise { --icon: url("icons/sunrise.svg"); }
+.icon-sunset { --icon: url("icons/sunset.svg"); }
 .icon-compare { --icon: url("icons/arrow-left-right.svg"); }
 .icon-data { --icon: url("icons/database.svg"); }
 .icon-zoom-in { --icon: url("icons/zoom-in.svg"); }
@@ -207,6 +209,44 @@ body {
     border-radius: 50%;
     font-weight: 700;
     flex: none;
+}
+
+/* A line of the top card laid out as the tiles: the value on the left,
+   what changes on the right */
+.hero-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+}
+
+.hero-changes {
+    text-align: right;
+    font-size: 0.95rem;
+}
+
+/* Below the curve: the extremes of the day, the sunrise and the sunset */
+.hero-day {
+    font-size: 0.95rem;
+}
+
+.sun-events {
+    display: flex;
+    gap: 14px;
+    color: var(--muted);
+}
+
+.sun-event {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.sun-event .icon {
+    width: 1.15em;
+    height: 1.15em;
+    color: #f5b82e;
 }
 
 .hero-value {

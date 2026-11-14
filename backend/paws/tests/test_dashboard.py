@@ -14,7 +14,7 @@ from paws_server.dashboard import (build_comparison, build_view,
                                    compare_dates, day_extremes,
                                    dew_comfort, forecast, french_date,
                                    frost_advice, number,
-                                   sun_text, value_range, yesterday_text,
+                                   sun_events, value_range, yesterday_text,
                                    sunrise_tomorrow,
                                    laundry_advice, sparkline,
                                    watering_advice,
@@ -228,7 +228,7 @@ def test_dew_outlook_for_the_night_and_the_morning():
 def test_temperature_against_yesterday():
     last = {"temperature_c": 17.1}
     assert yesterday_text(last, {"temperature_c": 15.0}) == (
-        "+2,1 °C par rapport à hier")
+        "+2,1 °C vs hier")
     assert yesterday_text(last, None) == ""
 
 
@@ -253,9 +253,12 @@ def test_sunrise_of_tomorrow_only_in_the_evening(monkeypatch):
     assert sunrise_tomorrow(paris, noon) is None
     assert sunrise_tomorrow(None, evening) is None
     # The line of the top card: today's times, then tomorrow's sunrise
-    assert sun_text(paris, noon).startswith("Lever ")
-    assert " · lever demain " in sun_text(paris, evening)
-    assert sun_text(None, noon) == ""
+    assert [kind for kind, _, _ in sun_events(paris, noon)] == [
+        "sunrise", "sunset"]
+    # After the sunset: the sunset, then the sunrise of tomorrow
+    assert [kind for kind, _, _ in sun_events(paris, evening)] == [
+        "sunset", "sunrise"]
+    assert sun_events(None, noon) == []
     monkeypatch.undo()
     time.tzset()
 

@@ -910,6 +910,17 @@ def extremes_text(rows, day, column):
             f"max {number(high)} à {high_time}")
 
 
+def extremes_short(rows, day, column):
+    """The minimum and maximum of the local day, in short, such as
+    "min 7,0° · max 18,4°", or "" without values. Arrows would read as
+    the change of the temperature, written above with them."""
+    extremes = day_extremes(rows, day, column)
+    if extremes is None:
+        return ""
+    (low, _), (high, _) = extremes
+    return f"min {number(low)}° · max {number(high)}°"
+
+
 def curve(rows, column, color):
     """The small curve of a quantity, as an image, or nothing."""
     image = sparkline(rows, column, color)
@@ -945,27 +956,40 @@ def forecast_block(forecast):
     ])]
 
 
-def hero(last, rows, day, forecast=None, yesterday="", sun=""):
-    """The top of the Now tab, the summary: the temperature in large, the
-    feels-like temperature when it differs, its change, the comparison
-    with yesterday (yesterday, see yesterday_text()) and the extremes of
-    the day, the sunrise and the sunset (sun, see sun_text()), its curve,
-    then the forecast of the barometer (see forecast())."""
+def sun_marks(sun):
+    """The sunrise and the sunset (sun, see sun_events()), each as its
+    icon and its time."""
+    return [html.Span(className="sun-event", title=title, children=[
+        icon(kind), f"{moment:%H:%M}"])
+        for kind, title, moment in sun]
+
+
+def hero(last, rows, day, forecast=None, yesterday="", sun=()):
+    """The top of the Now tab, the summary, laid out as the tiles: the
+    temperature in large, with its change and the comparison with
+    yesterday (yesterday, see yesterday_text()) on its right, the
+    feels-like temperature when it differs, its curve, then the extremes
+    of the day and the sunrise and sunset (sun, see sun_events()) on one
+    line, then the forecast of the barometer (see forecast())."""
     if last is None:
         return []
     column, _, unit, color = QUANTITIES[0]
     value = "–" if last[column] is None else number(last[column])
     return [
-        html.Div(className="hero-value", children=[
-            value, html.Span(f" {unit}", className="hero-unit")]),
+        html.Div(className="hero-row", children=[
+            html.Div(className="hero-value", children=[
+                value, html.Span(f" {unit}", className="hero-unit")]),
+            html.Div(className="hero-changes", children=[
+                html.Div(trend_text(trend(rows, last, column), unit)),
+                html.Div(yesterday, className="muted"),
+            ]),
+        ]),
         html.Div(feels_text(last), className="hero-line"),
-        html.Div(" · ".join(text for text in [
-            trend_text(trend(rows, last, column), unit), yesterday]
-            if text), className="hero-line muted"),
-        html.Div(extremes_text(rows, day, column),
-                 className="hero-line muted"),
-        html.Div(sun, className="hero-line muted"),
         *curve(rows, column, color),
+        html.Div(className="hero-row hero-day", children=[
+            html.Div(extremes_short(rows, day, column)),
+            html.Div(sun_marks(sun), className="sun-events"),
+        ]),
         *forecast_block(forecast),
     ]
 
@@ -1143,14 +1167,14 @@ def forecast(last, changes, local_now):
 
 def yesterday_text(last, yesterday):
     """The temperature now against yesterday at the same time, such as
-    "+2,1 °C par rapport à hier", or "" without a row of yesterday."""
+    "+2,1 °C vs hier", or "" without a row of yesterday."""
     if yesterday is None or last["temperature_c"] is None \
             or yesterday["temperature_c"] is None:
         return ""
     change = last["temperature_c"] - yesterday["temperature_c"]
     if round(change, 1) == 0:
-        return "comme hier à la même heure"
-    return f"{number(change, sign=True)} °C par rapport à hier"
+        return "comme hier"
+    return f"{number(change, sign=True)} °C vs hier"
 
 
 # Frost: the ground, and the plants on it, cool down below the air
@@ -1197,19 +1221,21 @@ def sun_today(location, now):
     return tuple(to_local(moment) for moment in times)
 
 
-def sun_text(location, now):
-    """The sunrise and the sunset of today, such as "Lever 07:57 ·
-    coucher 17:12"; after the sunset, the sunset and the sunrise of
-    tomorrow, such as "Coucher 17:12 · lever demain 07:59". "" without
-    location, or when the sun does not rise or set."""
+def sun_events(location, now):
+    """The sunrise and the sunset to show, in the order of time, each as
+    (icon, name, local time): those of today, or after the sunset, the
+    sunset of today and the sunrise of tomorrow. Empty without location,
+    or when the sun does not rise or set."""
     today = sun_today(location, now)
     if today is None:
-        return ""
+        return []
     sunrise, sunset = today
     tomorrow = sunrise_tomorrow(location, now)
     if tomorrow is not None:
-        return f"Coucher {sunset:%H:%M} · lever demain {tomorrow:%H:%M}"
-    return f"Lever {sunrise:%H:%M} · coucher {sunset:%H:%M}"
+        return [("sunset", "Coucher du soleil", sunset),
+                ("sunrise", "Lever du soleil demain", tomorrow)]
+    return [("sunrise", "Lever du soleil", sunrise),
+            ("sunset", "Coucher du soleil", sunset)]
 
 
 def sunrise_tomorrow(location, now):
@@ -1566,7 +1592,7 @@ def build_view(connection, view, now, location=None):
             "date": french_date(local_now, "%A %d %B").capitalize(),
             "frost": frost_banner(frost),
             "hero": hero(last, day_rows, day, prediction, yesterday,
-                         sun_text(location, now)),
+                         sun_events(location, now)),
             "tiles": tiles(last, day_rows, day, changes),
             "advice": advice,
             "title": period_title(view, now),
