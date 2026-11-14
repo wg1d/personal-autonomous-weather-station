@@ -77,6 +77,12 @@ The backend (`backend/paws`) runs on a computer that stays on at home, as a syst
 
 `pixi run deploy-backend` deploys the committed code to the SSH host `pi` (another host can be given: `bash scripts/deploy-backend.sh <host>`). It refuses to deploy changes that are not committed. On the server, the code lives in `~/paws/backend`, replaced at each deployment, and the data in `~/paws/data`, never touched by a deployment.
 
+The altitude and the position of the station live in `~/paws/station.env` on the server, outside the repository. The first deployment creates it from `backend/paws/deploy/station.env.example`; write the values of your station in it, then restart the service:
+
+```bash
+ssh pi 'nano ~/paws/station.env && sudo systemctl restart paws-backend'
+```
+
 To stop the service, for example while the station is off, and keep it from starting again when the server boots:
 
 ```bash

@@ -4,8 +4,8 @@ from datetime import date, datetime, timezone
 
 from paws_server import sky
 
-# Beauzelle, near Toulouse
-LOCATION = (43.667, 1.376)
+# Paris, Notre-Dame
+LOCATION = (48.853, 2.349)
 
 
 def local_minutes(moment):
@@ -13,11 +13,11 @@ def local_minutes(moment):
     return (moment.hour + 1) * 60 + moment.minute
 
 
-def test_sunrise_and_sunset_near_toulouse():
-    # Published times for Toulouse on 21 December: 08:25 and 17:22
+def test_sunrise_and_sunset_in_paris():
+    # Published times for Paris on 21 December: 08:42 and 16:56
     sunrise, sunset = sky.sun_times(date(2026, 12, 21), *LOCATION)
-    assert abs(local_minutes(sunrise) - (8 * 60 + 25)) <= 3
-    assert abs(local_minutes(sunset) - (17 * 60 + 22)) <= 3
+    assert abs(local_minutes(sunrise) - (8 * 60 + 42)) <= 3
+    assert abs(local_minutes(sunset) - (16 * 60 + 56)) <= 3
 
 
 def test_no_sunrise_in_the_polar_night():

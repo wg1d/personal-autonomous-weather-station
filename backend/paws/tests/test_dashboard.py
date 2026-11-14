@@ -224,7 +224,7 @@ def test_moon_phases():
 
 def test_sky_tile_only_with_a_location():
     assert sky_tile(None, NOW) is None
-    headline, lines = sky_tile((43.667, 1.376), NOW)
+    headline, lines = sky_tile((48.853, 2.349), NOW)
     assert " – " in headline
     assert lines[0].endswith("par rapport à hier)")
     assert lines[1].startswith("Lune : ")
