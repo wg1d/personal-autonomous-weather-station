@@ -69,7 +69,24 @@ def test_missing_values_are_stored_as_null(client):
     row = client.get("/api/v1/measurements").json()[0]
     assert row == {"timestamp": "2026-10-05T10:00:00Z", "time_valid": 0,
                    "temperature_c": None, "humidity_pct": None,
-                   "pressure_hpa": None}
+                   "pressure_hpa": None, "battery_v": None,
+                   "battery_ma": None}
+
+
+def test_format_v2_stores_the_battery(client):
+    header = HEADER.strip() + ",battery_v,battery_ma\n"
+    answer = upload(client, header + "2026-10-05T10:00:00Z,1,21.5,48.2,"
+                    "1012.3,4.05,-1.25\n")
+    assert answer.status_code == 200
+    row = client.get("/api/v1/measurements").json()[0]
+    assert (row["battery_v"], row["battery_ma"]) == (4.05, -1.25)
+
+
+def test_v2_row_with_the_columns_of_v1_is_refused(client):
+    header = HEADER.strip() + ",battery_v,battery_ma\n"
+    answer = upload(client, header + "2026-10-05T10:00:00Z,1,21.5,48.2,"
+                    "1012.3\n")
+    assert answer.status_code == 400
 
 
 def test_last_rows_come_newest_first(client):

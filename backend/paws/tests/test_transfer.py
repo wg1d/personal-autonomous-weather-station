@@ -1,5 +1,7 @@
 """Tests of the export and of the files uploaded by hand (Data tab)."""
 
+import sqlite3
+
 import pytest
 
 from paws_server import database, logs, transfer
@@ -18,10 +20,21 @@ def connection(tmp_path):
     connection.close()
 
 
+HEADER_V2 = HEADER.strip() + ",battery_v,battery_ma\n"
+
+
 def test_export_has_the_format_of_the_station(connection):
     database.insert_rows(connection, parse_rows(HEADER + ROW_2 + ROW_1))
-    # Oldest first, two decimals, an empty field for a missing value
-    assert transfer.export_csv(connection) == HEADER + ROW_1 + ROW_2
+    # The format v2, oldest first, two decimals, an empty field for a
+    # missing value: the rows of v1 have no battery
+    assert transfer.export_csv(connection) == (
+        HEADER_V2 + ROW_1.strip() + ",,\n" + ROW_2.strip() + ",,\n")
+
+
+def test_export_gives_back_the_battery(connection):
+    row = "2026-10-05T10:00:00Z,1,21.50,48.20,1012.30,4.05,-1.25\n"
+    database.insert_rows(connection, parse_rows(HEADER_V2 + row))
+    assert transfer.export_csv(connection) == HEADER_V2 + row
 
 
 def test_uploaded_measurements_store_only_the_new_rows(connection,
@@ -80,3 +93,23 @@ def test_uploaded_log_adds_only_the_new_entries(connection, tmp_path):
 def test_log_entries_are_cut_at_their_first_line():
     assert logs.split_entries("lost line\n" + ENTRY_1 + ENTRY_2) == [
         "lost line\n", ENTRY_1, ENTRY_2]
+
+
+def test_database_before_v2_gets_the_battery_columns(tmp_path):
+    # A database of the format v1, as on the server before the INA219
+    path = tmp_path / "old.db"
+    old = sqlite3.connect(path)
+    old.execute("CREATE TABLE measurements (timestamp TEXT PRIMARY KEY, "
+                "time_valid INTEGER NOT NULL, temperature_c REAL, "
+                "humidity_pct REAL, pressure_hpa REAL)")
+    old.execute("INSERT INTO measurements VALUES "
+                "('2026-10-05T10:00:00Z', 1, 21.5, 48.2, 1012.3)")
+    old.commit()
+    old.close()
+    connection = database.connect(path)
+    database.insert_rows(connection, parse_rows(
+        HEADER_V2 + "2026-10-05T10:15:00Z,1,21.60,48.10,1012.20,4.05,-1.25\n"))
+    assert database.all_rows(connection) == [
+        ("2026-10-05T10:00:00Z", 1, 21.5, 48.2, 1012.3, None, None),
+        ("2026-10-05T10:15:00Z", 1, 21.6, 48.1, 1012.2, 4.05, -1.25)]
+    connection.close()
