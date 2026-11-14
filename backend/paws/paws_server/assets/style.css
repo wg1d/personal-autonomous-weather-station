@@ -123,6 +123,8 @@ body {
 .icon-advice { --icon: url("icons/lightbulb.svg"); }
 .icon-sunrise { --icon: url("icons/sunrise.svg"); }
 .icon-sunset { --icon: url("icons/sunset.svg"); }
+.icon-download { --icon: url("icons/download.svg"); }
+.icon-upload { --icon: url("icons/upload.svg"); }
 .icon-compare { --icon: url("icons/arrow-left-right.svg"); }
 .icon-data { --icon: url("icons/database.svg"); }
 .icon-zoom-in { --icon: url("icons/zoom-in.svg"); }
@@ -664,32 +666,63 @@ button:disabled {
     font-weight: 600;
 }
 
-/* The Data tab: the button of the export, then the area where files are
-   dropped, and what became of each file */
-.stored,
+/* The Data tab: three tiles. The last backup has a dot, green, or red
+   when it failed or is late, as the health of the station */
 .backup {
-    color: var(--muted);
+    font-size: 0.95rem;
+    line-height: 1.4;
 }
 
-/* A backup that failed, or is late */
+.backup .dot {
+    background: #4caf50;
+}
+
 .backup.late {
     color: #e53935;
     font-weight: 600;
 }
 
+.backup.late .dot {
+    background: #e53935;
+}
+
+/* A button with an icon before its text */
+.icon-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.icon-button .icon {
+    width: 1.1em;
+    height: 1.1em;
+}
+
+/* The area where the files of the station are dropped */
 .upload {
-    margin: 16px 0;
-    padding: 28px 16px;
+    margin-top: 8px;
+    padding: 18px 12px;
     border: 2px dashed var(--accent);
     border-radius: 10px;
-    background: var(--card);
     color: var(--muted);
     text-align: center;
+    font-size: 0.9rem;
     cursor: pointer;
+}
+
+.upload .icon {
+    display: block;
+    margin: 0 auto 6px;
+    color: var(--accent);
 }
 
 .upload-result {
     padding-left: 20px;
+}
+
+.upload-result:empty {
+    display: none;
 }
 
 /* The graphs, on a card like the values, take the height of the screen
