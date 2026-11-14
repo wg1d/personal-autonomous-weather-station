@@ -17,6 +17,7 @@
 #include <Arduino.h>
 #include <RTClib.h>
 
+#include "Board.h"
 #include "Console.h"
 #include "IClock.h"
 
@@ -38,7 +39,15 @@ public:
      * @return true if the DS3231 answered on the I2C bus.
      */
     bool begin() {
-        responding_ = rtc_.begin();
+        // A clock that does not answer at once gets a few more tries, as
+        // the sensors (see Board.h)
+        for (int attempt = 0; attempt < kSensorTries && !responding_;
+             ++attempt) {
+            if (attempt > 0) {
+                delay(kSensorRetryDelayMs);
+            }
+            responding_ = rtc_.begin();
+        }
         if (!responding_) {
             console.println("   DS3231 not responding");
             return false;

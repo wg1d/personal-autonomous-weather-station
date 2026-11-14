@@ -26,6 +26,10 @@ struct Measurement {
     float temperatureC = NAN;  ///< Air temperature, in °C
     float humidityPct = NAN;   ///< Relative humidity, in %
     float pressureHpa = NAN;   ///< Atmospheric pressure, in hPa
+    float batteryV = NAN;      ///< Voltage of the battery, in V
+    /// Current of the battery, in mA: positive when it charges, negative
+    /// when the station draws from it
+    float batteryMa = NAN;
 };
 
 /**

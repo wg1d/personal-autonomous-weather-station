@@ -4,9 +4,9 @@
  *
  * Description:
  * Storage adapter for the flash memory of the ESP32: appends each row to
- * the CSV file /measurements_v1.csv, appends the log of each wake-up to
+ * the CSV file /measurements_v2.csv, appends the log of each wake-up to
  * /log.txt, and gives back the rows and log lines after their upload
- * cursors (/upload.idx, /log.idx). When a file is full, it becomes the
+ * cursors (/upload_v2.idx, /log.idx). When a file is full, it becomes the
  * previous file and a new one starts, so that the memory never fills up.
  *
  * Wiring: none (the flash memory is part of the ESP32 module).

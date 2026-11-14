@@ -21,8 +21,12 @@
 
 /// File holding the upload cursor of the measurements: the position, in
 /// bytes, of the first row of the CSV file that the server has not
-/// acknowledged
-const char kCursorFileName[] = "/upload.idx";
+/// acknowledged. A position only means something in its own file: the
+/// file of the format version 2 has its own cursor, and starts from 0
+const char kCursorFileName[] = "/upload_v2.idx";
+
+/// The upload cursor of the file of the format version 1
+const char kV1CursorFileName[] = "/upload.idx";
 
 /// Log of the wake-ups: what the station printed on the serial port
 const char kLogFileName[] = "/log.txt";
