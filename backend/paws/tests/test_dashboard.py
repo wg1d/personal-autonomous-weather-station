@@ -14,7 +14,7 @@ from paws_server.dashboard import (build_comparison, build_view,
                                    compare_dates, day_extremes,
                                    dew_comfort, forecast, french_date,
                                    frost_advice, number,
-                                   sun_text, yesterday_text,
+                                   sun_text, value_range, yesterday_text,
                                    sunrise_tomorrow,
                                    laundry_advice, sparkline,
                                    watering_advice,
@@ -505,6 +505,42 @@ def test_figure_holds_the_limits_of_the_data(connection):
     for axis in ["xaxis", "xaxis2", "xaxis3"]:
         assert layout[axis]["minallowed"] == "2026-10-01 00:00:00"
         assert layout[axis]["maxallowed"] == "2026-10-05 12:00:00"
+
+
+
+def test_a_young_station_shows_its_whole_year(connection):
+    # 4 days of data: the year that ends now is shown whole, empty before
+    database.insert_rows(connection, [row("2026-10-01T00:00:00Z", 12.0)])
+    year = {"length": 365 * 86400, "end": None}
+    layout = build_view(connection, year, NOW)["figure"]["layout"]
+    assert layout["xaxis"]["minallowed"] == "2025-10-05 12:00:00"
+    # Once dragged, the graphs stop at the data
+    moved_year = {**year, "end": "2026-10-05T11:00:00Z"}
+    layout = build_view(connection, moved_year, NOW)["figure"]["layout"]
+    assert layout["xaxis"]["minallowed"] == "2026-10-01 00:00:00"
+
+
+def test_scale_of_round_values_from_the_period_shown():
+    curve = {"x": ["2026-10-04 10:00:00", "2026-10-05 10:00:00",
+                   "2026-10-07 10:00:00"],
+             "y": [-20.0, 1012.4, 1031.0]}
+    # The values in the margins do not count
+    assert value_range([curve], "2026-10-05 00:00:00",
+                       "2026-10-06 00:00:00", 5) == [1010, 1015]
+    # Days are compared by their date
+    days = {"x": ["2026-10-05"], "y": [12.0]}
+    assert value_range([days], "2026-10-05 12:00:00",
+                       "2026-10-06 12:00:00", 5) == [10, 15]
+    assert value_range([curve], "2026-11-01 00:00:00",
+                       "2026-11-02 00:00:00", 5) is None
+
+
+def test_graphs_have_fixed_scales(connection):
+    database.insert_rows(connection, [row("2026-10-05T11:45:00Z", 12.0)])
+    layout = build_view(connection, DAY, NOW)["figure"]["layout"]
+    assert layout["yaxis2"]["range"] == [0, 100]
+    assert layout["yaxis3"]["range"] == [1010, 1015]
+
 
 
 # --- Compare tab ---------------------------------------------------------------
