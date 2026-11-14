@@ -126,4 +126,4 @@ The tests of the Graphs tab, in `test_dashboard.py`, check:
 
 ## Next Steps
 
-The next chapter describes the Conseils tab: what to wear, whether to hang out the laundry, whether to water the garden, all read from the measurements.
+The [next chapter](02-3-advice.qmd) describes the Conseils tab: what to wear, whether to hang out the laundry, whether to water the garden, all read from the measurements.
