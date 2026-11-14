@@ -1828,17 +1828,19 @@ SUNFLOWER_ICON = (
 
 
 def stored_text(connection):
-    """Describes the measurements stored, for the Data tab."""
+    """Describes the measurements stored, for the Data tab: (headline,
+    detail), such as ("105 121 mesures", "du 05 oct. 2023 au 05 oct.
+    2026")."""
     count, oldest, newest = database.summary(connection)
     if count == 0:
-        return "Aucune mesure enregistrée pour l'instant."
+        return "Aucune mesure", "La station n'a encore rien envoyé."
     first, last = (to_local(parse_timestamp(text)) for text in (oldest,
                                                                 newest))
     # 105121 is written "105 121"
     count_text = f"{count:,}".replace(",", " ")
-    return (f"Enregistrées : {count_text} mesures, du "
-            f"{french_date(first, '%d %b %Y')} au "
-            f"{french_date(last, '%d %b %Y')}.")
+    return (f"{count_text} mesures",
+            f"du {french_date(first, '%d %b %Y')} au "
+            f"{french_date(last, '%d %b %Y')}")
 
 
 # A backup older than this is late: the timer or the copy no longer works
@@ -2022,21 +2024,37 @@ def create_dashboard(open_database, log_path, backup_status,
             ]),
             graph("compare-graph"),
         ]),
+        # Three tiles, as in the other tabs: the measurements stored and
+        # their export, the last backup, and the files of the station
+        # sent by hand
         html.Div(id="data-tab", style={"display": "none"}, children=[
-            html.P(id="stored", className="stored"),
-            html.P(id="backup", className="backup"),
-            html.Button("⬇ Télécharger toutes les mesures (CSV)",
-                        id="export"),
-            dcc.Download(id="download"),
-            # The files are read by the browser and sent to the page;
-            # several can be chosen at once
-            dcc.Upload(id="upload", multiple=True, className="upload",
-                       children=html.Div([
-                           "Déposez ici, ou cliquez pour choisir, les "
-                           "fichiers téléchargés depuis la page de "
-                           "maintenance de la station : les mesures (CSV) "
-                           "et le journal."])),
-            html.Ul(id="upload-result", className="upload-result"),
+          html.Div(className="tiles", children=[
+            html.Div(className="tile", children=[
+                html.Div("Mesures", className="tile-name"),
+                html.Div(id="stored"),
+                html.Button([icon("download"), "Télécharger (CSV)"],
+                            id="export", className="icon-button"),
+                dcc.Download(id="download"),
+            ]),
+            html.Div(className="tile", children=[
+                html.Div("Sauvegarde", className="tile-name"),
+                # A dot, green or red, then the last backup
+                html.Div(id="backup", className="backup"),
+            ]),
+            html.Div(className="tile", children=[
+                html.Div("Importer", className="tile-name"),
+                # The files are read by the browser and sent to the
+                # page; several can be chosen at once
+                dcc.Upload(id="upload", multiple=True, className="upload",
+                           children=html.Div([
+                               icon("upload"),
+                               html.Div("Les fichiers de la page de "
+                                        "maintenance de la station : "
+                                        "mesures (CSV) et journal."),
+                           ])),
+                html.Ul(id="upload-result", className="upload-result"),
+            ]),
+          ]),
         ]),
         # How to read the values: a sheet over the page, hidden until the
         # help button is pressed
@@ -2129,9 +2147,15 @@ def create_dashboard(open_database, log_path, backup_status,
                         decode_upload(content))
                     results.append(html.Li(("✔ " if success else "✘ ")
                                            + text))
-            late, text = backup_text(backup_status(),
-                                     datetime.now(timezone.utc))
-            return (stored_text(connection), text,
+            status = backup_status()
+            late, text = backup_text(status, datetime.now(timezone.utc))
+            headline, detail = stored_text(connection)
+            stored = [html.Div(headline, className="tile-headline"),
+                      html.Div(detail, className="tile-line muted")]
+            # The dot only once there is a backup to judge
+            backup = [text] if status is None else [
+                html.Span(className="dot"), text]
+            return (stored, backup,
                     "backup late" if late else "backup", results, None)
         finally:
             connection.close()

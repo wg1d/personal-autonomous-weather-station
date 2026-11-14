@@ -15,7 +15,8 @@ from paws_server.dashboard import (build_comparison, build_view,
                                    day_extremes,
                                    dew_comfort, forecast, french_date,
                                    frost_advice, number,
-                                   sun_events, value_range, yesterday_text,
+                                   stored_text, sun_events, value_range,
+                                   yesterday_text,
                                    sunrise_tomorrow,
                                    laundry_advice, sparkline,
                                    watering_advice,
@@ -549,6 +550,15 @@ def test_graphs_have_fixed_scales(connection):
     assert layout["yaxis2"]["range"] == [0, 100]
     assert layout["yaxis3"]["range"] == [1010, 1015]
 
+
+
+
+def test_data_tab_describes_the_measurements(connection):
+    assert stored_text(connection)[0] == "Aucune mesure"
+    database.insert_rows(connection, [row("2026-10-01T10:00:00Z", 12.0),
+                                      row("2026-10-05T10:00:00Z", 13.0)])
+    assert stored_text(connection) == (
+        "2 mesures", "du 01 oct. 2026 au 05 oct. 2026")
 
 
 # --- Compare tab ---------------------------------------------------------------
