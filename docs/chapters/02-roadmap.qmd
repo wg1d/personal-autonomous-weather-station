@@ -30,8 +30,8 @@ Once the production firmware is reliable, we shift our focus away from the ESP32
     The station leaves the breadboard and the desk: a soldered board, a weatherproof enclosure, a radiation shield (a Stevenson screen) so that the sun does not heat the sensor, a Wi-Fi link that reaches the garden, and its own power: a battery charged by a small solar panel, since there is no socket outdoors, with its charge measured and sent with the data.
 *   **Phase 7: Data Collection**
     The station runs outdoors for months. We watch how reliable it is: its power through the seasons, short winter days included, the failures, the values that make no sense.
-*   **Phase 8: Basic Forecasting**
-    With months of real measurements, we introduce basic Machine Learning (LSTM) to predict weather trends. A forecast can only learn from the data it is given: this is why the station goes outdoors first.
+*   **Phase 8: Forecasting**
+    The dashboard already forecasts the next hours with a rule of the barometers of a century ago, the [Zambretti method](Backend/02-4-barometer-forecast.qmd): it needs no history, and works from the first day. With months of real measurements, a forecast learned from the data of the station (basic Machine Learning, such as an LSTM network) predicts the weather trends. A forecast can only learn from the data it is given: this is why the station goes outdoors first. Both forecasts are checked against the weather observed afterwards: the learned one is only worth its cost if it does better than the rule of the barometer.
 
 ---
 
@@ -42,17 +42,22 @@ While Phases 1 through 8 represent the core project (from data collection to for
 ## A Single Definition of the Data Format (Idea)
 The CSV format of the measurements is written twice: in C++ in the firmware, which writes the rows, and in Python in the backend, which reads them. A single reference file could describe the columns (name, type, unit), and a small script could generate the code of both sides from it, so that they can never disagree. This becomes more useful as new sensors add columns to the format.
 
-## Adding Light & UV Sensors (Idea)
-Once we validate that the system is working fine (data acquisition, storage, data transfer, and basic ML), let's improve the station by adding some new sensors. Let's start by adding a light and UV sensor to the station like the BH1750 and the VEML6075.
+The sensors below are ordered by what they bring to the forecast: first the ones that tell the weather the forecast must match, or that the forecast can use; then the ones useful for other purposes.
 
-## Adding Soil Moisture Sensor (Idea)
-After that, we can add a soil moisture sensor (such as the ubiquitous Capacitive Soil Moisture Sensor v1.2 or v2.0) to the station in order to determine if plants need to be watered.
+## Adding a Light Sensor (Idea)
+A light sensor measures the sunlight. Compared with the light of a clear sky at the same hour, it tells whether the sky is clear or cloudy: a second check of the forecast ("fine" or not), and an input for a learned forecast. The [outdoor station](Outdoor/00-design.qmd) already plans a waterproof probe, built around the BH1750 sensor, on the roof of the shelter.
 
 ## Adding a Rain Gauge (Idea)
-Adding a tipping bucket rain gauge sensor to measure rainfall would be a good improvement to the station. The 3D-PAWS project has a good example of a 3D-printed tipping bucket rain gauge.
+A tipping bucket rain gauge measures the rainfall. It tells, on the spot, whether it rained after a forecast of rain: the most direct check of a forecast, without depending on a weather station farther away, and the value a learned forecast needs to learn the rain. The 3D-PAWS project has a good example of a 3D-printed tipping bucket rain gauge.
 
-## Adding an Anemometer (Idea)
-Adding an anemometer and wind vane to measure wind speed and direction would be a good addition to the station. The 3D-PAWS project also has a good example of a 3D-printed anemometer and wind vane.
+## Adding an Anemometer and a Wind Vane (Idea)
+A wind vane gives the direction of the wind, the input that the Zambretti method uses and the station lacks; an anemometer gives its speed, for alerts of strong wind and the feels-like temperature in the cold. Weather services measure the wind 10 m above open ground: in a garden, near walls and trees, the direction and the speed are distorted, and the gain for the forecast is uncertain. The 3D-PAWS project also has a good example of a 3D-printed anemometer and wind vane.
+
+## Adding a UV Sensor (Idea)
+A UV sensor, such as the LTR390, measures the ultraviolet index, useful for the advice of the dashboard (sun protection), not for the forecast. It must sit behind a window that lets the ultraviolet through, such as PTFE: ordinary plastic blocks it.
+
+## Adding a Soil Moisture Sensor (Idea)
+A soil moisture sensor (such as the ubiquitous Capacitive Soil Moisture Sensor v1.2 or v2.0) tells whether the plants need to be watered.
 
 ## Advanced ML & Watering (Idea)
 With all sensors active, we will retrain our ML models and add a Random Forest model specifically to optimize the watering schedule of the plants based on the new local data.
