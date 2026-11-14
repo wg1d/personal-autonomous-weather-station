@@ -126,4 +126,6 @@ The station keeps every pressure it measures: compared with the weather observed
 
 ## Next Steps
 
-With months of measurements, a forecast learned from the data of the station itself becomes possible ([Roadmap](../02-roadmap.qmd)). The Zambretti method is then the reference: a learned forecast is only worth its cost if it does better.
+[Step B3](03-1-operations.qmd) makes the data safe: a daily backup of the database, copied outside the house, and its restore.
+
+Later, with months of measurements, a forecast learned from the data of the station itself becomes possible ([Roadmap](../02-roadmap.qmd)). The Zambretti method is then the reference: a learned forecast is only worth its cost if it does better.
