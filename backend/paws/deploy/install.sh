@@ -34,6 +34,14 @@ fi
 cd ~/paws
 mkdir -p data
 
+# The settings of this station, created once from the example: the
+# deployments never change it
+if [ ! -f station.env ]; then
+    cp backend.new/deploy/station.env.example station.env
+    echo "Created ~/paws/station.env: write the altitude and the position"
+    echo "of the station in it, then: sudo systemctl restart paws-backend"
+fi
+
 # Install the dependencies frozen in uv.lock before stopping anything: if
 # this fails, the running version keeps running
 cd backend.new
