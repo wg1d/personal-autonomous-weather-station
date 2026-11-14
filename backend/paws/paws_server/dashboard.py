@@ -1122,8 +1122,8 @@ def dew_outlook(last, local_now):
     """The dew, the frost and the fog to expect. From noon to 6:00, the
     end of the night, the coldest time, just before the morning: on a
     clear and calm night, the air seldom cools much below its dew point,
-    where its water condenses; such as "En fin de nuit : vers 6 °C au
-    plus bas, rosée ou brouillard possibles par ciel clair". In the
+    where its water condenses; such as "D'ici là : vers 6 °C au plus
+    bas, rosée ou brouillard possibles par ciel clair". In the
     morning, a warning only when the air is nearly saturated (see
     DEW_SPREAD_C).
     "" otherwise, or without values."""
@@ -1137,7 +1137,10 @@ def dew_outlook(last, local_now):
             else ""
     water = "givre" if dew <= 0 else "rosée"
     chance = "probables" if near else "possibles par ciel clair"
-    return (f"En fin de nuit : vers {number(dew, 0)} °C au plus bas, "
+    # Under "Ce soir et cette nuit", the night itself; under "Demain
+    # matin" or "Ce matin", the time until then (see FORECAST_TITLES)
+    when = "Cette nuit" if 12 <= local_now.hour < 18 else "D'ici là"
+    return (f"{when} : vers {number(dew, 0)} °C au plus bas, "
             f"{water} ou brouillard {chance}")
 
 

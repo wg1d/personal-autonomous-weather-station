@@ -210,8 +210,11 @@ def test_dew_outlook_for_the_night_and_the_morning():
     dry = {"temperature_c": 15.0, "dew_point_c": 5.6}
     near = {"temperature_c": 7.0, "dew_point_c": 5.6}
     assert dew_outlook(dry, datetime(2026, 7, 1, 21, 0)) == (
-        "En fin de nuit : vers 6 °C au plus bas, rosée ou brouillard "
+        "D'ici là : vers 6 °C au plus bas, rosée ou brouillard "
         "possibles par ciel clair")
+    # In the afternoon, the title is "Ce soir et cette nuit"
+    assert dew_outlook(dry, datetime(2026, 7, 1, 15, 0)).startswith(
+        "Cette nuit : ")
     assert dew_outlook(near, datetime(2026, 7, 1, 21, 0)).endswith(
         "rosée ou brouillard probables")
     assert "givre" in dew_outlook({"temperature_c": 4.0,
