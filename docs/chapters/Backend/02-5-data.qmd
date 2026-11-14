@@ -1,19 +1,24 @@
 # B2 · Data {.unnumbered}
 
-The third tab of the [dashboard](02-2-graphs.qmd), Data, takes the measurements out of the server, and brings in those that the station could not send:
+The last tab of the dashboard, **Données** (Data), takes the measurements out of the server, tells whether they are safe, and brings in those that the station could not send:
 
 - **the export** of all the measurements, as a CSV file (BF5 · Export), to analyze them elsewhere, or for the forecasting of the next phase;
+- **the last backup** of the database (BN1 · No data loss), made every night by [step B3](03-1-operations.qmd);
 - **the manual upload** of the files downloaded from the [maintenance page](../Architecture/Phase-04/05-1-maintenance-mode.qmd) of the station (BF7 · Manual upload): when the station cannot reach the home Wi-Fi, its data is retrieved with a phone, then sent to the server from the dashboard.
 
-> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v0.9.0/backend/paws)
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.0.0/backend/paws)
 
 ## The tab
 
-![The Data tab, after three files were uploaded](../../assets/images/B2-3_data.png)
+![The Données tab on a phone, with made-up data: their last backup is old, and shown in red](../../assets/images/B2-5_data_phone.png){width=300}
 
-- **The measurements stored**: their number, and the dates of the oldest and of the newest one.
-- **⬇ Download all measurements (CSV)**: the browser saves a file named after the day, such as `paws_measurements_2026-10-06.csv`.
-- **The upload area**: drop the files on it, or click it to choose them; several files can be sent at once. For each file, a line tells what became of it.
+Three tiles, laid out as in the other tabs:
+
+- **Mesures** (measurements): their number in large, the dates of the oldest and of the newest one, and the button **Télécharger (CSV)**: the browser saves a file named after the day, such as `paws_measurements_2026-10-06.csv`.
+- **Sauvegarde** (backup): the time of the last backup, and where it was copied, with a dot as for the health of the station: green, or red when the backup failed or is more than 2 days old. Before the first backup, there is no dot.
+- **Importer** (upload): drop the files on the dashed area, or click it to choose them; several files can be sent at once. For each file, a line tells what became of it.
+
+The icons of the buttons are icons of the Lucide set, as in the rest of the page (see [the style](02-1-now.qmd#the-style)).
 
 ## The export
 
@@ -29,12 +34,12 @@ The maintenance page of the station gives two files: the measurements, and the l
 
 A spreadsheet such as Excel, in French, saves a CSV file with `;` between the fields and `,` in the numbers: such a file is refused, with a message asking to keep the format of the station.
 
-```{.python include="../../_versions/v0.9.0/backend/paws/paws_server/transfer.py"}
+```{.python include="../../_versions/v1.0.0/backend/paws/paws_server/transfer.py"}
 ```
 
 The log of the server moves to a module of its own, `logs.py`, used both by the API, which appends the lines sent by the station, and by the manual upload, which merges the entries of a file:
 
-```{.python include="../../_versions/v0.9.0/backend/paws/paws_server/logs.py"}
+```{.python include="../../_versions/v1.0.0/backend/paws/paws_server/logs.py"}
 ```
 
 ## In the dashboard
@@ -44,7 +49,7 @@ Two components of Dash do the work in the browser:
 - **`dcc.Download`** receives the file from the callback `export()`, and has the browser save it;
 - **`dcc.Upload`** reads the files chosen, and gives them to the callback `show_data()`, written in *base64*: bytes turned into text, to travel with the rest of the page. `decode_upload()` turns them back into text. The callback then forgets the files, so that the same file can be sent again.
 
-`show_data()` also writes the summary of the measurements stored, when the tab is chosen and after each upload.
+`show_data()` also writes the summary of the measurements stored (`stored_text()`) and the state of the last backup (`backup_text()`), when the tab is chosen and after each upload.
 
 ## The tests
 
@@ -55,7 +60,7 @@ Two components of Dash do the work in the browser:
 - a file saved by a spreadsheet, and any other file, are refused, and not taken for a log;
 - a log only adds its new entries, cut at their first line.
 
-```{.python include="../../_versions/v0.9.0/backend/paws/tests/test_transfer.py"}
+```{.python include="../../_versions/v1.0.0/backend/paws/tests/test_transfer.py"}
 ```
 
 ## Speed on the server
@@ -72,4 +77,4 @@ On the server, with three years of made-up data, the export takes 7.6 s, and upl
 
 ## Next Steps
 
-Step B2 is complete: the dashboard shows, compares, exports and receives the measurements. The backend is published as version `v0.9.0`. Later versions of the dashboard also compute values from the measurements, among them a forecast of the next hours: the [Barometer Forecast](02-6-barometer-forecast.qmd) explains it. [Step B3](03-1-operations.qmd) makes the data safe: a daily backup of the database, copied outside the house, and its restore.
+Step B2 is complete: the dashboard shows the weather of the moment and its forecast, draws, advises, compares, exports and receives the measurements. Its first version was published as `v0.9.0`; the version described in these chapters, as `v1.0.0`. The [last chapter of B2](02-6-barometer-forecast.qmd) explains the forecast of the barometer shown on the Now tab.

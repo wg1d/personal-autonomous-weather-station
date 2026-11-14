@@ -120,7 +120,7 @@ The automatic tests use [pytest](https://docs.pytest.org/), with the test client
 | Step | Content | Version |
 |------|---------|---------|
 | B1 | Ingestion: the API with SQLite, its tests, the systemd service, the deployment script; the station uploads to the server. | v0.8.0 |
-| B2 | Dashboard: last measurement, graphs over a chosen period up to a year, comparison of several weeks, months or years, health of the station, CSV export, manual upload. | v0.9.0 |
+| B2 | Dashboard: last measurement, graphs over a chosen period up to a year, comparison of several weeks, months or years, health of the station, CSV export, manual upload. Then, with the station outdoors: the weather of the moment and the forecast of the barometer, advice for the day. | v0.9.0, v1.0.0 |
 | B3 | Operations: daily backup of the database, copied to Proton Drive, restore checked, behavior after a reboot. | v1.0.0 |
 
 At the end of B3, the station and the backend work together, on their own: version 1.0.0, the first complete system.
