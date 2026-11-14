@@ -109,7 +109,7 @@ website:
           - section: "B2 – Dashboard"
             contents:
               - href: chapters/Backend/02-1-now.qmd
-                text: "Now"
+                text: "Weather Now"
               - href: chapters/Backend/02-2-graphs.qmd
                 text: "Graphs"
               - href: chapters/Backend/02-4-compare.qmd
