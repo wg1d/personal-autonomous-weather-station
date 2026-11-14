@@ -77,7 +77,7 @@ The backend (`backend/paws`) runs on a computer that stays on at home, as a syst
 
 `pixi run deploy-backend` deploys the committed code to the SSH host `pi` (another host can be given: `bash scripts/deploy-backend.sh <host>`). It refuses to deploy changes that are not committed. On the server, the code lives in `~/paws/backend`, replaced at each deployment, and the data in `~/paws/data`, never touched by a deployment.
 
-The altitude and the position of the station live in `~/paws/station.env` on the server, outside the repository. The first deployment creates it from `backend/paws/deploy/station.env.example`; write the values of your station in it, then restart the service:
+The altitude and the position of the station live in `~/paws/station.env` on the server, outside the repository. The first deployment creates it from `backend/paws/deploy/station.env.example`; write the values of your station in it (the appendix [Setting the Station Location](https://wg1d.github.io/personal-autonomous-weather-station/chapters/Appendix/08-station-location.html) tells where to find them), then restart the service:
 
 ```bash
 ssh pi 'nano ~/paws/station.env && sudo systemctl restart paws-backend'

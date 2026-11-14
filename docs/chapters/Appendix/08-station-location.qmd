@@ -1,0 +1,72 @@
+# Setting the Station Location {.unnumbered}
+
+The backend needs three values about the place of the station: its **altitude**, to turn the measured pressure into the pressure at sea level, and its **latitude** and **longitude**, to compute the sunrise, the sunset and the moon. They are written on the server, in the file `~/paws/station.env`, which stays out of the repository: the place of a station is never published with the code. This appendix explains where to find each value, how precise it must be, and how to write it in the file.
+
+## The latitude and the longitude
+
+The **latitude** tells how far north or south of the equator a place is, from −90° to +90°; the **longitude**, how far east or west of the Greenwich meridian, from −180° to +180°. North and east are positive, south and west negative: a station in France has a positive latitude, and a positive longitude east of Greenwich.
+
+They are read on [OpenStreetMap](https://www.openstreetmap.org):
+
+1. find the place of the station, and zoom in;
+2. right-click on it, and choose **Centre map here**;
+3. the address of the page now ends with `#map=zoom/latitude/longitude`, for example `#map=17/48.85300/2.34900`: the second number is the latitude, the third the longitude.
+
+The backend expects decimal degrees, as in this address, not degrees, minutes and seconds.
+
+### How precise
+
+The Earth turns by 360° in 24 hours: 1° of longitude moves the sunrise and the sunset by 4 minutes. Three decimals, about 100 m, move them by less than a second; two decimals, about 1 km, by about 2 seconds. The centre of the town is precise enough: there is no need to give the place of the house.
+
+## The altitude
+
+The altitude is the height of the ground above the sea, in metres. Near the ground, the pressure falls by about 1 hPa every 8 metres: an error of 8 m on the altitude shifts every pressure at sea level by about 1 hPa. Weather services give the pressure at sea level to 1 hPa: to compare with them, the altitude must be precise to a few metres.
+
+A public elevation service gives the altitude of a point from its latitude and longitude. The address below, opened in a web browser, returns the altitude of a point in France from the measurements of the [IGN](https://geoservices.ign.fr/documentation/services/services-geoplateforme/altimetrie), the French mapping agency (here, in Paris):
+
+```text
+https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevation.json?lon=2.349&lat=48.853&resource=ign_rge_alti_wld&zonly=true
+```
+
+```text
+{"elevations": [34.49]}
+```
+
+Outside France, [Open Topo Data](https://www.opentopodata.org/) gives the altitude anywhere in Europe from the EU-DEM elevation model (latitude first, then longitude):
+
+```text
+https://api.opentopodata.org/v1/eudem25m?locations=48.853,2.349
+```
+
+Both services receive the position that is sent to them: here too, the centre of the town is enough, if it lies at about the same height as the station. In a valley or on a slope, the point of the station itself gives a better altitude.
+
+The sensor itself sits about 1.5 to 2 m above the ground: about 0.2 hPa, less than the accuracy of the sensor. The altitude of the ground is enough.
+
+## Writing the values
+
+The first deployment of the backend creates `~/paws/station.env` from the example of the repository, `backend/paws/deploy/station.env.example`, with every setting turned off by a `#`. Each setting is turned on by removing its `#` and writing its value, with a dot as the decimal separator:
+
+```bash
+PAWS_ALTITUDE_M=34
+PAWS_LATITUDE=48.853
+PAWS_LONGITUDE=2.349
+```
+
+The file is edited on the server, then the backend is restarted to read it:
+
+```bash
+ssh pi 'nano ~/paws/station.env && sudo systemctl restart paws-backend'
+```
+
+A missing setting turns its feature off: without the altitude, the dashboard shows the pressure measured at the station; without the position, it shows no sunrise, sunset or moon.
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+|---------|---------------|
+| The pressure at sea level is the same as the measured pressure | The altitude is missing, or still behind a `#`: write it, and restart the backend. |
+| The pressure at sea level is far from the one of the weather services nearby | A wrong altitude: about 1 hPa for every 8 m of error. Check the altitude of the point. |
+| The sunrise and the sunset are hours off | The sign of the longitude: west of Greenwich, it is negative. |
+| No sun and moon tile | The latitude or the longitude is missing, or still behind a `#`. |
+| The dashboard no longer answers after a change of the file | A value the backend cannot read, such as a comma instead of a dot: the backend stops at once. `ssh pi 'journalctl -u paws-backend -n 20'` shows a `ValueError` with the wrong value; correct it, and restart the backend. |
+| A change of the file has no effect | The backend reads the file when it starts: restart it with `sudo systemctl restart paws-backend`. |

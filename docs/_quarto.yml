@@ -156,6 +156,8 @@ website:
                 text: "Bench Check"
               - href: chapters/Appendix/07-multimeter-checks.qmd
                 text: "Multimeter Checks"
+              - href: chapters/Appendix/08-station-location.qmd
+                text: "Station Location"
 
 date: last-modified
 
