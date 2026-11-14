@@ -1,6 +1,6 @@
 # B2 · Compare {.unnumbered}
 
-The second tab of the [dashboard](02-1-dashboard.qmd), Compare, draws two periods over each other (BF6 · Compare periods): this October against the last one, or this week against the previous week. The two curves start at the same place on the left of the graphs, so that the same moment of each period is drawn at the same place: the 10th of each month, or the Tuesday of each week.
+The second tab of the [dashboard](02-2-graphs.qmd), Compare, draws two periods over each other (BF6 · Compare periods): this October against the last one, or this week against the previous week. The two curves start at the same place on the left of the graphs, so that the same moment of each period is drawn at the same place: the 10th of each month, or the Tuesday of each week.
 
 ## The tab
 
@@ -18,7 +18,7 @@ On a phone, the lists share one line, with the marks of the lines but without th
 
 ## The code
 
-The Compare tab is the fifth part of `dashboard.py`, shown in the [previous chapter](02-1-dashboard.qmd#the-dashboard). The page keeps the two periods compared in a `dcc.Store`: the unit, the length shown, the start of each period, and whether they are still the periods chosen in the lists.
+The Compare tab is the fifth part of `dashboard.py`, shown in the [previous chapter](02-2-graphs.qmd#the-dashboard). The page keeps the two periods compared in a `dcc.Store`: the unit, the length shown, the start of each period, and whether they are still the periods chosen in the lists.
 
 **Choosing the periods.**
 
@@ -56,4 +56,4 @@ With three years of made-up data, the server builds the comparison of two months
 
 ## Next Steps
 
-The [last part of B2](02-3-data.qmd) adds the Data tab: the export of the measurements as a CSV file (BF5), and the manual upload of the files downloaded from the maintenance page of the station (BF7).
+The [last part of B2](02-5-data.qmd) adds the Data tab: the export of the measurements as a CSV file (BF5), and the manual upload of the files downloaded from the maintenance page of the station (BF7).

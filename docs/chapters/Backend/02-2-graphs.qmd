@@ -5,7 +5,7 @@ Step B1 stores the data of the station on the server. Step B2 shows it in a dash
 - the last measurement, and the health of the station (BF3 · Dashboard, BF4 · Health of the station);
 - the graphs of temperature, humidity and pressure, from a few hours to several years, with the minimum, average and maximum of each day over long periods (BF3).
 
-The second tab, Compare, draws two periods over each other (BF6): it is the subject of the [next chapter](02-2-compare.qmd). The third one, [Data](02-3-data.qmd), exports the measurements (BF5) and receives the files of the station uploaded by hand (BF7).
+The second tab, Compare, draws two periods over each other (BF6): it is the subject of the [next chapter](02-4-compare.qmd). The third one, [Data](02-5-data.qmd), exports the measurements (BF5) and receives the files of the station uploaded by hand (BF7).
 
 > **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v0.9.0/backend/paws)
 
@@ -73,7 +73,7 @@ The days of `daily_summary()` are days in UTC: the first ten characters of the t
 ```{.python include="../../_versions/v0.9.0/backend/paws/paws_server/dashboard.py"}
 ```
 
-It is organized in five parts; this chapter explains four of them, the [next one](02-2-compare.qmd) the Compare tab. The callbacks of the Data tab are described [with it](02-3-data.qmd#in-the-dashboard).
+It is organized in five parts; this chapter explains four of them, the [next one](02-4-compare.qmd) the Compare tab. The callbacks of the Data tab are described [with it](02-5-data.qmd#in-the-dashboard).
 
 **Navigation in time.** The page keeps the period shown in a `dcc.Store`, a value kept in the browser, without anything on the screen: its length, and its end, which is `None` while the page shows the present. `shown()` computes the start and the end of the period from it.
 
@@ -199,4 +199,4 @@ On our server, the service now uses about 47 MB of memory for the backend itself
 
 ## Next Steps
 
-The [next chapter](02-2-compare.qmd) describes the Compare tab, which draws two days, weeks, months or years over each other.
+The [next chapter](02-4-compare.qmd) describes the Compare tab, which draws two days, weeks, months or years over each other.

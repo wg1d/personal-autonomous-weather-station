@@ -16,7 +16,7 @@ Once the station sends its data to the server, the server holds the only copy ou
 | The database is damaged, for example by a power cut during a write | The dashboard shows an error, or empty graphs | The backup of the night, on the server |
 | A human error: a wrong file uploaded by hand, test data mixed with the real one, the data folder deleted | Strange curves, or values that do not belong there | A backup made before the error: several days are kept |
 
-The rows sent between the last backup and the failure, at most one day, are not lost: the station keeps every row on its own SD card. After a restore, the file downloaded from its [maintenance page](../Architecture/Phase-04/05-1-maintenance-mode.qmd) and uploaded in the [Data tab](02-3-data.qmd) adds the missing rows, and only them.
+The rows sent between the last backup and the failure, at most one day, are not lost: the station keeps every row on its own SD card. After a restore, the file downloaded from its [maintenance page](../Architecture/Phase-04/05-1-maintenance-mode.qmd) and uploaded in the [Data tab](02-5-data.qmd) adds the missing rows, and only them.
 
 ## The backup
 

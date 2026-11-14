@@ -268,4 +268,4 @@ The 18 rows are the rows of the card that the previous server had not acknowledg
 
 ## Next Steps
 
-The station now uploads its data to a server that stays on at home, and the backend stores it durably. Step B2 builds the dashboard: the last measurement, the graphs over a chosen period, the comparison of several periods, the health of the station, the export, and the manual upload of the files downloaded from the maintenance page.
+The station now uploads its data to a server that stays on at home, and the backend stores it durably. [Step B2](02-1-now.qmd) builds the dashboard: the weather of the moment and the forecast of the next hours, the graphs over a chosen period, advice for the day, the comparison of several periods, the health of the station, the export, and the manual upload of the files downloaded from the maintenance page.

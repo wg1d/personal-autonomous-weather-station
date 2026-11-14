@@ -108,13 +108,15 @@ website:
             text: "B1 – Ingestion"
           - section: "B2 – Dashboard"
             contents:
-              - href: chapters/Backend/02-1-dashboard.qmd
+              - href: chapters/Backend/02-1-now.qmd
+                text: "Now"
+              - href: chapters/Backend/02-2-graphs.qmd
                 text: "Graphs"
-              - href: chapters/Backend/02-2-compare.qmd
+              - href: chapters/Backend/02-4-compare.qmd
                 text: "Compare"
-              - href: chapters/Backend/02-3-data.qmd
+              - href: chapters/Backend/02-5-data.qmd
                 text: "Data"
-              - href: chapters/Backend/02-4-barometer-forecast.qmd
+              - href: chapters/Backend/02-6-barometer-forecast.qmd
                 text: "Barometer Forecast"
           - href: chapters/Backend/03-1-operations.qmd
             text: "B3 – Operations"
