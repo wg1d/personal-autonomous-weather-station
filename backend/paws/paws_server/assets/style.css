@@ -120,6 +120,7 @@ body {
 
 .icon-now { --icon: url("icons/thermometer.svg"); }
 .icon-graphs { --icon: url("icons/chart-spline.svg"); }
+.icon-advice { --icon: url("icons/lightbulb.svg"); }
 .icon-compare { --icon: url("icons/arrow-left-right.svg"); }
 .icon-data { --icon: url("icons/database.svg"); }
 .icon-zoom-in { --icon: url("icons/zoom-in.svg"); }
@@ -138,6 +139,21 @@ body {
 }
 
 .alert.hidden {
+    display: none;
+}
+
+/* The frost warning, at the top of the Now tab: hidden when there is no
+   frost to fear */
+.frost {
+    margin-bottom: 10px;
+    padding: 10px 16px;
+    border-radius: 14px;
+    background: #1e3a5f;
+    color: #cfe3ff;
+    font-size: 0.95rem;
+}
+
+.frost.hidden {
     display: none;
 }
 
@@ -213,19 +229,43 @@ body {
     color: var(--muted);
 }
 
-/* The summary of the weather, under a thin line */
-.hero-summary {
-    margin: 10px 0 0;
-    padding-top: 10px;
+/* The forecast of the barometer, at the bottom of the top card, under a
+   thin line: the icon of its sky, then the part of the day it covers and
+   its text */
+.hero-forecast {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 10px;
+    padding-top: 12px;
     border-top: 1px solid var(--background);
-    font-size: 1.05rem;
 }
 
-/* The forecast of the barometer, first in the summary */
-.hero-forecast {
-    margin-bottom: 4px;
+.forecast-icon {
+    width: 2.8rem;
+    height: 2.8rem;
+    flex: none;
+}
+
+.forecast-title {
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.forecast-text {
+    font-size: 1.1rem;
     font-weight: 600;
-    color: var(--accent);
+}
+
+.forecast-line {
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.hero-line:empty {
+    display: none;
 }
 
 /* The small curves: SVG images, stretched to the width of their block */
@@ -236,10 +276,10 @@ body {
     margin: 8px 0;
 }
 
-/* The tiles below the top: four columns on a computer, one on a phone */
+/* The tiles: as many columns as fit on a computer, one on a phone */
 .tiles {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 10px;
     margin-top: 10px;
 }
@@ -288,6 +328,33 @@ body {
 
 .tile-line:empty {
     display: none;
+}
+
+/* The rows of the Clothes tile: the name on the left, in a narrow
+   column, what to wear on the right */
+.outfit-row {
+    display: grid;
+    grid-template-columns: 4.2rem 1fr;
+    gap: 8px;
+    margin-top: 8px;
+    align-items: baseline;
+}
+
+.outfit-name {
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.outfit-headline {
+    font-size: 1.1rem;
+    font-weight: 600;
+}
+
+/* A thin line between going out and running */
+.outfit-row + .outfit-row {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--background);
 }
 
 /* The help: a sheet over the page, with the blocks that explain the
