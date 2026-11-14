@@ -4,14 +4,46 @@ The dashboard shows a forecast for the hours after the last measurement, such as
 
 ## The pressure and the weather
 
-The pressure of the air is the weight of the air above the station. It changes with the weather systems that cross the region:
+### What the pressure is
 
-- in a **low**, a depression, the air rises; rising, it cools down, and its water vapour forms clouds, then rain;
-- in a **high**, an anticyclone, the air sinks and warms up; the clouds dissolve, and the weather stays dry.
+The air has a weight. Above every square metre of ground stands a column of air several tens of kilometres high, which presses on it: this is the **atmospheric pressure**, measured in hectopascals (hPa). At sea level, it is 1013 hPa on average, the weight of about 10 tonnes of air on each square metre. We do not feel it, because the air presses on us from every side at once, and inside our body as well.
 
-The trend says more than the value: a pressure that falls tells that a low comes closer, and the weather usually gets worse; a pressure that rises tells that it moves away. Weather services describe this trend by the change of the pressure over the last 3 hours.
+The pressure changes from place to place and from hour to hour, usually between about 980 and 1040 hPa at sea level. These differences of a few percent are enough to set the air in motion: they make the weather.
 
-The method compares the pressure with fixed values: it needs the **pressure at sea level**, the same for every station whatever its altitude, not the pressure measured at the station, which is lower the higher it stands. The backend computes it from the altitude of the station (see [Setting the Station Location](../Appendix/08-station-location.qmd)).
+### Lows and highs
+
+- **A low**, or depression, is a zone where the pressure is lower than around it. Near the ground, the air flows into it from every side, like water towards a hole. At its centre, it has nowhere to go but up: **the air rises**.
+- **A high**, or anticyclone, is the opposite: the air comes down from high up, presses on the ground, and spreads out on every side: **the air sinks**.
+
+### Why rising air brings rain
+
+Rising, the air finds less and less air above it. It expands, and, expanding, it cools down, by about 1 °C every 100 m as long as no cloud forms.
+
+Cold air can hold less water vapour than warm air. When the rising air has cooled down to its **dew point**, the temperature at which it holds all the water vapour it can, the extra vapour turns into tiny droplets: **a cloud forms**. If the air keeps rising, the droplets grow, and fall as **rain**. The mist on a cold bottle taken out of the fridge forms the same way: the air that touches it cools down, and leaves its water on it.
+
+Sinking air does the opposite: it is squeezed, warms up, and can hold more water vapour. The droplets evaporate, the clouds dissolve: under a high, the weather is usually dry and clear.
+
+So a **low pressure** goes with rising air, clouds and rain; a **high pressure** with sinking air and fine weather.
+
+### Why the trend matters most
+
+Lows and highs move. In Western Europe, they travel mostly from west to east, carried by the winds of high altitude; a low takes a day or two to cross France. When a low comes closer, the pressure at the station falls, hours before its clouds arrive; when it moves away, the pressure rises again.
+
+This is why the trend says more than the value: 1005 hPa that falls announces worse weather, 1005 hPa that rises an improvement. Weather services describe the trend by the change of the pressure over the last 3 hours. The shipping forecast of the Met Office uses these words ([Royal Meteorological Society](https://www.metlink.org/wp-content/uploads/2020/12/shipping_forecast_tasks.pdf), [Met Office](https://weather.metoffice.gov.uk/guides/coast-and-sea/glossary)):
+
+| Change in 3 hours | Words of the forecast |
+|-------------------|-----------------------|
+| less than 0.1 hPa | steady |
+| 0.1 to 1.5 hPa | rising or falling slowly |
+| 1.6 to 3.5 hPa | rising or falling |
+| 3.6 to 6.0 hPa | rising or falling quickly |
+| more than 6.0 hPa | rising or falling very rapidly |
+
+### The pressure at sea level
+
+The higher a place, the less air above it: near the ground, the pressure falls by about 1 hPa every 8 metres. A station at 100 m reads about 12 hPa less than one at sea level, under the same weather; compared with fixed values, its pressure would look like a low.
+
+To compare stations, weather services convert each pressure into the **pressure at sea level**: the pressure the station would read if it stood at sea level. Weather maps show this pressure, and the method below uses it too. The backend computes it from the altitude of the station (see [Setting the Station Location](../Appendix/08-station-location.qmd)).
 
 ## The Zambretti method
 
