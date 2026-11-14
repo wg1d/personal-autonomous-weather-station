@@ -34,6 +34,7 @@ Dependencies: dash (which includes plotly).
 
 import base64
 import calendar
+import math
 from datetime import date, datetime, timedelta, timezone
 from urllib.parse import quote
 
@@ -1333,13 +1334,17 @@ def _extra_curve(values, points, extra, axes):
             "y": [row[column] for row in values]}
 
 
-def graph_title(quantity, extras):
+def graph_title(quantity, extras, days=False):
     """The title of a graph: the name of its quantity, such as
     "Température (°C)", then, on a second line, in smaller letters, the
     names of the computed quantities drawn with it, in their color:
-    "Point de rosée · Ressenti (pointillés, dès 27 °C)"."""
+    "Point de rosée · Ressenti (pointillés, dès 27 °C)". With days (one
+    point per day), a line below the name tells how to read the band."""
     _, name, unit, _ = quantity
     title = f"{name} ({unit})"
+    if days:
+        title += ("<br><span style='font-size:13px'>bande : min – max du "
+                  "jour</span>")
     names = []
     for _, extra_name, _, color, dash, _ in extras:
         dotted = " (pointillés, dès 27 °C)" if dash == "dot" else ""
@@ -1349,6 +1354,27 @@ def graph_title(quantity, extras):
         title += ("<br><span style='font-size:13px'>" + " · ".join(names)
                   + "</span>")
     return title
+
+
+# The scale of each graph: its limits are rounded to these steps, so that
+# it only changes when the values cross one of them, not at each move;
+# the humidity always goes from 0 to 100 %
+SCALE_STEPS = {"temperature_c": 5, "sea_level_hpa": 5}
+HUMIDITY_SCALE = [0, 100]
+
+
+def value_range(curves, start, stop, step):
+    """The limits of a value axis: the lowest and highest values of
+    curves between start and stop (texts in local time, as the "x" of
+    the curves), rounded down and up to step. None without value."""
+    values = [y for curve in curves
+              for x, y in zip(curve["x"], curve["y"])
+              if y is not None and start[:len(x)] <= x <= stop[:len(x)]]
+    if not values:
+        return None
+    low = math.floor(min(values) / step) * step
+    high = math.ceil(max(values) / step) * step
+    return [low, high if high > low else low + step]
 
 
 def figure(values, points, start, stop, limits=None, label=None,
@@ -1394,6 +1420,19 @@ def figure(values, points, start, stop, limits=None, label=None,
                                     # "1029,5", without a space between
                                     # thousands
                                     "tickformat": ".1~f"}
+        # A scale of round values, from the period shown only, not from
+        # the margins (see value_range()); Plotly keeps it while the
+        # graphs are dragged
+        if quantity[0] == "humidity_pct":
+            scale = HUMIDITY_SCALE
+        else:
+            scale = value_range(
+                [curve for curve in data
+                 if curve["yaxis"] == "y" + suffix],
+                f"{to_local(start):{PLOTLY_TIME}}",
+                f"{to_local(stop):{PLOTLY_TIME}}", SCALE_STEPS[quantity[0]])
+        if scale is not None:
+            layout["yaxis" + suffix]["range"] = scale
         # The time axis has no grid of its own: the dotted lines at
         # midnight tell the days apart
         layout["xaxis" + suffix] = {"anchor": "y" + suffix, "type": "date",
@@ -1429,7 +1468,8 @@ def figure(values, points, start, stop, limits=None, label=None,
     # The title of each graph, above it
     layout["annotations"] = [
         {"text": graph_title(quantity, [] if comparison is not None
-                             else EXTRA_CURVES.get(quantity[0], [])),
+                             else EXTRA_CURVES.get(quantity[0], []),
+                             points == "days" and comparison is None),
          "x": 0.5, "xref": "paper",
          "y": DOMAINS[index][1], "yref": "paper", "yanchor": "bottom",
          "showarrow": False, "font": {"size": 16}}
@@ -1441,9 +1481,12 @@ def figure(values, points, start, stop, limits=None, label=None,
         # Dragging the graphs moves them in time, instead of zooming
         dragmode="pan",
         # Room at the top for the title of the temperature graph, on two
-        # lines in the Graphs tab; at the bottom, for the dates, and for
-        # the legend of the Compare tab
-        margin={"l": 60, "r": 20, "t": 60 if comparison is None else 40,
+        # lines in the Graphs tab (three with one point per day, see
+        # graph_title()); at the bottom, for the dates, and for the legend
+        # of the Compare tab
+        margin={"l": 60, "r": 20,
+                "t": 40 if comparison is not None
+                else 80 if points == "days" else 60,
                 "b": 50 if label is None else 90},
         hovermode="x unified",
         # Numbers in French: a decimal comma, a space between thousands
@@ -1482,7 +1525,13 @@ def build_view(connection, view, now, location=None):
     oldest = database.first_local_time(connection)
     limits = None
     if oldest is not None:
-        limits = (oldest, f"{to_local(now):{PLOTLY_TIME}}")
+        # A period that ends now is shown whole, even if it starts before
+        # the data, such as a year of a young station: the time before
+        # the data stays empty. Once dragged, the graphs stop at the data
+        first = oldest
+        if view["end"] is None:
+            first = min(oldest, f"{to_local(start):{PLOTLY_TIME}}")
+        limits = (first, f"{to_local(now):{PLOTLY_TIME}}")
     changes = {}
     if last is not None:
         changes = {column: trend(day_rows, last, column)
