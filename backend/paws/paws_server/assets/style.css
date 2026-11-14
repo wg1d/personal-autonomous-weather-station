@@ -121,6 +121,7 @@ body {
 .icon-now { --icon: url("icons/thermometer.svg"); }
 .icon-graphs { --icon: url("icons/chart-spline.svg"); }
 .icon-advice { --icon: url("icons/lightbulb.svg"); }
+.icon-station { --icon: url("icons/battery-medium.svg"); }
 .icon-sunrise { --icon: url("icons/sunrise.svg"); }
 .icon-sunset { --icon: url("icons/sunset.svg"); }
 .icon-download { --icon: url("icons/download.svg"); }
@@ -159,6 +160,45 @@ body {
 
 .frost.hidden {
     display: none;
+}
+
+/* The warning about the station, at the top of the Now tab: a low
+   battery, or problems in its log. Amber: not as urgent as a silent
+   station, in red */
+.station-alert {
+    margin-bottom: 10px;
+    padding: 10px 16px;
+    border-radius: 14px;
+    background: #5a4211;
+    color: #ffe2a6;
+    font-size: 0.95rem;
+}
+
+.station-alert.hidden {
+    display: none;
+}
+
+/* The dot of the log, red when it tells problems */
+.dot.bad {
+    background: #e53935;
+}
+
+.tile-headline .dot {
+    background: #4caf50;
+    vertical-align: middle;
+}
+
+.tile-headline .dot.bad {
+    background: #e53935;
+}
+
+/* The graphs of the battery, below the tiles of the Station tab */
+.station-graphs {
+    margin-top: 10px;
+}
+
+#station-graph {
+    height: 520px;
 }
 
 /* The Now tab. At the top, on a card: today and the help button, the
