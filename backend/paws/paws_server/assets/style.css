@@ -488,14 +488,10 @@ body {
     display: none;
 }
 
-/* The rows of the Clothes tile: the name on the left, in a narrow
-   column, what to wear on the right */
+/* The parts of the Clothes tile: a small title, such as "Pour sortir",
+   then what to wear, aligned as the other tiles */
 .outfit-row {
-    display: grid;
-    grid-template-columns: 4.2rem 1fr;
-    gap: 8px;
     margin-top: 8px;
-    align-items: baseline;
 }
 
 .outfit-name {
