@@ -230,11 +230,6 @@ body {
     margin-top: 10px;
 }
 
-.section-intro {
-    margin: 0 4px 8px;
-    color: var(--muted);
-    font-size: 0.9rem;
-}
 
 /* The problems of the log, in a box that scrolls, as high as the screen
    allows */
@@ -245,9 +240,11 @@ body {
 }
 
 /* The graphs of the battery take the height of the screen left below
-   the tiles and the controls, as those of the Courbes tab */
+   the view buttons, the tile and the controls, as those of the Courbes
+   tab. svh: the height of the screen when the bars of the browser of a
+   phone are shown, so that the time axis is never hidden below them */
 #station-graph {
-    height: max(320px, calc(100vh - 330px));
+    height: max(300px, calc(100svh - 300px)) !important;
 }
 
 /* The name of a tile, with a small button on its right */
@@ -291,6 +288,15 @@ body {
 .status {
     color: var(--muted);
     font-size: 0.85rem;
+}
+
+/* The icon of the battery in the status line, the height of its text */
+.status-icon {
+    display: inline-block;
+    width: 1.15em;
+    height: 1.15em;
+    margin-right: 2px;
+    vertical-align: -0.2em;
 }
 
 .dot {
@@ -853,6 +859,12 @@ button:disabled {
 #graph,
 #compare-graph {
     min-height: 520px;
+}
+
+/* All the graphs sit on a card with rounded corners, as the tiles */
+#graph,
+#compare-graph,
+#station-graph {
     background: var(--card);
     border-radius: 10px;
     box-shadow: 0 1px 3px var(--shadow);
@@ -937,7 +949,7 @@ button:disabled {
     /* On a phone, the graphs of the battery fill the screen left below
        the view buttons, the tile and the controls */
     #station-graph {
-        height: max(300px, calc(100vh - 440px));
+        height: max(260px, calc(100svh - 360px)) !important;
     }
 
     .hero-value {

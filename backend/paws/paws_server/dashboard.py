@@ -212,6 +212,20 @@ EXPLANATIONS = [
         "une gelée possible. Les nuages et le vent la rendent moins "
         "probable, mais la station ne les mesure pas.",
     ]),
+    ("La batterie", [
+        "La tension dit la charge de la batterie : environ 4,2 V pleine, "
+        "3,7 V à moitié, 3,3 V presque vide. Le pourcentage affiché est "
+        "une estimation tirée de la tension, avec la table habituelle des "
+        "fabricants de batteries LiPo.",
+        "Le courant est positif quand le panneau solaire charge la "
+        "batterie, négatif quand la station puise dedans. Il est mesuré "
+        "pendant le réveil de la station, qui consomme alors environ "
+        "45 mA : par ciel couvert, le panneau ne suffit pas, et le courant "
+        "reste négatif ; une batterie pleine ne se charge plus, et le "
+        "courant reste proche de 0.",
+        "Sous 3,6 V, la batterie est presque vide : un bandeau l'annonce "
+        "sur la page Maintenant.",
+    ]),
     ("La température ressentie", [
         "Au-dessus de 27 °C, l'humidité freine l'évaporation de la sueur : "
         "le corps se refroidit moins bien, et on a plus chaud que la "
@@ -1605,7 +1619,8 @@ def build_now(connection, now, location=None, log_text=""):
     longitude) of the station, for the sun, or None), "advice" (the
     Advice tab, see advice_tiles()) and "station" (the warning about the
     station on the Now tab, from the end of its log, log_text, see
-    station_banner()), with "station_key", which changes when its
+    station_banner()), "battery" (its charge in %, or None), with
+    "station_key", which changes when its
     reasons change (see station_key()), and "advice_status", the
     measurement the advice reads.
 
@@ -1618,8 +1633,6 @@ def build_now(connection, now, location=None, log_text=""):
     stale, status, alert = health(received, now)
     air = database.last_row(connection, "temperature_c") or received
     battery = database.last_row(connection, "battery_v")
-    if battery is not None:
-        status += f" · batterie {battery_charge(battery['battery_v'])} %"
     note = air_note(received, air)
     last = air
     # The rows of the last day, for the cards
@@ -1654,6 +1667,8 @@ def build_now(connection, now, location=None, log_text=""):
                          sun_events(location, now)),
             "tiles": tiles(last, day_rows, day, changes),
             "advice": advice,
+            "battery": (None if battery is None
+                        else battery_charge(battery["battery_v"])),
             "station": station_banner(battery, recent, note),
             "station_key": station_key(battery, recent, note),
             "advice_status": ("" if air is None else
@@ -2280,13 +2295,15 @@ def create_dashboard(open_database, log_path, backup_status,
                              {"label": "Journal", "value": "log"}]),
             ]),
             html.Div(id="station-battery", children=[
-                html.Div(className="tile", children=[
-                    html.Div("Batterie", className="tile-name"),
-                    html.Div(id="battery-tile")]),
+                # The state of the battery, and on its right the help
+                # button: small, so that the graphs fit on the screen
+                html.Div(className="tile tile-top", children=[
+                    html.Div(id="battery-tile"),
+                    html.Button("?", id="station-help-open",
+                                className="help-button",
+                                title="Comment lire ces valeurs"),
+                ]),
                 html.Div(className="station-graphs", children=[
-                    html.Div("Tension et courant de la batterie : le "
-                             "courant est positif quand le soleil la "
-                             "charge.", className="section-intro"),
                     *time_controls("station-"),
                     graph("station-graph"),
                 ]),
@@ -2418,10 +2435,12 @@ def create_dashboard(open_database, log_path, backup_status,
     app.clientside_callback(
         """function () {
             const trigger = dash_clientside.callback_context.triggered_id;
-            return trigger === "help-open" ? "help" : "help hidden";
+            return trigger === "help-close" ? "help hidden" : "help";
         }""",
         Output("help", "className"),
-        Input("help-open", "n_clicks"), Input("help-close", "n_clicks"),
+        Input("help-open", "n_clicks"),
+        Input("station-help-open", "n_clicks"),
+        Input("help-close", "n_clicks"),
         prevent_initial_call=True)
 
     @app.callback(
@@ -2629,6 +2648,13 @@ def create_dashboard(open_database, log_path, backup_status,
         state = "stale" if result["stale"] else "ok"
         alert_class = "alert" if result["alert"] else "alert hidden"
         status = [html.Span(className="dot"), result["status"]]
+        if result["battery"] is not None:
+            # The charge of the battery, after an icon rather than a word,
+            # so that the line fits on the width of a phone
+            status += [" · ", html.Span(className="icon icon-station "
+                                        "status-icon",
+                                        title="Charge de la batterie"),
+                       f"{result['battery']} %"]
         frost_class = "frost" if result["frost"] else "frost hidden"
         # The advice reads the last measurement of the air: its time, red
         # when the station is silent or the air sensor stopped answering
