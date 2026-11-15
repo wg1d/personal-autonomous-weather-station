@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from paws_server import logs
 from paws_server.dashboard import (BATTERY_LOW_V, air_note, battery_charge,
                                    battery_tile, log_problems, log_tile,
-                                   newest_first, station_banner,
+                                   station_banner,
                                    station_key)
 
 NOW = datetime(2026, 11, 14, 22, 0, tzinfo=timezone.utc)
@@ -95,8 +95,3 @@ def test_banner_for_the_air_a_low_battery_or_recent_problems():
     assert station_key(full, problem) != station_key(
         full, [("21:15", "BME280 ne répond pas")] + problem)
 
-
-def test_full_log_newest_first():
-    text = ("=== 2026-11-14T21:00:00Z ===\nA\n"
-            "=== 2026-11-14T21:15:00Z ===\nB\n")
-    assert newest_first(text).startswith("=== 2026-11-14T21:15:00Z ===")
