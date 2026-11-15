@@ -752,12 +752,35 @@ def rain_note(rain, item):
     return None
 
 
-def clothes_advice(last, changes, local_now, sun):
+def forecast_note(prediction, last):
+    """What the forecast of the barometer (prediction, see forecast())
+    means for the clothes, so that the advice does not contradict it: in
+    the morning, a fair afternoon, such as "Cet après-midi, beau temps :
+    prévoyez une couche à retirer."; from noon, the lowest temperature of
+    the night (the dew point, see dew_outlook()). None otherwise. The
+    station forecasts no temperature for the afternoon: the note only
+    repeats the forecast, without a figure of its own."""
+    if prediction is None:
+        return None
+    title, text, sky_icon, _ = prediction
+    if title == "Cet après-midi" and sky_icon in ("sun", "cloud-sun"):
+        return (f"{title}, {text[0].lower()}{text[1:]} : prévoyez une "
+                "couche à retirer.")
+    if title in ("Ce soir et cette nuit", "Demain matin") \
+            and last["dew_point_c"] is not None:
+        return (f"La nuit, vers {number(last['dew_point_c'], 0)} °C au plus "
+                "bas : couvrez-vous si vous rentrez tard.")
+    return None
+
+
+def clothes_advice(last, changes, local_now, sun, prediction=None):
     """What to wear outside, from the temperature felt (the heat index in
     the heat, the air otherwise): (clothes, notes), the notes being the
-    sentences that tell why: what the temperature feels like, a cap in
-    the sun of a warm day, an umbrella when rain is likely or possible
-    (see rain_expected()). None without temperature."""
+    sentences that tell why: what the temperature feels like, what the
+    forecast of the barometer means for the clothes (prediction, see
+    forecast_note()), a cap in the sun of a warm day, an umbrella when
+    rain is likely or possible (see rain_expected()). None without
+    temperature."""
     temperature, felt = last["feels_like_c"], " ressentis"
     if temperature is None:
         temperature, felt = last["temperature_c"], ""
@@ -766,7 +789,8 @@ def clothes_advice(last, changes, local_now, sun):
     for limit, clothes, why in CLOTHES:
         if limit is None or temperature < limit:
             break
-    notes = [f"{number(temperature, 0)} °C{felt}, {why}"]
+    notes = [f"{number(temperature, 0)} °C{felt}, {why}",
+             forecast_note(prediction, last)]
     if temperature >= CAP_C and is_day(local_now, sun):
         notes.append("Une casquette au soleil.")
     notes.append(rain_note(rain_expected(last, changes), "un parapluie"))
@@ -824,19 +848,18 @@ def running_advice(last, changes, local_now, sun):
 def outfit_tile(clothes, running):
     """The Clothes tile of the Advice tab: one part to go out (clothes,
     see clothes_advice()), one to run (running, see running_advice()),
-    split by a thin line, each with its name on the left, the clothes in
-    bold and their notes below. Nothing without clothes."""
+    split by a thin line, each with its small title, the clothes in bold
+    and their notes below. Nothing without clothes."""
     if clothes is None:
         return []
-    rows = [("Sortir", clothes)] + (
-        [("Courir", running)] if running is not None else [])
+    rows = [("Pour sortir", clothes)] + (
+        [("Pour courir", running)] if running is not None else [])
     return [html.Div(className="tile", children=[
         html.Div("Tenue", className="tile-name"),
         *[html.Div(className="outfit-row", children=[
             html.Div(name, className="outfit-name"),
-            html.Div([html.Div(what, className="outfit-headline"),
-                      *[html.Div(note, className="tile-line")
-                        for note in notes]]),
+            html.Div(what, className="outfit-headline"),
+            *[html.Div(note, className="tile-line") for note in notes],
         ]) for name, (what, notes) in rows],
     ])]
 
@@ -1619,7 +1642,7 @@ def build_now(connection, now, location=None, log_text=""):
         frost = frost_advice(last, local_now)
         sun = sun_today(location, now)
         advice = advice_tiles(
-            clothes_advice(last, changes, local_now, sun),
+            clothes_advice(last, changes, local_now, sun, prediction),
             running_advice(last, changes, local_now, sun),
             [("Linge", laundry_advice(last, changes, local_now, sun)),
              ("Arrosage", watering_advice(day_rows, changes, local_now,

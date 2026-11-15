@@ -25,7 +25,7 @@ from paws_server.dashboard import (build_comparison, build_view,
                                    parts_of, pressure_state,
                                    shown_limits, start_of, trend,
                                    to_timestamp, trend_text,
-                                   feels_text, meaning_text,
+                                   feels_text, forecast_note, meaning_text,
                                    dew_outlook, humidity_state,
                                    view_after_move, view_after_step,
                                    view_after_zoom)
@@ -147,6 +147,20 @@ def test_clothes_advice():
                           SUN)[1][1:] == [
         "Un parapluie au cas où : des averses sont possibles."]
     assert clothes_advice(air(None), steady, at(13), SUN) is None
+
+
+def test_clothes_repeat_the_forecast():
+    fair = ("Cet après-midi", "Assez beau, s'améliorant", "cloud-sun", [])
+    assert forecast_note(fair, {"dew_point_c": 5.0}) == (
+        "Cet après-midi, assez beau, s'améliorant : prévoyez une couche à "
+        "retirer.")
+    evening = ("Demain matin", "Beau temps", "sun", [])
+    assert forecast_note(evening, {"dew_point_c": 4.6}) == (
+        "La nuit, vers 5 °C au plus bas : couvrez-vous si vous rentrez "
+        "tard.")
+    rain = ("Cet après-midi", "Pluie fréquente", "cloud-rain", [])
+    assert forecast_note(rain, {"dew_point_c": 5.0}) is None
+    assert forecast_note(None, {"dew_point_c": 5.0}) is None
 
 
 def test_running_advice():
