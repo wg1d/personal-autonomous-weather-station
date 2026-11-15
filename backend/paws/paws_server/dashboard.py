@@ -35,6 +35,7 @@ Dependencies: dash (which includes plotly).
 import base64
 import calendar
 import math
+import os
 from datetime import date, datetime, timedelta, timezone
 from urllib.parse import quote
 
@@ -237,12 +238,21 @@ EXPLANATIONS = [
 ]
 
 
+# The blocks of the help that belong to the Station tab: its help button
+# shows them alone, and the one of the Now tab all the others
+STATION_EXPLANATIONS = ("La batterie",)
+
+
 def explanations():
     """The blocks of EXPLANATIONS: each one opens on a click on its
-    title (the <details> element of HTML, without any callback)."""
-    return [html.Details(className="explanation", children=[
-                html.Summary(title),
-                *[html.P(paragraph) for paragraph in paragraphs]])
+    title (the <details> element of HTML, without any callback). Each
+    one is marked for the tab whose help shows it (see style.css)."""
+    return [html.Details(
+                className="explanation " + ("for-station"
+                                            if title in STATION_EXPLANATIONS
+                                            else "for-now"),
+                children=[html.Summary(title),
+                          *[html.P(paragraph) for paragraph in paragraphs]])
             for title, paragraphs in EXPLANATIONS]
 
 # How the comparison is drawn in the Compare tab: the same color as the
@@ -1854,14 +1864,16 @@ def station_key(battery, recent_problems, note=""):
     return f"{newest[0]}|{newest[1]}|{low}|{bool(note)}"
 
 
-def build_station(connection, log_text, now):
+def build_station(connection, log_text, now, problems=None):
     """Computes the tiles of the Station tab: "battery" (headline, lines),
-    and "log": (ok, headline, lines), from the end of the log, log_text
-    (see log_tile())."""
+    and "log": (ok, headline, lines), from the end of the log, log_text,
+    or from its problems already found (problems, see log_problems() and
+    log_tile())."""
+    if problems is None:
+        problems = log_problems(log_text, now - timedelta(days=LOG_DAYS))
     return {"battery": battery_tile(
                 database.last_row(connection, "battery_v"), now),
-            "log": log_tile(log_problems(
-                log_text, now - timedelta(days=LOG_DAYS)))}
+            "log": log_tile(problems)}
 
 
 # --- Compare tab -----------------------------------------------------------
@@ -2441,8 +2453,13 @@ def create_dashboard(open_database, log_path, backup_status,
     # the browser shows or hides it by its class, without the server
     app.clientside_callback(
         """function () {
+            // The help of the Station tab shows its own blocks only
             const trigger = dash_clientside.callback_context.triggered_id;
-            return trigger === "help-close" ? "help hidden" : "help";
+            if (trigger === "help-close") {
+                return "help hidden";
+            }
+            return trigger === "station-help-open" ? "help station"
+                                                   : "help now";
         }""",
         Output("help", "className"),
         Input("help-open", "n_clicks"),
@@ -2716,6 +2733,25 @@ def create_dashboard(open_database, log_path, backup_status,
         return (result["figure"], result["title"], present,
                 result["battery_figure"], result["title"], present)
 
+    # The problems of the log, kept until the log changes: the log only
+    # changes at the hourly upload of the station, and reading its end
+    # takes a fraction of a second on the server, at each opening of the
+    # Station tab otherwise. Keyed by the size and the time of the file
+    log_cache = {}
+
+    def station_problems(now):
+        path = log_path()
+        try:
+            state = os.stat(path)
+            key = (state.st_size, state.st_mtime_ns)
+        except OSError:
+            return []
+        if log_cache.get("key") != key:
+            log_cache.update(key=key, problems=log_problems(
+                logs.read_tail(path, LOG_TAIL_BYTES),
+                now - timedelta(days=LOG_DAYS)))
+        return log_cache["problems"]
+
     @app.callback(
         Output("battery-tile", "children"), Output("log-tile", "children"),
         Output("station-view", "options"),
@@ -2727,9 +2763,9 @@ def create_dashboard(open_database, log_path, backup_status,
             return no_update, no_update, no_update
         connection = open_database()
         try:
-            result = build_station(
-                connection, logs.read_tail(log_path(), LOG_TAIL_BYTES),
-                datetime.now(timezone.utc))
+            now = datetime.now(timezone.utc)
+            result = build_station(connection, "", now,
+                                   station_problems(now))
         finally:
             connection.close()
         headline, lines = result["battery"]
