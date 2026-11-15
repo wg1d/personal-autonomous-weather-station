@@ -197,9 +197,10 @@ EXPLANATIONS = [
         "14 °C, veste ; jusqu'à 19 °C, pull léger ; au-delà, tee-shirt. "
         "Le parapluie vient de la prévision du baromètre. La station ne "
         "mesure pas le vent : par jour de vent, ajoutez une couche.",
-        "En courant, le corps chauffe : on s'habille comme s'il faisait "
-        "environ 10 °C de plus. Au-delà de 30 °C ressentis, le corps se "
-        "refroidit mal, et mieux vaut courir tôt le matin.",
+        "En courant, le corps se réchauffe, mais pas tout de suite : on "
+        "porte environ une couche de moins que pour sortir. Au-delà de "
+        "30 °C ressentis, le corps se refroidit mal, et mieux vaut "
+        "courir tôt le matin.",
     ]),
     ("Le gel", [
         "La nuit, le sol et les plantes perdent leur chaleur vers le "
@@ -772,18 +773,22 @@ def clothes_advice(last, changes, local_now, sun):
     return clothes, [note for note in notes if note is not None]
 
 
-# Running warms the body: a runner dresses as if it were about 10 °C
-# warmer than the air
-RUNNING_WARMTH_C = 10
-# What to wear for running, for the temperature it feels like, as for
-# CLOTHES, with what it means for a runner
+# What to wear for running, for the temperature of the air below each
+# limit, in °C, with what it means for a runner. The body warms up with
+# the effort, but not at once: at the start, the air feels as cold as for
+# anyone. The runner wears about one layer less than to go out (our
+# estimate, as the limits)
 RUNNING_CLOTHES = [
-    (5, "Collant, veste, bonnet et gants",
-     "couvrez-vous bien, même en courant."),
-    (12, "Collant et manches longues", "il fait froid, même en courant."),
-    (18, "Manches longues", "en courant, une couche légère suffit."),
-    (24, "Short et tee-shirt", "pas besoin de trop se couvrir pour courir."),
-    (None, "Short et débardeur", "en courant, le plus léger possible."),
+    (0, "Collant, veste, bonnet et gants",
+     "il gèle : couvrez la tête et les mains, même en courant."),
+    (5, "Collant, manches longues et gants",
+     "il fait froid : on se réchauffe vite, mais pas tout de suite."),
+    (10, "Collant et manches longues",
+     "c'est frais : une couche de moins que pour sortir."),
+    (15, "Short ou collant, manches longues",
+     "on se réchauffe vite : une couche légère suffit."),
+    (22, "Short et tee-shirt", "pas besoin de se couvrir pour courir."),
+    (None, "Short et débardeur", "le plus léger possible, et de l'eau."),
 ]
 # Above this temperature felt, in °C, running is hard on the heart: the
 # body cools badly
@@ -804,7 +809,7 @@ def running_advice(last, changes, local_now, sun):
                                "corps se refroidit mal. Courez tôt le "
                                "matin, et buvez."])
     for limit, clothes, why in RUNNING_CLOTHES:
-        if limit is None or temperature + RUNNING_WARMTH_C < limit:
+        if limit is None or temperature < limit:
             break
     # The temperature is already given to go out: the sentence alone
     notes = [why[0].upper() + why[1:]]

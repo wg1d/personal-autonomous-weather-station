@@ -151,12 +151,14 @@ def test_clothes_advice():
 
 def test_running_advice():
     steady = {"sea_level_hpa": 0.0}
-    # At 10 °C, a runner dresses as for 20 °C
-    assert running_advice(air(10.0), steady, at(13), SUN) == (
-        "Short et tee-shirt",
-        ["Pas besoin de trop se couvrir pour courir."])
-    assert running_advice(air(-6.0), steady, at(13), SUN)[0] == (
+    # At 9 °C, one layer less than to go out, not shorts
+    assert running_advice(air(9.0), steady, at(13), SUN) == (
+        "Collant et manches longues",
+        ["C'est frais : une couche de moins que pour sortir."])
+    assert running_advice(air(-3.0), steady, at(13), SUN)[0] == (
         "Collant, veste, bonnet et gants")
+    assert running_advice(air(18.0), steady, at(13), SUN)[0] == (
+        "Short et tee-shirt")
     assert running_advice(air(10.0), steady, at(19), SUN)[1][1:] == [
         "Il fait nuit : une lampe frontale ou un gilet réfléchissant."]
     assert running_advice(air(31.0, 34.0), steady, at(13), SUN)[0] == (
