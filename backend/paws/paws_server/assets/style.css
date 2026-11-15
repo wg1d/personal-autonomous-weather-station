@@ -568,6 +568,12 @@ html:has(.help:not(.hidden)) {
     font-size: 1.2rem;
 }
 
+/* Each help button shows the blocks of its tab only */
+.help.station .for-now,
+.help.now .for-station {
+    display: none;
+}
+
 .explanation {
     margin-bottom: 8px;
     padding: 10px 16px;
