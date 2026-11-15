@@ -1704,9 +1704,6 @@ LOG_TAIL_BYTES = 256 * 1024
 # end of the log: the Now tab is the first page opened
 LOG_RECENT = timedelta(hours=24)
 LOG_RECENT_BYTES = 64 * 1024
-# The full log is read by pieces of this size from its end: "Plus
-# ancien" reads one more
-LOG_PIECE_BYTES = 32 * 1024
 
 # The reasons of a restart written by the firmware, in French
 RESTART_REASONS = {
@@ -1787,12 +1784,6 @@ def log_tile(problems):
     headline = (f"{count} problème{'s' if count > 1 else ''} sur "
                 f"{LOG_DAYS} jours")
     return False, headline, [f"{when} · {text}" for when, text in problems]
-
-
-def newest_first(log_text):
-    """The entries of a log, the newest first: the end of the log is what
-    a reader looks for first."""
-    return "".join(reversed(logs.split_entries(log_text)))
 
 
 def measured_at(row, now):
@@ -2279,38 +2270,43 @@ def create_dashboard(open_database, log_path, backup_status,
         # The health of the station: its battery and the problems of its
         # log, then the graphs of the battery
         html.Div(id="station-tab", style={"display": "none"}, children=[
-            # The battery: its state, then the graphs of its voltage and
-            # its current
-            html.Div(className="tab-title", children=[
-                html.H2("Batterie")]),
-            html.Div(className="tile", children=[
-                html.Div(id="battery-tile")]),
-            html.Div(className="station-graphs", children=[
-                html.Div("Tension et courant de la batterie : le courant "
-                         "est positif quand le soleil la charge.",
-                         className="section-intro"),
-                *time_controls("station-"),
-                graph("station-graph"),
-            ]),
-            # The log: its problems, or the whole log, newest first, in a
-            # box that scrolls
-            html.Div(className="tab-title tile-top", children=[
-                html.H2("Journal"),
-                html.Button(icon("download"), id="log-export",
-                            className="small-button",
-                            title="Télécharger le journal complet"),
-            ]),
-            dcc.Download(id="log-download"),
-            html.Div(className="tile", children=[
+            # Two views, so that each one fits on the screen, and the
+            # log is not missed below the graphs: the battery, or the
+            # problems of the log (their number in the name of the view)
+            html.Div(className="controls", children=[
                 dcc.RadioItems(
-                    id="log-view", value="problems", className="periods",
-                    options=[{"label": "Problèmes", "value": "problems"},
-                             {"label": "Journal complet", "value": "all"}]),
-                html.Div(id="log-tile", className="log-box"),
-                html.Button("Plus ancien", id="log-more",
-                            style={"display": "none"}),
+                    id="station-view", value="battery", className="periods",
+                    options=[{"label": "Batterie", "value": "battery"},
+                             {"label": "Journal", "value": "log"}]),
             ]),
-            dcc.Store(id="log-size", data=LOG_PIECE_BYTES),
+            html.Div(id="station-battery", children=[
+                html.Div(className="tile", children=[
+                    html.Div("Batterie", className="tile-name"),
+                    html.Div(id="battery-tile")]),
+                html.Div(className="station-graphs", children=[
+                    html.Div("Tension et courant de la batterie : le "
+                             "courant est positif quand le soleil la "
+                             "charge.", className="section-intro"),
+                    *time_controls("station-"),
+                    graph("station-graph"),
+                ]),
+            ]),
+            html.Div(id="station-log", style={"display": "none"},
+                     children=[
+                html.Div(className="tile", children=[
+                    # The name, and on its right a small button that
+                    # downloads the whole log
+                    html.Div(className="tile-top", children=[
+                        html.Div("Problèmes du journal",
+                                 className="tile-name"),
+                        html.Button(icon("download"), id="log-export",
+                                    className="small-button",
+                                    title="Télécharger le journal complet"),
+                    ]),
+                    html.Div(id="log-tile", className="log-box"),
+                    dcc.Download(id="log-download"),
+                ]),
+            ]),
         ]),
         # The advice drawn from the measurements: clothes, laundry,
         # watering, running
@@ -2689,20 +2685,13 @@ def create_dashboard(open_database, log_path, backup_status,
 
     @app.callback(
         Output("battery-tile", "children"), Output("log-tile", "children"),
-        Output("log-more", "style"), Output("log-size", "data"),
-        Input("tab", "value"), Input("refresh", "n_intervals"),
-        Input("log-view", "value"), Input("log-more", "n_clicks"),
-        State("log-size", "data"))
-    def show_station(tab, _refresh_count, log_view, _more, log_size):
-        # Called when a tab is chosen, at each refresh, when the view of
-        # the log changes, and on a click on "Plus ancien": only the
+        Output("station-view", "options"),
+        Input("tab", "value"), Input("refresh", "n_intervals"))
+    def show_station(tab, _refresh_count):
+        # Called when a tab is chosen, and at each refresh: only the
         # Station tab reads the log, which takes longer than the database
         if tab != "station":
-            return no_update, no_update, no_update, no_update
-        if ctx.triggered_id == "log-more":
-            log_size += LOG_PIECE_BYTES
-        elif ctx.triggered_id == "log-view":
-            log_size = LOG_PIECE_BYTES
+            return no_update, no_update, no_update
         connection = open_database()
         try:
             result = build_station(
@@ -2714,14 +2703,6 @@ def create_dashboard(open_database, log_path, backup_status,
         battery = [html.Div(headline, className="tile-headline"),
                    *[html.Div(line, className="tile-line muted")
                      for line in lines]]
-        if log_view == "all":
-            # The end of the log, newest first, one more piece at each
-            # click on "Plus ancien", while there is more to read
-            text = logs.read_tail(log_path(), log_size)
-            whole = len(text.encode("utf-8")) < log_size
-            return (battery, html.Pre(newest_first(text),
-                                      className="log-text"),
-                    {"display": "none"} if whole else {}, log_size)
         ok, headline, lines = result["log"]
         # A dot, green or red, before the headline, as for the health of
         # the station
@@ -2730,7 +2711,25 @@ def create_dashboard(open_database, log_path, backup_status,
                              className="tile-headline"),
                     *[html.Div(line, className="tile-line")
                       for line in lines]]
-        return battery, problems, {"display": "none"}, log_size
+        # The number of problems in the name of the view of the log
+        views = [{"label": "Batterie", "value": "battery"},
+                 {"label": "Journal" if ok else f"Journal ({len(lines)})",
+                  "value": "log"}]
+        return battery, problems, views
+
+    # The view of the Station tab chosen is shown, the other hidden; the
+    # graphs are told the window changed, to take their room (see the
+    # callback of the tabs). In the browser itself
+    app.clientside_callback(
+        """function (view) {
+            setTimeout(function () {
+                window.dispatchEvent(new Event("resize"));
+            }, 50);
+            const shown = {}, hidden = {"display": "none"};
+            return view === "log" ? [hidden, shown] : [shown, hidden];
+        }""",
+        Output("station-battery", "style"), Output("station-log", "style"),
+        Input("station-view", "value"))
 
     @app.callback(
         Output("log-download", "data"),

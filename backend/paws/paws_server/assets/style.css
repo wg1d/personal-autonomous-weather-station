@@ -236,28 +236,18 @@ body {
     font-size: 0.9rem;
 }
 
-/* The log, in a box that scrolls: its problems, or the whole log */
+/* The problems of the log, in a box that scrolls, as high as the screen
+   allows */
 .log-box {
-    max-height: 360px;
+    max-height: calc(100vh - 260px);
     overflow-y: auto;
-    margin-top: 10px;
-}
-
-.log-text {
-    margin: 0;
-    font-size: 0.8rem;
-    white-space: pre-wrap;
-    word-break: break-word;
-}
-
-#log-more {
-    margin-top: 10px;
+    margin-top: 6px;
 }
 
 /* The graphs of the battery take the height of the screen left below
    the tiles and the controls, as those of the Courbes tab */
 #station-graph {
-    height: max(320px, calc(100vh - 340px));
+    height: max(320px, calc(100vh - 330px));
 }
 
 /* The name of a tile, with a small button on its right */
@@ -544,7 +534,8 @@ html:has(.help:not(.hidden)) {
     overflow-y: auto;
     overscroll-behavior: contain;
     box-sizing: border-box;
-    padding: 16px 16px calc(16px + env(safe-area-inset-bottom));
+    /* No room at the top: the header of the help covers it */
+    padding: 0 16px calc(16px + env(safe-area-inset-bottom));
     border-radius: 16px 16px 0 0;
     background: var(--background);
 }
@@ -555,14 +546,19 @@ html:has(.help:not(.hidden)) {
     position: sticky;
     top: 0;
     z-index: 1;
+    /* The sheet has no room at its top: the header covers the whole top,
+       and the blocks pass below its full background, under a thin
+       shadow */
+    padding: 16px 0 8px;
     background: var(--background);
+    box-shadow: 0 8px 8px -8px rgba(0, 0, 0, 0.6);
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
 .help-header h2 {
-    margin: 0 0 8px;
+    margin: 0;
     font-size: 1.2rem;
 }
 
@@ -938,8 +934,10 @@ button:disabled {
         gap: 8px;
     }
 
+    /* On a phone, the graphs of the battery fill the screen left below
+       the view buttons, the tile and the controls */
     #station-graph {
-        height: 520px;
+        height: max(300px, calc(100vh - 440px));
     }
 
     .hero-value {
