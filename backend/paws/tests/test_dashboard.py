@@ -208,6 +208,11 @@ def test_forecast_names_the_part_of_the_day_ahead():
     assert forecast(last, steady, datetime(2026, 7, 1, 10, 30)) == (
         "Cet après-midi", "Beau temps stable", "sun",
         ["Pluie peu probable"])
+    # At noon and in the early afternoon, the afternoon is still to come
+    assert forecast(last, steady, datetime(2026, 7, 1, 12, 5))[0] == (
+        "Cet après-midi")
+    assert forecast(last, steady, datetime(2026, 7, 1, 13, 50))[0] == (
+        "Cet après-midi")
     assert forecast(last, steady, datetime(2026, 7, 1, 15, 0))[0] == (
         "Ce soir et cette nuit")
     assert forecast(last, steady, datetime(2026, 7, 1, 21, 0))[0] == (
@@ -238,8 +243,9 @@ def test_dew_outlook_for_the_night_and_the_morning():
     assert "givre" in dew_outlook({"temperature_c": 4.0,
                                    "dew_point_c": -1.0},
                                   datetime(2026, 7, 1, 21, 0))
-    # In the morning, only when the air is nearly saturated
+    # In the morning and at noon, only when the air is nearly saturated
     assert dew_outlook(dry, datetime(2026, 7, 1, 9, 0)) == ""
+    assert dew_outlook(dry, datetime(2026, 7, 1, 12, 5)) == ""
     assert dew_outlook(near, datetime(2026, 7, 1, 9, 0)) == (
         "Rosée ou brouillard probables")
     assert dew_outlook({"temperature_c": None, "dew_point_c": 5.6},

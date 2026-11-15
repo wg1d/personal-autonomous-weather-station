@@ -770,10 +770,10 @@ def forecast_note(prediction, last):
     """What the forecast of the barometer (prediction, see forecast())
     means for the clothes, so that the advice does not contradict it: in
     the morning, a fair afternoon, such as "Cet après-midi, beau temps :
-    prévoyez une couche à retirer."; from noon, the lowest temperature of
-    the night (the dew point, see dew_outlook()). None otherwise. The
-    station forecasts no temperature for the afternoon: the note only
-    repeats the forecast, without a figure of its own."""
+    prévoyez une couche à retirer."; in the evening, the lowest
+    temperature of the night (the dew point, see dew_outlook()). None
+    otherwise. The station forecasts no temperature for the afternoon:
+    the note only repeats the forecast, without a figure of its own."""
     if prediction is None:
         return None
     title, text, sky_icon, _ = prediction
@@ -1141,8 +1141,15 @@ ZAMBRETTI_FORECASTS = [
 # when the page is read: the method looks about 12 hours ahead, so in
 # the evening it reaches the next morning, not the whole next day. Up
 # to each hour (excluded), the name
-FORECAST_TITLES = [(6, "Ce matin"), (12, "Cet après-midi"),
-                   (18, "Ce soir et cette nuit"), (24, "Demain matin")]
+FORECAST_TITLES = [(6, "Ce matin"), (14, "Cet après-midi"),
+                   (19, "Ce soir et cette nuit"), (24, "Demain matin")]
+
+
+def forecast_title(local_now):
+    """The part of the day the forecast covers, from the local hour (see
+    FORECAST_TITLES): at noon, the afternoon is still to come."""
+    return next(name for hour, name in FORECAST_TITLES
+                if local_now.hour < hour)
 
 # The words of the rain line, from rain_expected()
 RAIN_WORDS = {None: "Pluie peu probable", "possible": "Pluie possible",
@@ -1150,19 +1157,20 @@ RAIN_WORDS = {None: "Pluie peu probable", "possible": "Pluie possible",
 
 
 def dew_outlook(last, local_now):
-    """The dew, the frost and the fog to expect. From noon to 6:00, the
-    end of the night, the coldest time, just before the morning: on a
-    clear and calm night, the air seldom cools much below its dew point,
-    where its water condenses; such as "D'ici là : vers 6 °C au plus
-    bas, rosée ou brouillard possibles par ciel clair". In the
-    morning, a warning only when the air is nearly saturated (see
-    DEW_SPREAD_C).
-    "" otherwise, or without values."""
+    """The dew, the frost and the fog to expect. When the forecast covers
+    the night (see forecast_title()), the end of the night, the coldest
+    time, just before the morning: on a clear and calm night, the air
+    seldom cools much below its dew point, where its water condenses;
+    such as "D'ici là : vers 6 °C au plus bas, rosée ou brouillard
+    possibles par ciel clair". When it covers the afternoon, a warning
+    only when the air is nearly saturated (see DEW_SPREAD_C). "" otherwise,
+    or without values."""
     temperature, dew = last["temperature_c"], last["dew_point_c"]
     if temperature is None or dew is None:
         return ""
     near = temperature - dew <= DEW_SPREAD_C
-    if 6 <= local_now.hour < 12:
+    title = forecast_title(local_now)
+    if title == "Cet après-midi":
         water = "givre" if temperature <= 0 else "rosée"
         return f"{water.capitalize()} ou brouillard probables" if near \
             else ""
@@ -1170,7 +1178,7 @@ def dew_outlook(last, local_now):
     chance = "probables" if near else "possibles par ciel clair"
     # Under "Ce soir et cette nuit", the night itself; under "Demain
     # matin" or "Ce matin", the time until then (see FORECAST_TITLES)
-    when = "Cette nuit" if 12 <= local_now.hour < 18 else "D'ici là"
+    when = "Cette nuit" if title == "Ce soir et cette nuit" else "D'ici là"
     return (f"{when} : vers {number(dew, 0)} °C au plus bas, "
             f"{water} ou brouillard {chance}")
 
@@ -1187,8 +1195,7 @@ def forecast(last, changes, local_now):
                                         changes.get("sea_level_hpa"))
     if forecast_number is None:
         return None
-    title = next(name for hour, name in FORECAST_TITLES
-                 if local_now.hour < hour)
+    title = forecast_title(local_now)
     text, sky_icon = ZAMBRETTI_FORECASTS[forecast_number - 1]
     details = []
     if not any(word in text.lower() for word in RAIN_TERMS):
