@@ -1582,9 +1582,23 @@ def build_now(connection, now, location=None, log_text=""):
     longitude) of the station, for the sun, or None), "advice" (the
     Advice tab, see advice_tiles()) and "station" (the warning about the
     station on the Now tab, from the end of its log, log_text, see
-    station_banner())."""
-    last = database.last_row(connection)
-    stale, status, alert = health(last, now)
+    station_banner()), with "station_key", which changes when its
+    reasons change (see station_key()), and "advice_status", the
+    measurement the advice reads.
+
+    The weather and the advice read the last measurement of the air: if
+    the air sensor stopped answering, the last values it gave, with a
+    warning that tells their time. The health of the station reads the
+    last row received, whatever it holds.
+    """
+    received = database.last_row(connection)
+    stale, status, alert = health(received, now)
+    air = database.last_row(connection, "temperature_c") or received
+    battery = database.last_row(connection, "battery_v")
+    if battery is not None:
+        status += f" · batterie {battery_charge(battery['battery_v'])} %"
+    note = air_note(received, air)
+    last = air
     # The rows of the last day, for the cards
     day_rows = database.rows_between(
         connection, to_timestamp(now - timedelta(days=1)),
@@ -1596,6 +1610,7 @@ def build_now(connection, now, location=None, log_text=""):
                    for column, _, _, _ in QUANTITIES}
     day = f"{local_now:%Y-%m-%d}"
     prediction, yesterday, frost, advice = None, "", None, []
+    recent = log_problems(log_text, now - LOG_RECENT)
     if last is not None:
         prediction = forecast(last, changes, local_now)
         yesterday = yesterday_text(
@@ -1616,8 +1631,12 @@ def build_now(connection, now, location=None, log_text=""):
                          sun_events(location, now)),
             "tiles": tiles(last, day_rows, day, changes),
             "advice": advice,
-            "station": station_banner(
-                last, log_problems(log_text, now - LOG_RECENT))}
+            "station": station_banner(battery, recent, note),
+            "station_key": station_key(battery, recent, note),
+            "advice_status": ("" if air is None else
+                              f"Mesure de {measured_at(air, now)}"
+                              + (" · le capteur d'air ne répond plus"
+                                 if note else ""))}
 
 
 def build_view(connection, view, now, location=None, log_text=""):
@@ -1653,13 +1672,6 @@ LIPO_CHARGE = [(3.27, 0), (3.61, 5), (3.69, 10), (3.71, 15), (3.73, 20),
 # left (see LIPO_CHARGE), our limit for a warning on the Now tab
 BATTERY_LOW_V = 3.6
 
-# Below this current, in mA, the battery is said neither to charge nor to
-# discharge: about the finest step of the INA219
-STILL_MA = 0.5
-
-# Without the times of the sun, the night is said to end at this hour
-NIGHT_END_HOUR = 7
-
 # The days of the log shown in the Station tab, and the part of the end of
 # the log that is read for them: the log grows by about 33 KB a day (600
 # KB in 18 days on the server), about 230 KB for 7 days
@@ -1669,9 +1681,9 @@ LOG_TAIL_BYTES = 256 * 1024
 # end of the log: the Now tab is the first page opened
 LOG_RECENT = timedelta(hours=24)
 LOG_RECENT_BYTES = 64 * 1024
-# At most this many problems are listed, the newest first: the graphs
-# below must still fit on the screen of a computer
-LOG_SHOWN = 5
+# The full log is read by pieces of this size from its end: "Plus
+# ancien" reads one more
+LOG_PIECE_BYTES = 32 * 1024
 
 # The reasons of a restart written by the firmware, in French
 RESTART_REASONS = {
@@ -1698,64 +1710,17 @@ def battery_charge(voltage):
     return 100
 
 
-def current_text(current):
-    """What the current of the battery tells, such as "↑ +120 mA : la
-    batterie se charge"."""
-    if current >= STILL_MA:
-        return f"↑ {number(current, 0, sign=True)} mA : la batterie se charge"
-    if current <= -STILL_MA:
-        return (f"↓ {number(current, 0, sign=True)} mA : la batterie "
-                "alimente la station, mesuré pendant son réveil")
-    return "→ 0 mA : la batterie ne charge ni ne se décharge"
-
-
-def night_ends(rows, location, now):
-    """The voltage of the battery at the end of the last two nights, the
-    newest first: the last row before each sunrise (before NIGHT_END_HOUR
-    without location). rows are the rows of the last days, oldest first.
-    The end of the night is the lowest point of the battery: it tells
-    whether the sun of the day before filled it again."""
-    local_now = to_local(now)
-    ends = []
-    for back in range(3):
-        day = local_now.date() - timedelta(days=back)
-        times = None if location is None else sky.sun_times(day, *location)
-        end = (to_local(times[0]) if times is not None
-               else datetime.combine(day, datetime.min.time())
-               + timedelta(hours=NIGHT_END_HOUR))
-        if end > local_now:
-            continue
-        before = [row for row in rows
-                  if row["battery_v"] is not None
-                  and datetime.fromisoformat(row["local_time"]) <= end]
-        if before:
-            ends.append(before[-1]["battery_v"])
-        if len(ends) == 2:
-            break
-    return ends
-
-
-def battery_tile(last, rows, location, now):
+def battery_tile(battery, now):
     """The Battery tile of the Station tab: (headline, lines), such as
-    ("4,05 V · environ 85 %", ["↑ +120 mA : la batterie se charge",
-    "Fin de nuit : 3,98 V (la veille 3,99 V)"]). rows are the rows of the
-    last days, for the ends of the nights (see night_ends())."""
-    if last is None or last["battery_v"] is None:
+    ("4,12 V · environ 95 %", ["Mesure de 11:15"]), from the last row
+    with a value of the battery (see database.last_row())."""
+    if battery is None:
         return ("Pas encore de mesure",
                 ["La station n'envoie pas encore la tension de sa "
                  "batterie : l'INA219 n'est pas encore installé."])
-    voltage = last["battery_v"]
-    lines = []
-    if last["battery_ma"] is not None:
-        lines.append(current_text(last["battery_ma"]))
-    ends = night_ends(rows, location, now)
-    if ends:
-        text = f"Fin de nuit : {number(ends[0], 2)} V"
-        if len(ends) > 1:
-            text += f" (la veille {number(ends[1], 2)} V)"
-        lines.append(text)
+    voltage = battery["battery_v"]
     return (f"{number(voltage, 2)} V · environ {battery_charge(voltage)} %",
-            lines)
+            [f"Mesure de {measured_at(battery, now)}"])
 
 
 def problem_text(line):
@@ -1791,27 +1756,52 @@ def log_problems(log_text, since):
 def log_tile(problems):
     """The Log tile of the Station tab, from the problems of the last
     LOG_DAYS days (see log_problems()): (ok, headline, lines), ok telling
-    whether there is none."""
+    whether there is none. The page shows all the lines, in a box that
+    scrolls."""
     if not problems:
         return (True, f"Aucun problème sur {LOG_DAYS} jours", [])
     count = len(problems)
     headline = (f"{count} problème{'s' if count > 1 else ''} sur "
                 f"{LOG_DAYS} jours")
-    lines = [f"{when} · {text}" for when, text in problems[:LOG_SHOWN]]
-    if count > LOG_SHOWN:
-        lines.append(f"… et {count - LOG_SHOWN} de plus dans le journal")
-    return False, headline, lines
+    return False, headline, [f"{when} · {text}" for when, text in problems]
 
 
-def station_banner(last, recent_problems):
-    """The warning about the station at the top of the Now tab: a low
-    battery (see BATTERY_LOW_V), and the problems of the last hours of the
-    log; "" when all is well."""
-    texts = []
-    if last is not None and last["battery_v"] is not None \
-            and last["battery_v"] < BATTERY_LOW_V:
-        texts.append(f"Batterie faible ({number(last['battery_v'], 2)} V) : "
-                     "vérifiez le panneau solaire.")
+def newest_first(log_text):
+    """The entries of a log, the newest first: the end of the log is what
+    a reader looks for first."""
+    return "".join(reversed(logs.split_entries(log_text)))
+
+
+def measured_at(row, now):
+    """The local time of a row, such as "10:45", with its day when it is
+    not today, such as "14 nov. à 10:45"."""
+    local = to_local(parse_timestamp(row["timestamp"]))
+    if local.date() == to_local(now).date():
+        return f"{local:%H:%M}"
+    return french_date(local, "%d %b à %H:%M")
+
+
+def air_note(received, air):
+    """The warning when the last rows received have no values of the air,
+    such as "Le capteur d'air ne répond plus : valeurs de 10:45.", or "":
+    the page then shows the last values the air sensor gave."""
+    if received is None or air is None \
+            or air["timestamp"] >= received["timestamp"]:
+        return ""
+    local = to_local(parse_timestamp(air["timestamp"]))
+    return ("Le capteur d'air ne répond plus : valeurs de "
+            f"{local:%H:%M}.")
+
+
+def station_banner(battery, recent_problems, note=""):
+    """The warning about the station at the top of the Now tab: the air
+    sensor that stopped answering (note, see air_note()), a low battery
+    (the last row of the battery, see BATTERY_LOW_V), and the problems of
+    the last hours of the log; "" when all is well."""
+    texts = [note] if note else []
+    if battery is not None and battery["battery_v"] < BATTERY_LOW_V:
+        texts.append(f"Batterie faible ({number(battery['battery_v'], 2)} V)"
+                     " : vérifiez le panneau solaire.")
     if recent_problems:
         count = len(recent_problems)
         texts.append(f"{count} problème{'s' if count > 1 else ''} dans le "
@@ -1819,17 +1809,23 @@ def station_banner(last, recent_problems):
     return " ".join(texts)
 
 
-def build_station(connection, log_text, now, location=None):
-    """Computes the tiles of the Station tab: "battery" and "log", each
-    (headline, lines); "log_ok" tells whether the log shows no problem."""
-    last = database.last_row(connection)
-    rows = database.rows_between(
-        connection, to_timestamp(now - timedelta(days=3)),
-        to_timestamp(now + timedelta(minutes=1)))
-    log_ok, headline, lines = log_tile(
-        log_problems(log_text, now - timedelta(days=LOG_DAYS)))
-    return {"battery": battery_tile(last, rows, location, now),
-            "log": (headline, lines), "log_ok": log_ok}
+def station_key(battery, recent_problems, note=""):
+    """What the warning about the station is about: the newest problem of
+    the log, a low battery, the air sensor. A warning closed by hand
+    stays closed until this changes: a new problem shows it again."""
+    newest = recent_problems[0] if recent_problems else ("", "")
+    low = battery is not None and battery["battery_v"] < BATTERY_LOW_V
+    return f"{newest[0]}|{newest[1]}|{low}|{bool(note)}"
+
+
+def build_station(connection, log_text, now):
+    """Computes the tiles of the Station tab: "battery" (headline, lines),
+    and "log": (ok, headline, lines), from the end of the log, log_text
+    (see log_tile())."""
+    return {"battery": battery_tile(
+                database.last_row(connection, "battery_v"), now),
+            "log": log_tile(log_problems(
+                log_text, now - timedelta(days=LOG_DAYS)))}
 
 
 # --- Compare tab -----------------------------------------------------------
@@ -2225,7 +2221,18 @@ def create_dashboard(open_database, log_path, backup_status,
         html.Div(id="now-tab", children=[
             # Shown only when the battery is low, or the log of the station
             # tells a problem
-            html.Div(id="station-alert", className="station-alert hidden"),
+            # A warning closed by hand stays closed until its reasons
+            # change (see station_key()): the browser keeps the reasons
+            # it was closed for (storage_type="local")
+            html.Div(id="station-alert", className="station-alert hidden",
+                     children=[
+                         html.Span(id="station-alert-text"),
+                         html.Button("✕", id="station-alert-close",
+                                     className="alert-close",
+                                     title="Fermer ce message"),
+                     ]),
+            dcc.Store(id="station-alert-key"),
+            dcc.Store(id="station-alert-closed", storage_type="local"),
             # Shown only when it freezes, or may freeze in the night
             html.Div(id="frost", className="frost hidden"),
             # The top: today and the help button, the time of the last
@@ -2249,28 +2256,38 @@ def create_dashboard(open_database, log_path, backup_status,
         # The health of the station: its battery and the problems of its
         # log, then the graphs of the battery
         html.Div(id="station-tab", style={"display": "none"}, children=[
-            html.Div(className="tiles", children=[
-                html.Div(className="tile", children=[
-                    html.Div("Batterie", className="tile-name"),
-                    html.Div(id="battery-tile"),
-                ]),
-                html.Div(className="tile", children=[
-                    # The name, and on its right a small button that
-                    # downloads the whole log
-                    html.Div(className="tile-top", children=[
-                        html.Div("Journal", className="tile-name"),
-                        html.Button(icon("download"), id="log-export",
-                                    className="small-button",
-                                    title="Télécharger le journal"),
-                    ]),
-                    html.Div(id="log-tile"),
-                    dcc.Download(id="log-download"),
-                ]),
-            ]),
+            # The battery: its state, then the graphs of its voltage and
+            # its current
+            html.Div(className="tab-title", children=[
+                html.H2("Batterie")]),
+            html.Div(className="tile", children=[
+                html.Div(id="battery-tile")]),
             html.Div(className="station-graphs", children=[
+                html.Div("Tension et courant de la batterie : le courant "
+                         "est positif quand le soleil la charge.",
+                         className="section-intro"),
                 *time_controls("station-"),
                 graph("station-graph"),
             ]),
+            # The log: its problems, or the whole log, newest first, in a
+            # box that scrolls
+            html.Div(className="tab-title tile-top", children=[
+                html.H2("Journal"),
+                html.Button(icon("download"), id="log-export",
+                            className="small-button",
+                            title="Télécharger le journal complet"),
+            ]),
+            dcc.Download(id="log-download"),
+            html.Div(className="tile", children=[
+                dcc.RadioItems(
+                    id="log-view", value="problems", className="periods",
+                    options=[{"label": "Problèmes", "value": "problems"},
+                             {"label": "Journal complet", "value": "all"}]),
+                html.Div(id="log-tile", className="log-box"),
+                html.Button("Plus ancien", id="log-more",
+                            style={"display": "none"}),
+            ]),
+            dcc.Store(id="log-size", data=LOG_PIECE_BYTES),
         ]),
         # The advice drawn from the measurements: clothes, laundry,
         # watering, running
@@ -2577,8 +2594,8 @@ def create_dashboard(open_database, log_path, backup_status,
         Output("tiles", "children"), Output("advice-tiles", "children"),
         Output("advice-status", "children"),
         Output("advice-status", "className"),
-        Output("station-alert", "children"),
-        Output("station-alert", "className"),
+        Output("station-alert-text", "children"),
+        Output("station-alert-key", "data"),
         Input("refresh", "n_intervals"))
     def update_now(_refresh_count):
         # Called when the page opens, and at each refresh: the Now and
@@ -2594,15 +2611,36 @@ def create_dashboard(open_database, log_path, backup_status,
         alert_class = "alert" if result["alert"] else "alert hidden"
         status = [html.Span(className="dot"), result["status"]]
         frost_class = "frost" if result["frost"] else "frost hidden"
-        station_class = ("station-alert" if result["station"]
-                         else "station-alert hidden")
+        # The advice reads the last measurement of the air: its time, red
+        # when the station is silent or the air sensor stopped answering
+        advice_state = ("stale" if result["stale"]
+                        or "ne répond plus" in result["advice_status"]
+                        else "ok")
         return (result["alert"], alert_class, status, f"status {state}",
                 result["date"], result["frost"], frost_class,
                 result["hero"], result["tiles"], result["advice"],
-                # The advice reads the last measurement: its time, with
-                # the same dot as on the Now tab
-                status, f"status {state}",
-                result["station"], station_class)
+                [html.Span(className="dot"), result["advice_status"]],
+                f"status {advice_state}",
+                result["station"],
+                result["station_key"] if result["station"] else "")
+
+    # The warning about the station is shown when it has reasons, unless
+    # it was closed for the same reasons; the close button keeps them, in
+    # the browser. Both run in the browser itself, without the server
+    app.clientside_callback(
+        """function (key, closed) {
+            return key && key !== closed ? "station-alert"
+                                         : "station-alert hidden";
+        }""",
+        Output("station-alert", "className"),
+        Input("station-alert-key", "data"),
+        Input("station-alert-closed", "data"))
+    app.clientside_callback(
+        """function (_clicks, key) { return key; }""",
+        Output("station-alert-closed", "data"),
+        Input("station-alert-close", "n_clicks"),
+        State("station-alert-key", "data"),
+        prevent_initial_call=True)
 
     @app.callback(
         Output("graph", "figure"),
@@ -2628,31 +2666,48 @@ def create_dashboard(open_database, log_path, backup_status,
 
     @app.callback(
         Output("battery-tile", "children"), Output("log-tile", "children"),
-        Input("tab", "value"), Input("refresh", "n_intervals"))
-    def show_station(tab, _refresh_count):
-        # Called when a tab is chosen, and at each refresh: only the
+        Output("log-more", "style"), Output("log-size", "data"),
+        Input("tab", "value"), Input("refresh", "n_intervals"),
+        Input("log-view", "value"), Input("log-more", "n_clicks"),
+        State("log-size", "data"))
+    def show_station(tab, _refresh_count, log_view, _more, log_size):
+        # Called when a tab is chosen, at each refresh, when the view of
+        # the log changes, and on a click on "Plus ancien": only the
         # Station tab reads the log, which takes longer than the database
         if tab != "station":
-            return no_update, no_update
+            return no_update, no_update, no_update, no_update
+        if ctx.triggered_id == "log-more":
+            log_size += LOG_PIECE_BYTES
+        elif ctx.triggered_id == "log-view":
+            log_size = LOG_PIECE_BYTES
         connection = open_database()
         try:
             result = build_station(
                 connection, logs.read_tail(log_path(), LOG_TAIL_BYTES),
-                datetime.now(timezone.utc), location)
+                datetime.now(timezone.utc))
         finally:
             connection.close()
-        tiles = []
-        for headline, lines in (result["battery"], result["log"]):
-            tiles.append([html.Div(headline, className="tile-headline"),
-                          *[html.Div(line, className="tile-line")
-                            for line in lines]])
-        # A dot, green or red, before the headline of the log, as for the
-        # health of the station
-        dot = "dot" if result["log_ok"] else "dot bad"
-        tiles[1][0] = html.Div([html.Span(className=dot),
-                                result["log"][0]],
-                               className="tile-headline")
-        return tiles[0], tiles[1]
+        headline, lines = result["battery"]
+        battery = [html.Div(headline, className="tile-headline"),
+                   *[html.Div(line, className="tile-line muted")
+                     for line in lines]]
+        if log_view == "all":
+            # The end of the log, newest first, one more piece at each
+            # click on "Plus ancien", while there is more to read
+            text = logs.read_tail(log_path(), log_size)
+            whole = len(text.encode("utf-8")) < log_size
+            return (battery, html.Pre(newest_first(text),
+                                      className="log-text"),
+                    {"display": "none"} if whole else {}, log_size)
+        ok, headline, lines = result["log"]
+        # A dot, green or red, before the headline, as for the health of
+        # the station
+        problems = [html.Div([html.Span(className="dot" if ok
+                                        else "dot bad"), headline],
+                             className="tile-headline"),
+                    *[html.Div(line, className="tile-line")
+                      for line in lines]]
+        return battery, problems, {"display": "none"}, log_size
 
     @app.callback(
         Output("log-download", "data"),

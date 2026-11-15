@@ -124,12 +124,16 @@ def summary(connection):
         "WHERE time_valid = 1").fetchone()
 
 
-def last_row(connection):
+def last_row(connection, column=None):
     """Returns the newest row with a valid time, with all the QUANTITIES,
-    or None if there is none."""
+    or None if there is none. With a column, such as "temperature_c", the
+    newest row that has a value for it: the last row the air sensor, or
+    the battery monitor, answered."""
+    holds = "" if column is None else f"AND {column} IS NOT NULL "
     rows = connection.execute(
         f"SELECT timestamp, {QUANTITY_COLUMNS} FROM measurements "
-        "WHERE time_valid = 1 ORDER BY timestamp DESC LIMIT 1").fetchall()
+        f"WHERE time_valid = 1 {holds}"
+        "ORDER BY timestamp DESC LIMIT 1").fetchall()
     return dict(zip(["timestamp", *QUANTITIES], rows[0])) if rows else None
 
 

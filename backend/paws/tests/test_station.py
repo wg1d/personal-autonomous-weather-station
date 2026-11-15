@@ -3,9 +3,10 @@
 from datetime import datetime, timezone
 
 from paws_server import logs
-from paws_server.dashboard import (BATTERY_LOW_V, battery_charge,
-                                   battery_tile, current_text, log_problems,
-                                   log_tile, night_ends, station_banner)
+from paws_server.dashboard import (BATTERY_LOW_V, air_note, battery_charge,
+                                   battery_tile, log_problems, log_tile,
+                                   newest_first, station_banner,
+                                   station_key)
 
 NOW = datetime(2026, 11, 14, 22, 0, tzinfo=timezone.utc)
 
@@ -32,27 +33,22 @@ def test_charge_of_the_battery_from_its_voltage():
     assert battery_charge(4.05) == 80
 
 
-def test_current_tells_its_direction():
-    assert current_text(120.0).endswith("la batterie se charge")
-    assert "alimente la station" in current_text(-48.0)
-    assert current_text(0.2).startswith("→ 0 mA")
-
-
-def row(local_time, voltage):
-    return {"local_time": local_time, "battery_v": voltage}
-
-
-def test_end_of_the_night_is_the_last_row_before_sunrise():
-    rows = [row("2026-11-13 06:45:00", 3.99), row("2026-11-13 12:00:00", 4.2),
-            row("2026-11-14 06:45:00", 3.98), row("2026-11-14 12:00:00", 4.2)]
-    # Without location, the night ends at 07:00
-    assert night_ends(rows, None, NOW) == [3.98, 3.99]
-
-
-def test_battery_tile_without_the_ina219():
-    last = {"battery_v": None, "battery_ma": None}
-    headline, lines = battery_tile(last, [], None, NOW)
+def test_battery_tile_gives_the_voltage_and_its_time():
+    battery = {"timestamp": "2026-11-14T21:45:00Z", "battery_v": 4.12}
+    headline, lines = battery_tile(battery, NOW)
+    assert headline == "4,12 V · environ 90 %"
+    assert lines[0].startswith("Mesure de ")
+    headline, lines = battery_tile(None, NOW)
     assert headline == "Pas encore de mesure" and "INA219" in lines[0]
+
+
+def test_air_note_when_the_last_rows_have_no_air():
+    air = {"timestamp": "2026-11-14T21:00:00Z"}
+    received = {"timestamp": "2026-11-14T21:45:00Z"}
+    assert air_note(received, air).startswith(
+        "Le capteur d'air ne répond plus : valeurs de ")
+    assert air_note(air, air) == ""
+    assert air_note(None, None) == ""
 
 
 def test_problems_of_the_log():
@@ -71,6 +67,8 @@ def test_problems_in_french_newest_first():
     assert shown[1] == ("après 12 nov. 09:00", "DS3231 ne répond pas")
     ok, headline, lines = log_tile(shown)
     assert not ok and headline == "4 problèmes sur 7 jours"
+    # Every problem is listed: the box scrolls
+    assert len(lines) == 4
     assert log_tile([]) == (True, "Aucun problème sur 7 jours", [])
 
 
@@ -84,9 +82,21 @@ def test_log_read_from_the_start_of_an_entry(tmp_path):
     assert logs.read_tail(tmp_path / "missing.log", 100) == ""
 
 
-def test_banner_for_a_low_battery_or_recent_problems():
-    assert station_banner({"battery_v": 4.1}, []) == ""
-    assert station_banner({"battery_v": BATTERY_LOW_V - 0.1}, []).startswith(
-        "Batterie faible")
-    assert "1 problème dans le journal" in station_banner(
-        {"battery_v": None}, [("21:00", "Wi-Fi injoignable")])
+def test_banner_for_the_air_a_low_battery_or_recent_problems():
+    full = {"battery_v": 4.1}
+    low = {"battery_v": BATTERY_LOW_V - 0.1}
+    problem = [("21:00", "Wi-Fi injoignable")]
+    assert station_banner(full, []) == ""
+    assert station_banner(low, []).startswith("Batterie faible")
+    assert "1 problème dans le journal" in station_banner(None, problem)
+    assert station_banner(None, [], "Le capteur d'air ne répond plus.") == (
+        "Le capteur d'air ne répond plus.")
+    # A new problem changes what the warning is about: it shows again
+    assert station_key(full, problem) != station_key(
+        full, [("21:15", "BME280 ne répond pas")] + problem)
+
+
+def test_full_log_newest_first():
+    text = ("=== 2026-11-14T21:00:00Z ===\nA\n"
+            "=== 2026-11-14T21:15:00Z ===\nB\n")
+    assert newest_first(text).startswith("=== 2026-11-14T21:15:00Z ===")

@@ -165,7 +165,11 @@ body {
 /* The title of a tab, such as "Conseils du moment", with the time of the
    measurement it reads */
 .tab-title {
-    margin: 4px 4px 10px;
+    margin: 14px 4px 10px;
+}
+
+.tab-title:first-child {
+    margin-top: 4px;
 }
 
 .tab-title h2 {
@@ -185,8 +189,25 @@ body {
     font-size: 0.95rem;
 }
 
+.station-alert {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+}
+
 .station-alert.hidden {
     display: none;
+}
+
+/* The cross that closes the warning, without a frame */
+.alert-close {
+    flex: none;
+    padding: 0 4px;
+    border: none;
+    background: none;
+    color: inherit;
+    font-size: 1.1rem;
 }
 
 /* The dot of the log, red when it tells problems */
@@ -203,8 +224,33 @@ body {
     background: #e53935;
 }
 
-/* The graphs of the battery, below the tiles of the Station tab */
+/* The graphs of the battery, below its tile in the Station tab, with a
+   line that introduces them */
 .station-graphs {
+    margin-top: 10px;
+}
+
+.section-intro {
+    margin: 0 4px 8px;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+/* The log, in a box that scrolls: its problems, or the whole log */
+.log-box {
+    max-height: 360px;
+    overflow-y: auto;
+    margin-top: 10px;
+}
+
+.log-text {
+    margin: 0;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+#log-more {
     margin-top: 10px;
 }
 
@@ -507,7 +553,13 @@ html:has(.help:not(.hidden)) {
     background: var(--background);
 }
 
+/* The title and the cross of the help stay at the top of the sheet while
+   its blocks scroll below them */
 .help-header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--background);
     display: flex;
     justify-content: space-between;
     align-items: center;
