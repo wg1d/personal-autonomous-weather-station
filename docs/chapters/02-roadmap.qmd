@@ -28,8 +28,11 @@ Once the production firmware is reliable, we shift our focus away from the ESP32
     We deploy a server on a small computer that stays on at home, with a database, a dashboard and a daily backup, to replace our test server.
 *   **Phase 6: Outdoor Station**
     The station leaves the breadboard and the desk: a soldered board, a weatherproof enclosure, a radiation shield (a Stevenson screen) so that the sun does not heat the sensor, a Wi-Fi link that reaches the garden, and its own power: a battery charged by a small solar panel, since there is no socket outdoors, with its charge measured and sent with the data.
+
+With Phase 6, the station is complete and works on its own: it measures outdoors, on its own power, sends its data, and the dashboard shows the weather, its forecast and the health of the station. This is **version 1** of the station, published as `v1.0.0`, then improved in `v1.1.0` (the battery monitor) and `v1.2.0` (the dashboard). The phases that follow improve a station that already works.
+
 *   **Phase 7: Data Collection**
-    The station runs outdoors for months. We watch how reliable it is: its power through the seasons, short winter days included, the failures, the values that make no sense.
+    The station runs outdoors for months. We watch how reliable it is: its power through the seasons, short winter days included, the failures, the values that make no sense. Two sensors join it during this phase, the [light sensor](#adding-a-light-sensor-during-phase-7) and the [rain gauge](#adding-a-rain-gauge-during-phase-7): a learned forecast can only use the quantities measured for months before it, so they must start early.
 *   **Phase 8: Forecasting**
     The dashboard already forecasts the next hours with a rule of the barometers of a century ago, the [Zambretti method](Backend/02-6-barometer-forecast.qmd): it needs no history, and works from the first day. With months of real measurements, a forecast learned from the data of the station (basic Machine Learning, such as an LSTM network) predicts the weather trends. A forecast can only learn from the data it is given: this is why the station goes outdoors first. Both forecasts are checked against the weather observed afterwards: the learned one is only worth its cost if it does better than the rule of the barometer.
 
@@ -37,17 +40,17 @@ Once the production firmware is reliable, we shift our focus away from the ESP32
 
 # Future Expansions (Ideas) {.unnumbered}
 
-While Phases 1 through 8 represent the core project (from data collection to forecasting), the following sections are purely optional ideas to expand the station's capabilities if we decide to take it further.
+While Phases 1 through 8 represent the core project (from data collection to forecasting), the following sections expand the station's capabilities. The light sensor and the rain gauge are planned during Phase 7; the others are optional ideas, if we decide to take it further.
 
 ## A Single Definition of the Data Format (Idea)
 The CSV format of the measurements is written twice: in C++ in the firmware, which writes the rows, and in Python in the backend, which reads them. A single reference file could describe the columns (name, type, unit), and a small script could generate the code of both sides from it, so that they can never disagree. This becomes more useful as new sensors add columns to the format.
 
 The sensors below are ordered by what they bring to the forecast: first the ones that tell the weather the forecast must match, or that the forecast can use; then the ones useful for other purposes.
 
-## Adding a Light Sensor (Idea)
+## Adding a Light Sensor (During Phase 7)
 A light sensor measures the sunlight. Compared with the light of a clear sky at the same hour, it tells whether the sky is clear or cloudy: a second check of the forecast ("fine" or not), and an input for a learned forecast. The [outdoor station](Outdoor/00-design.qmd) already plans a waterproof probe, built around the BH1750 sensor, on the roof of the shelter.
 
-## Adding a Rain Gauge (Idea)
+## Adding a Rain Gauge (During Phase 7)
 A tipping bucket rain gauge measures the rainfall. It tells, on the spot, whether it rained after a forecast of rain: the most direct check of a forecast, without depending on a weather station farther away, and the value a learned forecast needs to learn the rain. The 3D-PAWS project has a good example of a 3D-printed tipping bucket rain gauge.
 
 ## Adding an Anemometer and a Wind Vane (Idea)

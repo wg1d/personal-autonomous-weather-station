@@ -146,7 +146,9 @@ Regenerating the wiring diagrams requires a LaTeX distribution with `circuitikz`
 
 ## Roadmap
 
-The primary goal of this project is to build a full, end-to-end weather station, spanning from initial data collection (Phase 1) up through basic Machine Learning forecasting (Phase 8). Forecasting needs months of real measurements: the station first moves outdoors (Phase 6) and collects data (Phase 7). The remaining items are logged as optional future ideas to expand the station over time.
+The primary goal of this project is to build a full, end-to-end weather station, spanning from initial data collection (Phase 1) up through basic Machine Learning forecasting (Phase 8). Forecasting needs months of real measurements: the station first moves outdoors (Phase 6) and collects data (Phase 7).
+
+Since Phase 6, the station works as a whole: this is **version 1** (`v1.0.0`, then `v1.1.0` and `v1.2.0`). The next phases improve it. The light sensor and the rain gauge join it during Phase 7, so that the forecast of Phase 8 has months of their data; the remaining items are optional future ideas.
 
 | Phase | Name | Key addition | Status |
 |-------|------|-------------|--------|
@@ -158,8 +160,8 @@ The primary goal of this project is to build a full, end-to-end weather station,
 | 6 | Outdoor station | Soldered board, weatherproof enclosure, radiation shield (Stevenson screen), solar panel + battery with its monitor, Wi-Fi range | 🟢 Done (v1.1.0) |
 | 7 | Data collection | The station outdoors for months: power through the seasons, failures, outliers | 🟡 In progress (since 28 October 2026) |
 | 8 | Forecasting | A forecast learned from the data (LSTM), checked against the observed weather; it must beat the barometer forecast (Zambretti method) already on the dashboard | ⬜ Planned |
-| 9 | Sensor: Light | Waterproof BH1750 probe: clear or cloudy sky | 💭 Idea |
-| 10 | Sensor: Rain gauge | Tipping bucket: did it rain? | 💭 Idea |
+| 9 | Sensor: Light | Waterproof BH1750 probe: clear or cloudy sky | ⬜ Planned (during Phase 7) |
+| 10 | Sensor: Rain gauge | Tipping bucket: did it rain? | ⬜ Planned (during Phase 7) |
 | 11 | Sensor: Wind | Anemometer + wind vane | 💭 Idea |
 | 12 | Sensor: UV | LTR390 behind a PTFE window | 💭 Idea |
 | 13 | Sensor: Soil moisture | Capacitive sensor | 💭 Idea |
