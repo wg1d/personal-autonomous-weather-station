@@ -20,6 +20,7 @@
 
 #include "Board.h"
 #include "Console.h"
+#include "I2cBus.h"
 #include "ISensor.h"
 
 /// I2C address of the BME280 module (0x76 when SDO is tied to GND)
@@ -71,6 +72,8 @@ private:
             if (bme_.begin(kBme280Address)) {
                 return true;
             }
+            // A chip that does not answer may be stuck on the bus: free it
+            freeI2cBus();
             delay(kSensorRetryDelayMs);
         }
         return false;
