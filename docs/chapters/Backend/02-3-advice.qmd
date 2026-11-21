@@ -4,13 +4,15 @@ The measurements of the station answer questions of every day: what to wear to g
 
 The advice used to sit on the Now tab, below the weather. It made the page long, and mixed the weather with what to do about it: it has a tab of its own.
 
-> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.0.0/backend/paws)
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.1.0/backend/paws)
 
 ## The tab
 
 ![The Conseils tab on a phone, on an autumn evening, with made-up data](../../assets/images/B2-3_advice_phone.png){width=300}
 
-- **Tenue** (clothes): what to wear to go out, then, below a thin line, what to wear to run. Each part gives the clothes in bold, then why: the temperature and what it feels like, and only when they matter, the umbrella, the cap, the light at night.
+At the top, the title **Conseils du moment**, with the time of the measurement the advice reads and the dot of the Now tab: the advice reads the last measurement of the air, and the line says when the air sensor stopped answering. Then three tiles:
+
+- **Tenue** (clothes): what to wear to go out, then, below a thin line, what to wear to run, each part under a small title, *Pour sortir* and *Pour courir*. Each part gives the clothes in bold, then why: the temperature and what it feels like, what the forecast means for the clothes, and only when they matter, the umbrella, the cap, the light at night.
 - **Linge** (laundry): whether laundry dries outside now, and when to hang it out or bring it in.
 - **Arrosage** (watering): whether the garden needs water, and the good moment to water it.
 
@@ -42,15 +44,25 @@ The station has no rain gauge: it cannot tell whether it rained, only whether th
 
 The limits are our estimate. The wind makes the cold feel stronger, and the station does not measure it: on a windy day, one more layer. From 22 °C, in the day, the tile adds a cap against the sun (our estimate); when rain is probable or possible, an umbrella.
 
-**To run**, the body warms up with the effort: runners dress as if it were about 10 °C warmer than the air. This is a rule of thumb of runners, not a measure: some feel the cold more than others. The clothes then follow the air plus 10 °C:
+The clothes follow the temperature of the moment, and the [forecast](02-6-barometer-forecast.qmd), on the Now tab, may announce a fair afternoon: "11 °C, c'est frais" next to "Cet après-midi : beau" would read as a contradiction. A line repeats what the forecast means for the clothes (`forecast_note()`):
 
-| Air | Air plus 10 °C | Clothes | Why, on the tile |
-|-----|----------------|---------|------------------|
-| below −5 °C | below 5 °C | Collant, veste, bonnet et gants (tights, jacket, hat and gloves) | couvrez-vous bien, même en courant |
-| −5 to 2 °C | 5 to 12 °C | Collant et manches longues (tights and long sleeves) | il fait froid, même en courant |
-| 2 to 8 °C | 12 to 18 °C | Manches longues (long sleeves) | en courant, une couche légère suffit |
-| 8 to 14 °C | 18 to 24 °C | Short et tee-shirt (shorts and T-shirt) | pas besoin de trop se couvrir pour courir |
-| 14 °C and more | 24 °C and more | Short et débardeur (shorts and vest) | en courant, le plus léger possible |
+- under "Cet après-midi", when the sky of the forecast is fair: "Cet après-midi, beau temps : prévoyez une couche à retirer" (plan a layer to take off);
+- in the evening, the lowest temperature of the night, the same as the line of the forecast: "La nuit, vers 5 °C au plus bas : couvrez-vous si vous rentrez tard".
+
+The station forecasts no temperature for the afternoon: the line only repeats the forecast, without a figure of its own.
+
+**To run**, the body warms up with the effort, but not at once: at the start, the air feels as cold for a runner as for anyone. A runner wears about **one layer less** than to go out. An earlier version dressed the runner as if it were 10 °C warmer, a rule often given to runners: at 9 °C, it advised shorts and a T-shirt next to a jacket to go out, which read as a contradiction, and felt too light at the start. The clothes now follow the air:
+
+| Air | Clothes | Why, on the tile |
+|-----|---------|------------------|
+| below 0 °C | Collant, veste, bonnet et gants (tights, jacket, hat and gloves) | il gèle : couvrez la tête et les mains, même en courant |
+| 0 to 5 °C | Collant, manches longues et gants (tights, long sleeves and gloves) | il fait froid : on se réchauffe vite, mais pas tout de suite |
+| 5 to 10 °C | Collant et manches longues (tights and long sleeves) | c'est frais : une couche de moins que pour sortir |
+| 10 to 15 °C | Short ou collant, manches longues (shorts or tights, long sleeves) | on se réchauffe vite : une couche légère suffit |
+| 15 to 22 °C | Short et tee-shirt (shorts and T-shirt) | pas besoin de se couvrir pour courir |
+| 22 °C and more | Short et débardeur (shorts and vest) | le plus léger possible, et de l'eau |
+
+These limits are our estimate.
 
 From a feels-like temperature of 30 °C, the body cools down badly in the effort: the tile says "Trop chaud" (too hot), and advises to run early in the morning, and to drink (our limit). At night, between the sunset and the sunrise, it adds a head torch or a reflective vest; when rain is probable or possible, a rain jacket.
 
@@ -99,7 +111,8 @@ The Advice tab is a part of `dashboard.py`, shown in the [first chapter](02-1-no
 - `rain_expected()` reads the rain from the barometer;
 - `clothes_advice()` and `running_advice()` return the clothes and their reasons, as a list of sentences that only holds the ones that apply; `outfit_tile()` builds the Tenue tile, the two parts split by a thin line;
 - `laundry_advice()` and `watering_advice()` return a headline and a detail; `watering_moment()` gives the good moment to water;
-- `advice_tiles()` builds the tab, called by `build_view()`.
+- `forecast_note()` writes the line of the forecast for the clothes;
+- `advice_tiles()` builds the tab, called by `build_now()`.
 
 The limits are constants at the top of each part: `CLOTHES`, `RUNNING_CLOTHES`, `DRYING_SLOW_KPA`, `WATERING_LOW_VPD`, and the others. Each function takes the local time and the times of the sun as parameters, rather than reading the clock: the tests can ask for any hour.
 
@@ -108,7 +121,8 @@ The limits are constants at the top of each part: `CLOTHES`, `RUNNING_CLOTHES`, 
 The tests of the Advice tab, in `test_dashboard.py`, check:
 
 - **the clothes**: the clothes and their reason below the limits; the heat index counts more than the air; a cap in the sun of a warm day, not at night; an umbrella when the pressure falls fast, and "au cas où" when showers are only possible;
-- **the running**: at 10 °C, the clothes of 20 °C; a light at night; "Trop chaud" in the heat;
+- **the running**: at 9 °C, one layer less than to go out, not shorts; a light at night; "Trop chaud" in the heat;
+- **the forecast**: a fair afternoon gives a layer to take off, the evening the lowest temperature of the night, a rainy afternoon no line;
 - **the laundry**: a fast or a slow drying from the deficit; the saturated air and a fast fall of the pressure, whatever the deficit; the night, the hour to hang it out, and the hour to bring it in;
 - **the watering**: the highest deficit of the day, not the last one; the good moment, from the hour and the sun.
 
@@ -123,4 +137,4 @@ The tests of the Advice tab, in `test_dashboard.py`, check:
 
 ## Next Steps
 
-The [next chapter](02-4-compare.qmd) describes the Comparer tab, which draws two days, weeks, months or years over each other.
+The [next chapter](02-7-station.qmd) describes the Station tab: the battery of the station, and the problems told by its log.

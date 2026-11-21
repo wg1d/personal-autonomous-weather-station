@@ -2,7 +2,7 @@
 
 The [first chapter of B2](02-1-now.qmd) builds the page and its Now tab. The second tab, **Courbes** (Graphs), draws the temperature, the humidity and the pressure over a chosen period, from a few hours to several years (BF3 · Dashboard): to see the day that just passed, the weather systems of a week, or the seasons.
 
-> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.0.0/backend/paws)
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.1.0/backend/paws)
 
 ## The tab
 
@@ -40,7 +40,7 @@ A period that ends now is shown whole, even when it starts before the first meas
 
 The graphs read the database with these functions of `database.py`:
 
-```{.python include="../../_versions/v1.0.0/backend/paws/paws_server/database.py"}
+```{.python include="../../_versions/v1.1.0/backend/paws/paws_server/database.py"}
 ```
 
 - **`last_row()`** gives the last measurement, for the Now tab and the health of the station.
@@ -67,7 +67,7 @@ To show the data right away while the graphs are dragged, they hold more than th
 
 The limits of the data are given to the time axes (`"minallowed"` and `"maxallowed"`): Plotly stops a drag or a zoom at them. At a limit, Plotly stops the edge that reached it, and lets the other one move on: the graphs then show a shorter period.
 
-**Graphs.** `figure()` builds the three graphs. A Plotly figure is a dictionary, in the format that the JavaScript library reads in the browser:
+**Graphs.** `figure()` builds the three graphs; given another list of quantities, it draws the graphs of the battery of the Station tab the same way. A Plotly figure is a dictionary, in the format that the JavaScript library reads in the browser:
 
 - `"data"` holds the curves: for each one, its points (`"x"`, `"y"`), its color, and its axes;
 - `"layout"` holds everything around them: the axes and their limits, the titles, the dotted lines (`"shapes"`) and the colors.
@@ -79,7 +79,7 @@ Over a year, each quantity has three curves: the minimum, drawn without a line, 
 **The callbacks.**
 
 - `navigate()` is called on a click on a period, an arrow, a zoom button or Aujourd'hui, or after a drag or a zoom; `ctx.triggered_id` tells which element changed. It returns the new period shown;
-- `update()`, the same callback as for the Now tab, reads the database and returns the figure and the title of the period.
+- `update_graphs()` reads the database and returns the figures and the title of the period, of the Courbes tab and of the [Station tab](02-7-station.qmd), which shows the same period. It only computes the graphs, not the rest of the page: a drag stays quick on the server.
 
 ::: {.callout-tip collapse="true"}
 ## Python: `**` in a dictionary, and formats in f-strings

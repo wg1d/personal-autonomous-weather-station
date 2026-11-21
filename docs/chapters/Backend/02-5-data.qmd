@@ -6,7 +6,7 @@ The last tab of the dashboard, **Données** (Data), takes the measurements out o
 - **the last backup** of the database (BN1 · No data loss), made every night by [step B3](03-1-operations.qmd);
 - **the manual upload** of the files downloaded from the [maintenance page](../Architecture/Phase-04/05-1-maintenance-mode.qmd) of the station (BF7 · Manual upload): when the station cannot reach the home Wi-Fi, its data is retrieved with a phone, then sent to the server from the dashboard.
 
-> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.0.0/backend/paws)
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.1.0/backend/paws)
 
 ## The tab
 
@@ -22,7 +22,7 @@ The icons of the buttons are icons of the Lucide set, as in the rest of the page
 
 ## The export
 
-`export_csv()` writes all the measurements, oldest first, in the format of the station ([CSV format v1](../Architecture/Phase-04/00-3-data-and-upload.qmd#data-format-v1)): the same header, two decimals, and an empty field for a missing value. A file exported by the dashboard can therefore be uploaded again: exporting three years of made-up data, starting again from an empty database and uploading the file gave back the same 105,123 rows, and a second export the same file.
+`export_csv()` writes all the measurements, oldest first, in the format of the station ([CSV format v2](../Architecture/Phase-04/00-3-data-and-upload.qmd), with the battery): the same header, two decimals, and an empty field for a missing value, such as the battery of the rows measured before the battery monitor. A file exported by the dashboard can therefore be uploaded again: exporting three years of made-up data, starting again from an empty database and uploading the file gave back the same 105,123 rows, and a second export the same file.
 
 ## The manual upload
 
@@ -34,12 +34,12 @@ The maintenance page of the station gives two files: the measurements, and the l
 
 A spreadsheet such as Excel, in French, saves a CSV file with `;` between the fields and `,` in the numbers: such a file is refused, with a message asking to keep the format of the station.
 
-```{.python include="../../_versions/v1.0.0/backend/paws/paws_server/transfer.py"}
+```{.python include="../../_versions/v1.1.0/backend/paws/paws_server/transfer.py"}
 ```
 
 The log of the server moves to a module of its own, `logs.py`, used both by the API, which appends the lines sent by the station, and by the manual upload, which merges the entries of a file:
 
-```{.python include="../../_versions/v1.0.0/backend/paws/paws_server/logs.py"}
+```{.python include="../../_versions/v1.1.0/backend/paws/paws_server/logs.py"}
 ```
 
 ## In the dashboard
@@ -60,7 +60,7 @@ Two components of Dash do the work in the browser:
 - a file saved by a spreadsheet, and any other file, are refused, and not taken for a log;
 - a log only adds its new entries, cut at their first line.
 
-```{.python include="../../_versions/v1.0.0/backend/paws/tests/test_transfer.py"}
+```{.python include="../../_versions/v1.1.0/backend/paws/tests/test_transfer.py"}
 ```
 
 ## Speed on the server
@@ -77,4 +77,4 @@ On the server, with three years of made-up data, the export takes 7.6 s, and upl
 
 ## Next Steps
 
-Step B2 is complete: the dashboard shows the weather of the moment and its forecast, draws, advises, compares, exports and receives the measurements. Its first version was published as `v0.9.0`; the version described in these chapters, as `v1.0.0`. The [last chapter of B2](02-6-barometer-forecast.qmd) explains the forecast of the barometer shown on the Now tab.
+Step B2 is complete: the dashboard shows the weather of the moment and its forecast, draws, advises, compares, exports and receives the measurements. Its first version was published as `v0.9.0`; the one of the station outdoors as `v1.0.0`; the version described in these chapters, with the battery and the Station tab, as `v1.1.0`. The [last chapter of B2](02-6-barometer-forecast.qmd) explains the forecast of the barometer shown on the Now tab.
