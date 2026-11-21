@@ -20,7 +20,9 @@ from paws_server.dashboard import (build_comparison, build_view,
                                    yesterday_text,
                                    sunrise_tomorrow,
                                    laundry_advice, sparkline,
-                                   watering_advice,
+                                   watering_advice, airing_advice,
+                                   windscreen_advice, dinner_advice,
+                                   heat_advice,
                                    format_age, health,
                                    midnights, resolution, shown,
                                    parts_of, pressure_outlook,
@@ -665,3 +667,48 @@ def test_drag_moves_both_periods_together():
         "2026-10-07T00:00:00Z", "2025-12-07T00:00:00Z")
     # The legend now gives the exact dates shown
     assert not moved["chosen"]
+
+
+def test_airing_dries_the_home_when_the_air_holds_little_water():
+    # A damp winter day: 90 % at 6 °C is about 6.5 g/m³, less than a room
+    damp_winter = {"temperature_c": 6.0, "absolute_humidity_gm3": 6.5}
+    headline, detail = airing_advice(damp_winter)
+    assert headline == "Bon moment pour aérer" and "38 %" in detail
+    assert airing_advice({"temperature_c": 22.0,
+                          "absolute_humidity_gm3": 14.0})[0] == (
+        "Pas le moment d'aérer longtemps")
+    assert airing_advice({"temperature_c": 28.0,
+                          "absolute_humidity_gm3": 10.0})[0] == (
+        "Aérez tôt le matin")
+    assert airing_advice({"temperature_c": None,
+                          "absolute_humidity_gm3": None}) is None
+
+
+def test_windscreen_in_the_evening_when_frost_is_possible():
+    cold = {"temperature_c": 1.0, "dew_point_c": -2.0}
+    assert windscreen_advice(cold, datetime(2026, 11, 21, 20, 0))[0] == (
+        "Givre probable demain matin")
+    assert windscreen_advice(cold, datetime(2026, 11, 21, 12, 0)) is None
+    assert windscreen_advice({"temperature_c": 10.0, "dew_point_c": 5.0},
+                             datetime(2026, 11, 21, 20, 0)) is None
+
+
+def test_dinner_outside_on_a_mild_dry_evening():
+    mild = {"temperature_c": 22.0, "feels_like_c": None,
+            "sea_level_hpa": 1020.0, "humidity_pct": 50.0}
+    steady = {"sea_level_hpa": 0.2}
+    assert dinner_advice(mild, steady, datetime(2026, 7, 1, 19, 0))[0] == (
+        "Soirée agréable pour dîner dehors")
+    assert dinner_advice(mild, steady, datetime(2026, 7, 1, 12, 0)) is None
+    assert dinner_advice(dict(mild, temperature_c=14.0), steady,
+                         datetime(2026, 7, 1, 19, 0)) is None
+
+
+def test_heat_only_in_the_day_from_30_felt():
+    hot = {"feels_like_c": 33.0}
+    sun = (datetime(2026, 7, 1, 6, 0), datetime(2026, 7, 1, 21, 50))
+    assert heat_advice(hot, datetime(2026, 7, 1, 15, 0), sun)[0] == (
+        "Gardez la maison au frais")
+    assert heat_advice(hot, datetime(2026, 7, 1, 23, 0), sun) is None
+    assert heat_advice({"feels_like_c": 26.0},
+                       datetime(2026, 7, 1, 15, 0), sun) is None

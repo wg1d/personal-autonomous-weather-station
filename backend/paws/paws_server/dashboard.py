@@ -165,6 +165,26 @@ EXPLANATIONS = [
         "convient à la plupart des cultures ; au-delà de 1,6 kPa, elles "
         "ferment leurs pores pour garder leur eau, et poussent moins.",
     ]),
+    ("L'aération", [
+        "L'air du dehors, une fois entré et réchauffé, garde son eau : sa "
+        "masse de vapeur par mètre cube, l'humidité absolue. Son humidité "
+        "relative, elle, baisse en se réchauffant.",
+        "En hiver, l'air froid et humide du dehors contient souvent moins "
+        "d'eau qu'une pièce à 20 °C et 50 % d'humidité (environ 8,6 g/m³, "
+        "notre référence) : aérer assèche alors la maison, même s'il pleut. "
+        "Le conseil compare l'air du dehors à cette référence, avec une "
+        "marge de 1 g/m³.",
+        "Au-delà de 25 °C dehors, l'air ne rafraîchit plus : mieux vaut "
+        "aérer tôt le matin.",
+    ]),
+    ("Les conseils du soir", [
+        "Le givre sur le pare-brise suit la règle du gel : le soir, quand "
+        "l'air est froid et son point de rosée proche de 0 °C, la voiture "
+        "givre souvent avant le matin.",
+        "Un dîner dehors est proposé de 16 h à 21 h, quand le ressenti est "
+        "entre 18 et 30 °C et qu'aucune pluie n'est annoncée. Ces limites "
+        "sont notre estimation.",
+    ]),
     ("Les conseils d'arrosage et de linge", [
         "Le conseil d'arrosage regarde le déficit le plus fort des "
         "dernières 24 heures : plus il est fort, plus les plantes et le "
@@ -249,6 +269,8 @@ EXPLANATION_TABS = {
     "Le gel": "now",
     "La température ressentie": "now",
     "Le déficit de pression de vapeur": "advice",
+    "L'aération": "advice",
+    "Les conseils du soir": "advice",
     "Les conseils d'arrosage et de linge": "advice",
     "La tenue et la course à pied": "advice",
     "La batterie": "station",
@@ -748,6 +770,95 @@ def rain_expected(last, changes):
     if not any(word in text for word in RAIN_TERMS):
         return None
     return "possible" if "possible" in text else "probable"
+
+
+# The air of a room, to compare with the air outside: 20 °C and 50 % of
+# relative humidity, our estimate of a heated home in winter
+ROOM_C = 20.0
+ROOM_HUMIDITY_PCT = 50.0
+# Outside air with less water than this, in g/m³, below the air of the
+# room, dries the home once it is warmed up: a margin of ours, so that
+# airing is only advised when it clearly helps
+AIRING_MARGIN_GM3 = 1.0
+# From this temperature of the air outside, in °C, the air is too warm to
+# cool the home: airing is advised early in the morning
+AIRING_WARM_C = 25.0
+
+
+def airing_advice(last):
+    """Whether airing the home now dries it: (headline, detail), or None
+    without values. The air outside, warmed up to the temperature of the
+    room, keeps its water (its absolute humidity, in g/m³), and its
+    relative humidity falls: in winter, cold and damp air outside often
+    holds less water than the air of a room, and airing dries the home,
+    even in the rain. In the heat, airing early in the morning, when the
+    air is the coolest."""
+    temperature = last["temperature_c"]
+    water = last["absolute_humidity_gm3"]
+    if temperature is None or water is None:
+        return None
+    if temperature >= AIRING_WARM_C:
+        return ("Aérez tôt le matin", "Il fait chaud : fermez les fenêtres "
+                "aux heures chaudes, et aérez quand l'air est le plus frais.")
+    room = weather.absolute_humidity(ROOM_C, ROOM_HUMIDITY_PCT)
+    if water > room - AIRING_MARGIN_GM3:
+        return ("Pas le moment d'aérer longtemps", "L'air dehors contient "
+                f"{number(water)} g/m³ d'eau, autant qu'une maison : aérer "
+                "ne l'assèche pas. Aérez quelques minutes, pour l'air frais.")
+    # The relative humidity of the air outside, once warmed up to the room
+    warmed = round(100 * water / weather.absolute_humidity(ROOM_C, 100))
+    return ("Bon moment pour aérer", "L'air dehors ne contient que "
+            f"{number(water)} g/m³ d'eau : réchauffé à {number(ROOM_C, 0)} "
+            f"°C, il n'aurait que {warmed} % d'humidité. Aérer assèche la "
+            "maison.")
+
+
+def windscreen_advice(last, local_now):
+    """In the evening and the night, when frost is possible (see
+    frost_advice()): the frost on the windscreen of a car in the
+    morning, (headline, detail); None otherwise."""
+    if frost_advice(last, local_now) is None \
+            or NIGHT_END <= local_now.hour < NIGHT_START:
+        return None
+    return ("Givre probable demain matin", "Couvrez le pare-brise ce soir, "
+            "ou prévoyez quelques minutes pour le gratter.")
+
+
+# A pleasant evening to eat outside: from this temperature felt, in °C,
+# and below the heat of RUNNING_HOT_C, without rain; the hours of the
+# evening when the tile is shown, local (our estimates)
+OUTDOOR_DINNER_C = 18.0
+DINNER_HOURS = (16, 21)
+
+
+def dinner_advice(last, changes, local_now):
+    """A pleasant evening to eat outside: (headline, detail) from 16:00 to
+    21:00, when the temperature felt is mild and no rain is expected (see
+    rain_expected()); None otherwise, and the tile is not shown."""
+    temperature = last["feels_like_c"] or last["temperature_c"]
+    if temperature is None \
+            or not DINNER_HOURS[0] <= local_now.hour < DINNER_HOURS[1]:
+        return None
+    if not OUTDOOR_DINNER_C <= temperature < RUNNING_HOT_C:
+        return None
+    if rain_expected(last, changes) is not None:
+        return None
+    return ("Soirée agréable pour dîner dehors",
+            f"{number(temperature, 0)} °C et pas de pluie annoncée. Une "
+            "petite laine après le coucher du soleil.")
+
+
+def heat_advice(last, local_now, sun):
+    """In the heat of the day, when the temperature felt reaches
+    RUNNING_HOT_C: keep the home cool, (headline, detail); None
+    otherwise."""
+    feels = last["feels_like_c"]
+    if feels is None or feels < RUNNING_HOT_C or not is_day(local_now, sun):
+        return None
+    return ("Gardez la maison au frais",
+            f"On ressent {number(feels, 0)} °C : fermez volets et fenêtres "
+            "aux heures chaudes, buvez souvent, et évitez l'effort au "
+            "soleil.")
 
 
 def is_day(local_now, sun):
@@ -1728,9 +1839,13 @@ def build_now(connection, now, location=None, log_text=""):
         advice = advice_tiles(
             clothes_advice(last, changes, local_now, sun, prediction),
             running_advice(last, changes, local_now, sun),
-            [("Linge", laundry_advice(last, changes, local_now, sun)),
+            [("Chaleur", heat_advice(last, local_now, sun)),
+             ("Ce soir", dinner_advice(last, changes, local_now)),
+             ("Voiture", windscreen_advice(last, local_now)),
+             ("Linge", laundry_advice(last, changes, local_now, sun)),
              ("Arrosage", watering_advice(day_rows, changes, local_now,
-                                          sun))])
+                                          sun)),
+             ("Aération", airing_advice(last))])
     return {"stale": stale, "status": status, "alert": alert,
             "date": french_date(local_now, "%A %d %B").capitalize(),
             "frost": frost_banner(frost),
