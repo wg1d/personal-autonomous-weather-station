@@ -4,17 +4,21 @@ The measurements of the station answer questions of every day: what to wear to g
 
 The advice used to sit on the Now tab, below the weather. It made the page long, and mixed the weather with what to do about it: it has a tab of its own.
 
-> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.1.0/backend/paws)
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.2.0/backend/paws)
 
 ## The tab
 
 ![The Conseils tab on a phone, on an autumn evening, with made-up data](../../assets/images/B2-3_advice_phone.png){width=300}
 
-At the top, the title **Conseils du moment**, with the time of the measurement the advice reads and the dot of the Now tab: the advice reads the last measurement of the air, and the line says when the air sensor stopped answering. Then three tiles:
+At the top, the title **Conseils du moment**, with the time of the measurement the advice reads and the dot of the Now tab, and on its right the help button of the tab, which explains the advice only: the advice reads the last measurement of the air, and the line says when the air sensor stopped answering. Then the tiles, each one shown only when it has something to say:
 
 - **Tenue** (clothes): what to wear to go out, then, below a thin line, what to wear to run, each part under a small title, *Pour sortir* and *Pour courir*. Each part gives the clothes in bold, then why: the temperature and what it feels like, what the forecast means for the clothes, and only when they matter, the umbrella, the cap, the light at night.
 - **Linge** (laundry): whether laundry dries outside now, and when to hang it out or bring it in.
 - **Arrosage** (watering): whether the garden needs water, and the good moment to water it.
+- **Aération** (airing): whether opening the windows dries the home.
+- **Voiture** (car): in the evening, the frost on the windscreen in the morning.
+- **Ce soir** (tonight): a mild and dry evening to eat outside.
+- **Chaleur** (heat): how to keep the home cool in the heat.
 
 The station measures neither the wind, nor the sun, nor the rain, nor the soil. Each tile says what it cannot know: the advice reads the air, and the reader checks the rest.
 
@@ -46,8 +50,8 @@ The limits are our estimate. The wind makes the cold feel stronger, and the stat
 
 The clothes follow the temperature of the moment, and the [forecast](02-6-barometer-forecast.qmd), on the Now tab, may announce a fair afternoon: "11 °C, c'est frais" next to "Cet après-midi : beau" would read as a contradiction. A line repeats what the forecast means for the clothes (`forecast_note()`):
 
-- under "Cet après-midi", when the sky of the forecast is fair: "Cet après-midi, beau temps : prévoyez une couche à retirer" (plan a layer to take off);
-- in the evening, the lowest temperature of the night, the same as the line of the forecast: "La nuit, vers 5 °C au plus bas : couvrez-vous si vous rentrez tard".
+- under "Cet après-midi", when the sky of the forecast is fair: "Cet après-midi, éclaircies, en amélioration : prévoyez une couche à retirer" (plan a layer to take off);
+- in the evening, the lowest temperature of the night, the same as the line of the forecast: "Cette nuit, minimum vers 5 °C : couvrez-vous si vous rentrez tard".
 
 The station forecasts no temperature for the afternoon: the line only repeats the forecast, without a figure of its own.
 
@@ -104,17 +108,41 @@ Then the good moment: in the morning, until 3 hours after the sunrise, or in the
 
 The station measures neither the rain nor the soil: the tile tells when watering is useful, if the soil is dry. Touching the soil, with a finger, remains the test.
 
+## The airing
+
+Air that comes in warms up to the temperature of the room. It keeps its water, its **absolute humidity**, the mass of vapour in a cubic metre of air, but its relative humidity falls: warm air can hold more water (see [the computed values](02-1-now.qmd#the-computed-values)). On a damp winter day, air at 6 °C and 90 % holds about 6.5 g/m³; warmed up to 20 °C, it is only at 38 %. Airing then dries the home, even in the rain.
+
+The tile compares the air outside with the air of a room at 20 °C and 50 %, about 8.6 g/m³, our estimate of a heated home in winter:
+
+| The air outside | On the tile |
+|-----------------|-------------|
+| at least 1 g/m³ below the room | Bon moment pour aérer, with the humidity it would have once warmed up |
+| about as much water as the room, or more | Pas le moment d'aérer longtemps: a few minutes, for fresh air |
+| 25 °C and more | Aérez tôt le matin: the air no longer cools the home |
+
+The margin of 1 g/m³ is ours: airing is advised only when it clearly helps. The station does not measure the air of the house: a home that is colder, or more humid, gains more.
+
+## The evening and the heat
+
+Three tiles appear only at their moment:
+
+- **Voiture**: in the evening and the night (from 16:00 to 9:00), when the frost rule of the Now tab says frost is possible (see [Frost](02-1-now.qmd#frost)): "Givre probable demain matin", to cover the windscreen or plan a few minutes to scrape it.
+- **Ce soir**: from 16:00 to 21:00, when the temperature felt is between 18 and 30 °C and no rain is expected from the barometer (see [The rain](#the-rain)): "Soirée agréable pour dîner dehors".
+- **Chaleur**: in the day, from a temperature felt of 30 °C, the limit of "Trop chaud" for running: "Gardez la maison au frais", with the shutters closed in the hot hours.
+
+The hours and the limits of these tiles are our estimates.
+
 ## The code
 
 The Advice tab is a part of `dashboard.py`, shown in the [first chapter](02-1-now.qmd#the-code):
 
 - `rain_expected()` reads the rain from the barometer;
 - `clothes_advice()` and `running_advice()` return the clothes and their reasons, as a list of sentences that only holds the ones that apply; `outfit_tile()` builds the Tenue tile, the two parts split by a thin line;
-- `laundry_advice()` and `watering_advice()` return a headline and a detail; `watering_moment()` gives the good moment to water;
+- `laundry_advice()`, `watering_advice()`, `airing_advice()`, `windscreen_advice()`, `dinner_advice()` and `heat_advice()` return a headline and a detail, or `None` when the tile is not shown; `watering_moment()` gives the good moment to water;
 - `forecast_note()` writes the line of the forecast for the clothes;
 - `advice_tiles()` builds the tab, called by `build_now()`.
 
-The limits are constants at the top of each part: `CLOTHES`, `RUNNING_CLOTHES`, `DRYING_SLOW_KPA`, `WATERING_LOW_VPD`, and the others. Each function takes the local time and the times of the sun as parameters, rather than reading the clock: the tests can ask for any hour.
+The limits are constants at the top of each part: `CLOTHES`, `RUNNING_CLOTHES`, `DRYING_SLOW_KPA`, `WATERING_LOW_VPD`, `ROOM_C`, `AIRING_MARGIN_GM3`, `OUTDOOR_DINNER_C`, and the others. Each function takes the local time and the times of the sun as parameters, rather than reading the clock: the tests can ask for any hour.
 
 ## The tests
 
@@ -124,7 +152,9 @@ The tests of the Advice tab, in `test_dashboard.py`, check:
 - **the running**: at 9 °C, one layer less than to go out, not shorts; a light at night; "Trop chaud" in the heat;
 - **the forecast**: a fair afternoon gives a layer to take off, the evening the lowest temperature of the night, a rainy afternoon no line;
 - **the laundry**: a fast or a slow drying from the deficit; the saturated air and a fast fall of the pressure, whatever the deficit; the night, the hour to hang it out, and the hour to bring it in;
-- **the watering**: the highest deficit of the day, not the last one; the good moment, from the hour and the sun.
+- **the watering**: the highest deficit of the day, not the last one; the good moment, from the hour and the sun;
+- **the airing**: a damp winter day dries the home, a humid summer day does not, the heat advises the morning;
+- **the evening and the heat**: the windscreen only in the evening with frost, the dinner only on a mild and dry evening, the heat only in the day from 30 °C felt.
 
 ## Troubleshooting
 

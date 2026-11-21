@@ -11,7 +11,7 @@ Step B1 stores the data of the station on the server. Step B2 shows it in a dash
 
 This chapter builds the page itself, then its first tab: the last measurement and the health of the station (BF3 · Dashboard, BF4 · Health of the station), and the values the backend computes from the measurements.
 
-> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.1.0/backend/paws)
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.2.0/backend/paws)
 
 ## The page
 
@@ -38,7 +38,7 @@ The dashboard is served by the backend itself, on the same port as the API: `htt
 
 Dash runs on Flask, an older kind of Python web application, called *WSGI*; FastAPI is an *ASGI* application, its newer version. The `a2wsgi` package lets FastAPI serve the Dash application under `/dashboard`, so that the API and the dashboard share one service and one port (BN2 · Light). `main.py` also reads the place of the station from the environment: its altitude, for the pressure at sea level, and its latitude and longitude, for the sun (see [Setting the Station Location](../Appendix/08-station-location.qmd)):
 
-```{.python include="../../_versions/v1.1.0/backend/paws/paws_server/main.py"}
+```{.python include="../../_versions/v1.2.0/backend/paws/paws_server/main.py"}
 ```
 
 ## The Now tab
@@ -50,21 +50,33 @@ From the top to the bottom:
 - **A blue warning**, only when it freezes, or may freeze in the night (see [Frost](#frost)).
 - **The summary**, on the top card:
   - today, and the time of the last measurement with a dot, green while the station sends its data, red when it is silent; the station measures every 15 minutes, so the page shows the last measurement, not the weather of this very second. Then the charge of the battery, after a small battery icon rather than a word, so that the line fits on the width of a phone;
-  - the temperature in large, with its change over 3 hours and the difference with yesterday at the same time on its right;
-  - the feels-like temperature, only in the heat, when it differs from the temperature;
-  - a small curve of the last 24 hours;
-  - the minimum and maximum of the day, and the times of the sunrise and the sunset; after the sunset, the sunset of today and the sunrise of tomorrow;
-  - the forecast of the barometer, with an icon, the part of the day it covers, and the dew or the fog to expect.
-- **The Humidity and Pressure tiles**, laid out alike: the value, its change over 3 hours, a small curve of the last 24 hours, one line that tells what the value means, and the minimum and maximum of the day.
-- **The help button** `?`, at the top right, opens a sheet that explains how to read each value, in blocks closed until clicked; its title and its cross stay at the top while the blocks scroll below them. The Station tab has its own help button, which shows its own block:
+  - **Maintenant** (now), the conditions of the moment, with a sun in the day and a moon at night: the station does not see the sky, so it says no more about it. On its right, the times of the sunrise and the sunset; after the sunset, the sunset of today and the sunrise of tomorrow;
+  - then the temperature, laid out as the tiles below (see [one layout for the three cards](#one-layout-for-the-three-cards)): its line tells the difference with yesterday at the same time, and in the heat, the feels-like temperature. When the air is within 2 °C of its dew point, a line adds "Air saturé : brouillard ou rosée probables": the fog or the dew of the moment;
+  - **Prévision** (forecast), the forecast of the barometer, with the icon of its sky, the part of the day it covers, the risk of rain and the lowest temperature of the night.
+- **The Humidity and Pressure tiles**, laid out as the temperature.
+- **The help button** `?`, at the top right, opens a sheet that explains how to read each value, in blocks closed until clicked; its title and its cross stay at the top while the blocks scroll below them. The help of each tab only explains what the tab shows: the Conseils and Station tabs have their own help buttons, with their own blocks. The help is written for any reader, in a few short paragraphs per block, justified; a number stays with its unit, and a colon with its word (`unbreakable()`).
 
 ![The help sheet, with its first block open](../../assets/images/B2-1_help_phone.png){width=300}
 
 The weather is the one of the **last measurement of the air**. If the air sensor stops answering, the rows that come keep the battery and the health of the station, but no temperature: the page then keeps the last values the sensor gave, and the amber warning tells their time, such as "Le capteur d'air ne répond plus : valeurs de 10:45.", rather than showing nothing.
 
-The page follows a simple rule: **the tiles tell the present, the forecast tells what comes next.** The Pressure tile says that the pressure is high and falls slowly, not that it will rain; the forecast, at the bottom of the top card, says it.
+The page keeps **the moment and the forecast apart**: the top card names its two parts, *Maintenant* and *Prévision*, each with the icon of its sky, so that the icon of the forecast is not read as the sky of the moment.
 
 While the page is open, it asks for new data every 5 minutes.
+
+### One layout for the three cards
+
+The three cards of the Now tab, the temperature and the two tiles, follow one layout, so that each one is read the same way:
+
+| | Temperature | Humidity | Pressure |
+|---|---|---|---|
+| On the right | ↓ -2,4 °C en 3 h | ↑ +0,5 % en 3 h | ↑ +0,7 hPa en 3 h |
+| Below the curve | +0,2 °C par rapport à hier à cette heure | Point de rosée 3,9 °C | Tendance : peu de changement du temps |
+| Then, under "Sur 24 h" | min 1,7 °C à 03:00 · max 13,5 °C à 16:45 | min 59,3 % à 17:00 · max 97,9 % à 02:30 | min 1014,2 hPa à 17:15 · max 1019,4 hPa à 09:30 |
+
+- **The change over 3 hours** is always on the right, the same period for the three quantities.
+- **One line tells what the value means**. The line of the pressure does not repeat its change, written on its right: it tells what this change usually brings.
+- **The minimum and maximum** cover the last 24 hours, the period of the curve above them, with their units and their times, side by side. On a very narrow phone, the maximum goes below the minimum, rather than being cut.
 
 ## The computed values
 
@@ -79,7 +91,7 @@ The sensor measures three quantities: the temperature, the relative humidity and
 
 Each function returns `None` when a measurement it needs is missing.
 
-```{.python include="../../_versions/v1.1.0/backend/paws/paws_server/weather.py"}
+```{.python include="../../_versions/v1.2.0/backend/paws/paws_server/weather.py"}
 ```
 
 These values are not stored: the database keeps only what the station measured. SQLite computes them when the dashboard reads the rows: `database.py` gives the functions of `weather.py` to SQLite (`create_function()`), and the queries call them like functions of SQL. A better formula only needs a new version of the backend: the old measurements then get the new values too.
@@ -90,17 +102,16 @@ Each line of the Now tab comes from a rule, and each rule from a source, or from
 
 **The change over 3 hours.** The weather services give the change of the pressure over 3 hours, its *tendency*: the tiles give the change of each quantity over the same time, from the last row at least 3 hours older than the last measurement (`trend()`). A change that rounds to 0 is written "stable".
 
-**The pressure.** The words of its change follow the *pressure tendency* of the station reports of the [Met Office](https://weather.metoffice.gov.uk/guides/coast-and-sea/glossary), the weather service of the United Kingdom, over the 3 preceding hours. The Met Office starts its scale at 0.1 hPa: below, the tile writes "stable".
+**The pressure.** Its value alone says little to the reader: what matters is its change, and what this change usually brings. The steps of the change follow the *pressure tendency* of the station reports of the [Met Office](https://weather.metoffice.gov.uk/guides/coast-and-sea/glossary), the weather service of the United Kingdom, over the 3 preceding hours; the tile writes what each step usually brings, after "Tendance :" (`pressure_outlook()`):
 
-| Change in 3 hours | Met Office | On the tile |
-|-------------------|------------|-------------|
-| less than 0.1 hPa | (below its scale) | stable |
-| 0.1 to 1.5 hPa | rising or falling slowly | en légère hausse / baisse |
-| 1.6 to 3.5 hPa | rising or falling | en hausse / baisse |
-| 3.6 to 6.0 hPa | rising or falling quickly | en forte hausse / baisse |
-| more than 6.0 hPa | rising or falling very rapidly | en très forte hausse / baisse |
+| Change in 3 hours | Met Office | Rising | Falling |
+|-------------------|------------|--------|---------|
+| less than 1.5 hPa | steady, or slowly | peu de changement du temps | peu de changement du temps |
+| 1.6 to 3.5 hPa | rising or falling | amélioration probable | le temps se dégrade souvent |
+| 3.6 to 6.0 hPa | quickly | éclaircies, souvent avec du vent | pluie et vent probables |
+| more than 6.0 hPa | very rapidly | vent fort probable | risque de tempête |
 
-The level of the pressure is said low below 1006 hPa, and high above 1020 hPa: the mean pressure at sea level is 1013.25 hPa in the standard atmosphere; the two limits, 7 hPa below and above it, are our estimate.
+These are tendencies, not forecasts: the sentences say "souvent" (often) or "probable". A low pressure makes the air rise, cool down and form clouds (see [The pressure and the weather](02-6-barometer-forecast.qmd#the-pressure-and-the-weather)).
 
 **The humidity.** A relative humidity of 90 % on a cold night holds little water: cold air saturates quickly. The dew point says how much water the air really holds, and how it feels: under 10 °C, the air is dry; from 10 to 16 °C, comfortable; from 16 to 20 °C, a bit heavy; above 20 °C, oppressive. These limits are rounded from the usual tables of comfort, such as the one of the [dew point article of Wikipedia](https://en.wikipedia.org/wiki/Dew_point#Relationship_to_human_comfort): an estimate. The tile only writes the word from 16 °C: "dry air" next to a humidity of 90 % reads as a mistake.
 
@@ -117,14 +128,16 @@ At noon, the afternoon is still to come: the title only turns to the evening at 
 
 Below the text of the forecast:
 
-- **the rain**, only when the text does not already speak of it: "Pluie peu probable" under "Beau temps", nothing more under "Beau, averses possibles". A fall of the pressure of more than 3.5 hPa in 3 hours, which the Met Office calls a quick fall, makes rain probable, whatever the text;
-- **the night**, under "Ce soir et cette nuit", "Demain matin" and "Ce matin": on a clear and calm night, the air seldom cools much below its dew point, where its water condenses and gives back heat. The line gives the dew point as the lowest temperature to expect, with dew, frost or fog "possible on a clear night"; "probable" when the air is already within 2 °C of its dew point. This is a rule of thumb of the forecasters, an estimate: clouds and wind keep the night warmer, and the station measures neither. Under "Cet après-midi", a line appears only when the air is nearly saturated. The line starts with "Cette nuit" under "Ce soir et cette nuit", and with "D'ici là" (until then) under the two others: under "Demain matin", "en fin de nuit" would read as the end of tomorrow night.
+- **the risk of rain**, only when the text does not already speak of it: "Risque de pluie : faible" under "Ensoleillé", nothing more under "Éclaircies, averses possibles"; *moyen* when showers are possible, *fort* when rain is probable. A fall of the pressure of more than 3.5 hPa in 3 hours, which the Met Office calls a quick fall, makes rain probable, whatever the text;
+- **the night**, under "Ce soir et cette nuit", "Demain matin" and "Ce matin": on a clear and calm night, the air seldom cools much below its dew point, where its water condenses and gives back heat. The line gives the dew point as the lowest temperature to expect, such as "Minimum vers 5 °C, rosée possible" (white frost below 0 °C); "brouillard ou rosée probables" when the air is already within 2 °C of its dew point. This is a rule of thumb of the forecasters, an estimate: clouds and wind keep the night warmer, and the station measures neither. Under "Cet après-midi", no line: the fog of the moment is written with the conditions of the moment.
 
-The icon of the sky comes with each of the 32 forecasts of the method: a sun, a sun and a cloud, a cloud with rain, a cloud with lightning. They are icons of the [Lucide](https://lucide.dev) set, colored for this page: the sun in yellow, the cloud in grey, the rain in the blue of the humidity.
+The words of the forecasts are those of the public bulletins (see [On the dashboard](02-6-barometer-forecast.qmd#on-the-dashboard)): under "Ce soir et cette nuit", "Ensoleillé" becomes "Ciel dégagé" (`for_the_night()`).
+
+The icon of the sky comes with each of the 32 forecasts of the method: a sun, a sun and a cloud, a cloud with rain, a cloud with lightning; at night, a moon, and a moon and a cloud. They are icons of the [Lucide](https://lucide.dev) set, colored for this page: the sun in yellow, the moon in a pale yellow, the cloud in grey, the rain in the blue of the humidity.
 
 **The sun.** `sky.py` computes the sunrise and the sunset from the date and the position of the station, with the *sunrise equation*: the position of the Earth on its orbit gives the declination of the sun, how far north or south of the equator it stands, then the angle the Earth turns between the sunrise and noon at this latitude. The sun rises when its top edge appears: its centre is then 0.833° below the horizon, its radius plus the bending of light by the air. The result is precise to about a minute.
 
-```{.python include="../../_versions/v1.1.0/backend/paws/paws_server/sky.py"}
+```{.python include="../../_versions/v1.2.0/backend/paws/paws_server/sky.py"}
 ```
 
 `sky.py` also computes the phase of the moon. The page no longer shows it: it said nothing about the weather.
@@ -143,9 +156,9 @@ These limits are our estimate, from the rule of the night above: the air of the 
 `dashboard.py` holds the whole page, in parts that follow its tabs. The Now tab uses these functions:
 
 - `health()` computes the age of the last row and decides whether the station is silent (more than 2 hours);
-- `trend()`, `day_extremes()` and `yesterday_text()` give the change over 3 hours, the minimum and maximum of the day, and the difference with yesterday;
-- `pressure_state()` and `humidity_state()` write the line of meaning of each tile;
-- `forecast()` returns the title, the text, the icon and the details of the forecast; `dew_outlook()` writes the line of the night;
+- `trend()`, `extremes()` and `yesterday_text()` give the change over 3 hours, the minimum and maximum of the last 24 hours, and the difference with yesterday; `extremes_block()` writes the minimum and maximum, alike on the three cards;
+- `pressure_outlook()` and `humidity_state()` write the line of meaning of each tile; `now_condition()` the fog or the dew of the moment;
+- `forecast()` returns the title, the text, the icon and the details of the forecast; `for_the_night()` gives the words and the icon of a night sky; `dew_outlook()` writes the line of the night;
 - `sun_events()` gives the sunrise and the sunset to show; `frost_advice()` the frost warning;
 - `sparkline()` draws a small curve as an SVG image: a text that describes the line, which the browser draws at any size, without any file;
 - `hero()` builds the top card, and `tiles()` the tiles.
@@ -157,7 +170,7 @@ These limits are our estimate, from the rule of the night above: the air of the 
 ::: {.callout-note collapse="true"}
 ## dashboard.py
 
-```{.python include="../../_versions/v1.1.0/backend/paws/paws_server/dashboard.py"}
+```{.python include="../../_versions/v1.2.0/backend/paws/paws_server/dashboard.py"}
 ```
 :::
 
@@ -172,7 +185,7 @@ The rules inside `@media (max-width: 600px)` only apply to a narrow screen, such
 ::: {.callout-note collapse="true"}
 ## style.css
 
-```{.css include="../../_versions/v1.1.0/backend/paws/paws_server/assets/style.css"}
+```{.css include="../../_versions/v1.2.0/backend/paws/paws_server/assets/style.css"}
 ```
 :::
 
@@ -182,8 +195,10 @@ The tests of the dashboard, in `test_dashboard.py`, call its functions directly.
 
 - **the health**: no data, a recent row, a row older than 2 hours;
 - **the computed values**: the dew point, the feels-like temperature only in the heat, the pressure at sea level (in `test_weather.py`);
-- **the lines of the tiles**: the change over 3 hours, the scale of the Met Office for the pressure, the dew point and its comfort word;
-- **the forecast**: the title for each part of the day, the icon, the rain line only when the text does not speak of rain, the line of the night;
+- **the lines of the tiles**: the change over 3 hours, what the change of the pressure brings on the scale of the Met Office, the dew point and its comfort word; the minimum and maximum of the rows of the last 24 hours, across midnight, with their units and times;
+- **the help**: a number kept with its unit, a colon with its word;
+- **the moment**: the fog or the dew only when the air is saturated;
+- **the forecast**: the title for each part of the day, the icon, the words and the moon of a night sky in the evening, the risk of rain only when the text does not speak of rain, the line of the night;
 - **the sun**: the sunrise and the sunset of a known day in Paris (in `test_sky.py`), and the sunrise of tomorrow only after the sunset;
 - **the frost**: a warning when it freezes, and on a cool and dry evening; none at noon, nor on a mild and humid evening.
 
@@ -196,7 +211,7 @@ Without the station, the database of the development computer is empty. A small 
 ::: {.callout-note collapse="true"}
 ## make_test_data.py
 
-```{.python include="../../_versions/v1.1.0/backend/paws/dev/make_test_data.py"}
+```{.python include="../../_versions/v1.2.0/backend/paws/dev/make_test_data.py"}
 ```
 :::
 

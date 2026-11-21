@@ -112,7 +112,22 @@ The dashboard computes $\Delta p$ as the last pressure minus the one of the last
 
 ## On the dashboard
 
-The forecast is written at the bottom of the top card of the [Now tab](02-1-now.qmd#reading-the-values), with an icon of its sky. The original forecaster looks about 12 hours ahead: rather than an hour, the title names the part of the day this covers, from the hour the page is read, such as "Cet après-midi" in the morning or "Demain matin" in the evening. Below the text, a line gives the rain when the text does not speak of it, and from noon, the lowest temperature of the night with the dew or the fog to expect.
+The forecast is written at the bottom of the top card of the [Now tab](02-1-now.qmd#reading-the-values), under the name **Prévision** and with an icon of its sky, apart from the conditions of the moment. The original forecaster looks about 12 hours ahead: rather than an hour, the title names the part of the day this covers, from the hour the page is read, such as "Prévision · Cet après-midi" in the morning or "Prévision · Demain matin" in the evening.
+
+The sentences of the forecaster, a century old, are not those of a weather bulletin of today. The dashboard writes each forecast with the words of the public bulletins, such as those of Météo-France, in French; the table of the 32 numbers keeps the order and the meaning of the original:
+
+| Number | Original | On the dashboard |
+|--------|----------|------------------|
+| 1, 10, 20 | Settled fine | Ensoleillé, temps stable |
+| 12 | Fine, possibly showers | Ensoleillé, averses possibles |
+| 15 | Changeable, some rain | Nuageux, quelques gouttes |
+| 23 | Fairly fine, improving | Éclaircies, en amélioration |
+| 25 | Showery early, improving | Averses puis amélioration |
+| 19, 32 | Stormy, much rain | Tempête, fortes pluies |
+
+"Ensoleillé" (sunny) would be wrong in the dark: when the forecast covers the evening and the night, it becomes "Ciel dégagé" (clear sky), and the sun of its icon a moon.
+
+Below the text, a line gives the risk of rain, *faible*, *moyen* or *fort*, when the text does not speak of it, and in the evening, the lowest temperature of the night with the dew or the fog to expect.
 
 ## Its limits
 
