@@ -357,6 +357,18 @@ body {
     color: var(--muted);
 }
 
+/* On a phone, the line below the curve a little smaller, so that the
+   extremes and the times of the sun share one line */
+@media (max-width: 600px) {
+    .hero-day {
+        font-size: 0.85rem;
+    }
+
+    .sun-events {
+        gap: 10px;
+    }
+}
+
 .sun-event {
     display: inline-flex;
     align-items: center;
@@ -387,6 +399,25 @@ body {
 
 .muted {
     color: var(--muted);
+}
+
+/* The names of the two parts of the top card, "Maintenant" and
+   "Prévision", in small capitals; the part of the moment with the sun or
+   the moon */
+.section-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.section-icon {
+    width: 1.3rem;
+    height: 1.3rem;
 }
 
 /* The forecast of the barometer, at the bottom of the top card, under a
@@ -575,8 +606,9 @@ html:has(.help:not(.hidden)) {
 }
 
 /* Each help button shows the blocks of its tab only */
-.help.station .for-now,
-.help.now .for-station {
+.help.now .explanation:not(.for-now),
+.help.advice .explanation:not(.for-advice),
+.help.station .explanation:not(.for-station) {
     display: none;
 }
 
