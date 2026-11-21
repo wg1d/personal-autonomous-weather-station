@@ -22,6 +22,7 @@
 
 #include "Board.h"
 #include "Console.h"
+#include "I2cBus.h"
 #include "Record.h"
 
 /// I2C address of the INA219 module (A0 and A1 left open)
@@ -71,6 +72,8 @@ private:
             if (ina_.begin()) {
                 return true;
             }
+            // A chip that does not answer may be stuck on the bus: free it
+            freeI2cBus();
             delay(kSensorRetryDelayMs);
         }
         return false;

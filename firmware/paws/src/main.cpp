@@ -36,6 +36,7 @@
 #include "adapters/Ds3231Clock.h"
 #include "adapters/Esp32Power.h"
 #include "adapters/FlashStorage.h"
+#include "adapters/I2cBus.h"
 #include "adapters/SerialLog.h"
 #include "adapters/StationSensors.h"
 #include "adapters/WifiNetwork.h"
@@ -105,6 +106,10 @@ void setup() {
     // and makes it watch setup().
     esp_task_wdt_init(kWatchdogS, true);
     esp_task_wdt_add(nullptr);
+
+    // A chip stopped in the middle of a byte at the previous wake-up may
+    // hold the I2C bus: free it before any chip is read (see I2cBus.h)
+    freeI2cBus();
 
     // Without an answer, the clock reports an invalid time and the safety
     // timer takes over (N2): the station keeps running

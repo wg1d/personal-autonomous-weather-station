@@ -19,6 +19,7 @@
 
 #include "Board.h"
 #include "Console.h"
+#include "I2cBus.h"
 #include "IClock.h"
 
 /// Time of the last setTime(), kept in RTC memory across deep sleep
@@ -44,6 +45,8 @@ public:
         for (int attempt = 0; attempt < kSensorTries && !responding_;
              ++attempt) {
             if (attempt > 0) {
+                // A chip that does not answer may be stuck on the bus
+                freeI2cBus();
                 delay(kSensorRetryDelayMs);
             }
             responding_ = rtc_.begin();
