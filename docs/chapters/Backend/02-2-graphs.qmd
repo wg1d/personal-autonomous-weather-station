@@ -2,7 +2,7 @@
 
 The [first chapter of B2](02-1-now.qmd) builds the page and its Now tab. The second tab, **Courbes** (Graphs), draws the temperature, the humidity and the pressure over a chosen period, from a few hours to several years (BF3 · Dashboard): to see the day that just passed, the weather systems of a week, or the seasons.
 
-> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.1.0/backend/paws)
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.2.0/backend/paws)
 
 ## The tab
 
@@ -11,7 +11,9 @@ The [first chapter of B2](02-1-now.qmd) builds the page and its Now tab. The sec
 From the top to the bottom:
 
 - **The period**: 24 heures, 7 jours, 30 jours or 1 an, and **Aujourd'hui** (today), which comes back to the present.
-- **The steps**: zoom out, the period before, the period shown, the period after, zoom in. While the graphs show the present, the period is written "… → maintenant", and there is no period after.
+- **The steps**: zoom out, the period before, the period shown, the period after, zoom in. While the graphs show the present, there is no period after.
+
+The title of the period fits on one line on a phone (`period_title()`). While the graphs show the present, it is written in words: "Dernières 24 h", "7 derniers jours", "30 derniers jours", "12 derniers mois", or "Dernières 12 h" after a zoom. In the past, it gives the start and the end, with the hours up to 2 days ("13 nov. 23:15 → 14 nov. 23:15", cut before its arrow), the days up to 2 months ("7 → 14 nov."), the months beyond ("nov. 2025 → nov. 2026"). The exact time of each point is in the bubble of the graphs.
 - **The graphs**, one per quantity, one above the other, sharing the same time axis. A dotted line marks each midnight. The graph of the temperature also draws two computed values (see [the computed values](02-1-now.qmd#the-computed-values)): the dew point in violet, and in the heat, the feels-like temperature, dotted.
 
 To move in time, **drag the graphs** to the left or to the right: the three graphs move together. **The mouse wheel** zooms in or out in time, around the mouse; on a phone, which cannot zoom the graphs with two fingers, the zoom buttons do it. Neither goes beyond the data: not after the present, and not before the oldest row once the graphs were dragged.
@@ -40,7 +42,7 @@ A period that ends now is shown whole, even when it starts before the first meas
 
 The graphs read the database with these functions of `database.py`:
 
-```{.python include="../../_versions/v1.1.0/backend/paws/paws_server/database.py"}
+```{.python include="../../_versions/v1.2.0/backend/paws/paws_server/database.py"}
 ```
 
 - **`last_row()`** gives the last measurement, for the Now tab and the health of the station.
