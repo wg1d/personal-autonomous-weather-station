@@ -112,160 +112,127 @@ def dew_comfort(dew):
 # subject, closed until clicked, with its title and its paragraphs
 EXPLANATIONS = [
     ("La pression et sa tendance", [
-        "La pression est le poids de l'air au-dessus de la station. Sa "
-        "valeur seule dit peu de choses : c'est sa variation qui annonce "
-        "le temps.",
-        "Quand elle baisse, une dépression approche : l'air monte, se "
-        "refroidit et forme des nuages, d'où la pluie et le vent. Quand "
-        "elle monte, un anticyclone s'installe : le temps devient plus "
-        "sec et plus calme.",
-        "Variation en 3 heures : moins de 0,1 hPa, stable ; jusqu'à "
-        "1,5 hPa, légère ; jusqu'à 3,5 hPa, nette ; jusqu'à 6 hPa, forte ; "
-        "au-delà, très forte. Ce sont des tendances, pas des prévisions "
-        "sûres.",
-        "La valeur est ramenée au niveau de la mer, comme dans les "
-        "bulletins météo, pour se comparer aux autres villes : 1013 hPa "
-        "en moyenne, moins de 1000 hPa dans une dépression marquée, plus "
+        "La pression est le poids de l'air au-dessus de nous. Elle est "
+        "ramenée au niveau de la mer, comme dans les bulletins météo : "
+        "1013 hPa en moyenne, moins de 1000 hPa dans une dépression, plus "
         "de 1025 hPa dans un anticyclone.",
+        "Ce qui compte, c'est son évolution sur les 3 dernières heures. "
+        "Quand elle baisse, une dépression approche : nuages, pluie et "
+        "vent deviennent probables. Quand elle monte, le temps devient "
+        "plus sec et plus calme.",
+        "La phrase de la case dit ce que cette évolution annonce le plus "
+        "souvent : c'est une tendance, pas une certitude.",
     ]),
     ("Le point de rosée", [
-        "C'est la température à laquelle il faudrait refroidir l'air pour "
-        "qu'il soit saturé d'eau : la vapeur se condense alors en rosée, "
-        "en givre sous 0 °C, ou en brouillard.",
-        "Ce qui compte, c'est l'écart avec la température : moins de "
-        "2 °C, la rosée ou le brouillard sont probables ; un grand écart, "
-        "l'air est sec.",
-        "Il mesure la quantité d'eau dans l'air, et dit le confort : "
-        "moins de 10 °C, air sec ; 10 à 16 °C, confortable ; 16 à 20 °C, "
-        "un peu lourd ; plus de 20 °C, étouffant, avec des orages "
-        "possibles en été.",
-        "Par nuit calme et dégagée, la température descend rarement "
-        "beaucoup sous le point de rosée : il donne une idée du minimum "
-        "de la nuit.",
+        "C'est la température à laquelle l'air devrait se refroidir pour "
+        "que son eau se dépose : en rosée, en givre sous 0 °C, ou en "
+        "brouillard.",
+        "Il dit aussi si l'air est lourd : moins de 10 °C, air sec ; de 10 "
+        "à 16 °C, agréable ; de 16 à 20 °C, un peu lourd ; au-delà, "
+        "étouffant.",
+        "Quand la température s'en approche à moins de 2 °C, la rosée ou "
+        "le brouillard sont probables.",
     ]),
     ("L'humidité relative", [
-        "C'est la vapeur d'eau dans l'air, en pourcentage du maximum que "
-        "l'air peut contenir à sa température. L'air chaud contient plus "
-        "d'eau que l'air froid : la nuit, l'humidité monte souvent "
-        "seulement parce que l'air se refroidit, sans eau en plus.",
-        "Pour savoir si l'air est vraiment humide, le point de rosée est "
-        "plus parlant.",
-    ]),
-    ("Le déficit de pression de vapeur", [
-        "À une température donnée, l'air ne peut contenir qu'une quantité "
-        "maximale de vapeur d'eau. Le déficit est l'écart entre ce maximum "
-        "et ce que l'air contient : la force avec laquelle il « aspire » "
-        "l'eau des plantes, du sol ou du linge. Il s'exprime en "
-        "kilopascals (kPa).",
-        "Contrairement à l'humidité relative, il tient compte de la "
-        "température : à 80 % d'humidité, l'air à 30 °C sèche bien plus "
-        "vite que l'air à 5 °C.",
-        "Pour les plantes : moins de 0,4 kPa, elles transpirent peu, et "
-        "les maladies à champignons se développent bien ; 0,8 à 1,2 kPa "
-        "convient à la plupart des cultures ; au-delà de 1,6 kPa, elles "
-        "ferment leurs pores pour garder leur eau, et poussent moins.",
-    ]),
-    ("L'aération", [
-        "L'air du dehors, une fois entré et réchauffé, garde son eau : sa "
-        "masse de vapeur par mètre cube, l'humidité absolue. Son humidité "
-        "relative, elle, baisse en se réchauffant.",
-        "En hiver, l'air froid et humide du dehors contient souvent moins "
-        "d'eau qu'une pièce à 20 °C et 50 % d'humidité (environ 8,6 g/m³, "
-        "notre référence) : aérer assèche alors la maison, même s'il pleut. "
-        "Le conseil compare l'air du dehors à cette référence, avec une "
-        "marge de 1 g/m³.",
-        "Au-delà de 25 °C dehors, l'air ne rafraîchit plus : mieux vaut "
-        "aérer tôt le matin.",
-    ]),
-    ("Les conseils du soir", [
-        "Le givre sur le pare-brise suit la règle du gel : le soir, quand "
-        "l'air est froid et son point de rosée proche de 0 °C, la voiture "
-        "givre souvent avant le matin.",
-        "Un dîner dehors est proposé de 16 h à 21 h, quand le ressenti est "
-        "entre 18 et 30 °C et qu'aucune pluie n'est annoncée. Ces limites "
-        "sont notre estimation.",
-    ]),
-    ("Les conseils d'arrosage et de linge", [
-        "Le conseil d'arrosage regarde le déficit le plus fort des "
-        "dernières 24 heures : plus il est fort, plus les plantes et le "
-        "sol ont perdu d'eau. La station ne mesure ni la pluie ni "
-        "l'humidité du sol : vérifiez la terre avec le doigt avant "
-        "d'arroser. Il donne aussi le bon moment : le matin jusqu'à 3 "
-        "heures après le lever du soleil, ou le soir à partir de 2 heures "
-        "avant son coucher, quand l'eau s'évapore moins.",
-        "Le conseil de linge regarde le déficit du moment, la rosée et la "
-        "pression : une pression qui baisse vite annonce souvent la pluie. "
-        "Le vent et le soleil sèchent aussi le linge, mais la station ne "
-        "les mesure pas. La nuit, l'air fraîchit et le linge reprend "
-        "l'humidité : le conseil propose de l'étendre 2 heures après le "
-        "lever du soleil, une fois la rosée partie, et de le rentrer une "
-        "heure avant son coucher.",
+        "C'est la quantité d'eau dans l'air, comparée au maximum qu'il "
+        "peut contenir à sa température. L'air froid en contient peu : la "
+        "nuit, l'humidité monte souvent juste parce que l'air se "
+        "refroidit.",
+        "Pour savoir si l'air est vraiment humide, regardez plutôt le "
+        "point de rosée.",
     ]),
     ("La prévision du baromètre", [
-        "Elle vient de la méthode Zambretti, celle des baromètres "
-        "prévisionnistes vendus dès 1915 et des stations météo du "
-        "commerce : la pression ramenée au niveau de la mer et sa "
-        "tendance sur 3 heures donnent l'une de 26 prévisions pour les "
-        "12 heures qui suivent la dernière mesure.",
-        "Une pression haute et stable annonce le beau temps ; une "
-        "pression basse qui baisse, la pluie. La méthode d'origine "
-        "tient aussi compte du vent et de la saison, que la station ne "
-        "mesure pas : c'est une estimation, moins sûre qu'une prévision "
-        "de Météo-France.",
-    ]),
-    ("La tenue et la course à pied", [
-        "La tenue suit la température ressentie : moins de 0 °C, "
-        "manteau, bonnet et gants ; jusqu'à 8 °C, manteau ; jusqu'à "
-        "14 °C, veste ; jusqu'à 19 °C, pull léger ; au-delà, tee-shirt. "
-        "Le parapluie vient de la prévision du baromètre. La station ne "
-        "mesure pas le vent : par jour de vent, ajoutez une couche.",
-        "En courant, le corps se réchauffe, mais pas tout de suite : on "
-        "porte environ une couche de moins que pour sortir. Au-delà de "
-        "30 °C ressentis, le corps se refroidit mal, et mieux vaut "
-        "courir tôt le matin.",
+        "Elle suit la méthode Zambretti, du nom d'un baromètre "
+        "prévisionniste vendu en Angleterre dès 1915, et encore utilisée "
+        "par les stations météo du commerce : la pression et son "
+        "évolution sur 3 heures donnent le temps probable des 12 heures "
+        "suivantes.",
+        "La station ne voit ni le ciel, ni le vent : c'est une estimation, "
+        "moins fiable qu'un bulletin de Météo-France. Le minimum de la "
+        "nuit vient du point de rosée, et vaut par ciel dégagé et sans "
+        "vent.",
     ]),
     ("Le gel", [
-        "La nuit, le sol et les plantes perdent leur chaleur vers le "
-        "ciel, et gèlent avant l'air mesuré à hauteur de l'abri : une "
-        "gelée est possible avec 2 ou 3 °C dans l'abri.",
-        "Par nuit claire et calme, la température descend vers le point "
-        "de rosée, où l'eau de l'air se condense et rend un peu de "
-        "chaleur. Le soir, un point de rosée proche de 0 °C annonce donc "
-        "une gelée possible. Les nuages et le vent la rendent moins "
-        "probable, mais la station ne les mesure pas.",
-    ]),
-    ("La tension", [
-        "La tension de la batterie, en volts, baisse à mesure qu'elle se "
-        "vide : environ 4,2 V pleine, 3,7 V à moitié, 3,3 V vide.",
-        "Elle baisse aussi un peu quand la station consomme, pendant la "
-        "mesure : le minimum de la fin de nuit est le meilleur repère, "
-        "d'un jour à l'autre.",
-    ]),
-    ("La charge en %", [
-        "Une batterie LiPo est vide vers 3,3 V, pas à 0 V : la descendre "
-        "plus bas l'abîme, et son circuit de protection la coupe avant. "
-        "0 % correspond donc à 3,3 V, et 100 % à 4,2 V.",
-        "Entre les deux, le pourcentage est une estimation tirée de la "
-        "tension, avec la table habituelle des fabricants. Sous 3,6 V, "
-        "environ 5 %, un bandeau l'annonce sur la page Maintenant.",
-    ]),
-    ("Le courant", [
-        "Le courant dit dans quel sens l'énergie circule : positif quand "
-        "le panneau solaire charge la batterie, négatif quand la station "
-        "puise dedans.",
-        "Il est mesuré pendant le réveil de la station, qui consomme alors "
-        "environ 45 mA. La nuit, ou par ciel couvert, il est donc négatif. "
-        "Au soleil, il remonte vers 0 : le panneau alimente la station. "
-        "Une batterie pleine ne se charge plus, et le courant dépasse "
-        "rarement 0.",
+        "La nuit, le sol et les plantes se refroidissent plus vite que "
+        "l'air : ils peuvent geler alors que la station mesure encore 2 "
+        "ou 3 °C.",
+        "Le soir, une gelée est donc annoncée comme possible sous 3 °C, "
+        "ou quand l'air est frais et très sec. Les nuages et le vent la "
+        "rendent moins probable, mais la station ne les voit pas.",
     ]),
     ("La température ressentie", [
-        "Au-dessus de 27 °C, l'humidité freine l'évaporation de la sueur : "
-        "le corps se refroidit moins bien, et on a plus chaud que la "
-        "température. La station calcule alors l'indice de chaleur des "
-        "services météo américains.",
+        "Par forte chaleur, l'humidité empêche la sueur de s'évaporer : le "
+        "corps se refroidit mal, et on a plus chaud que ne le dit le "
+        "thermomètre. Le ressenti s'affiche à partir de 27 °C, quand il "
+        "diffère de la température.",
         "Par temps froid, le ressenti dépend surtout du vent, que la "
-        "station ne mesure pas : il n'est pas calculé.",
+        "station ne mesure pas : il n'est pas affiché.",
+    ]),
+    ("Le déficit de pression de vapeur", [
+        "Il dit à quel point l'air est « assoiffé » : plus il est grand, "
+        "plus l'air sèche vite les plantes, le sol et le linge. Il "
+        "s'exprime en kilopascals (kPa).",
+        "Il tient compte de la température, contrairement à l'humidité : "
+        "à 80 % d'humidité, l'air sèche bien plus vite à 30 °C qu'à 5 °C.",
+        "Repères : moins de 0,4 kPa, presque rien ne sèche ; vers 1 kPa, "
+        "le linge sèche bien ; au-delà de 1,6 kPa, les plantes souffrent "
+        "de la sécheresse de l'air.",
+    ]),
+    ("Les conseils d'arrosage et de linge", [
+        "L'arrosage regarde l'air le plus sec des dernières 24 heures. La "
+        "station ne mesure ni la pluie ni la terre : touchez-la avant "
+        "d'arroser. Arrosez tôt le matin ou en soirée, quand l'eau "
+        "s'évapore moins.",
+        "Le linge regarde l'air du moment. Une pression qui baisse vite "
+        "annonce souvent la pluie. Le vent et le soleil sèchent aussi, "
+        "mais la station ne les mesure pas.",
+    ]),
+    ("L'aération", [
+        "L'air qui entre se réchauffe, et son humidité baisse. En hiver, "
+        "l'air froid du dehors contient souvent moins d'eau que celui de "
+        "la maison, même par temps de pluie : aérer assèche alors la "
+        "maison.",
+        "Le conseil compare l'air du dehors à celui d'une pièce à 20 °C "
+        "et 50 % d'humidité. Au-delà de 25 °C dehors, l'air ne "
+        "rafraîchit plus : aérez tôt le matin.",
+    ]),
+    ("Les conseils du soir", [
+        "Le pare-brise : quand une gelée est possible dans la nuit, la "
+        "voiture garée dehors givre souvent avant le matin.",
+        "Le dîner dehors : proposé entre 16 h et 21 h, quand on ressent "
+        "entre 18 et 30 °C et qu'aucune pluie n'est annoncée.",
+    ]),
+    ("La tenue et la course à pied", [
+        "La tenue suit la température ressentie : manteau sous 8 °C, "
+        "veste jusqu'à 14 °C, pull léger jusqu'à 19 °C, tee-shirt "
+        "au-delà. La station ne mesure pas le vent : par jour de vent, "
+        "ajoutez une couche.",
+        "Pour courir, une couche de moins que pour sortir : le corps se "
+        "réchauffe vite. Au-delà de 30 °C ressentis, courez tôt le "
+        "matin.",
+    ]),
+    ("La tension", [
+        "La tension de la batterie baisse à mesure qu'elle se vide : "
+        "4,2 V pleine, environ 3,7 V à moitié, 3,3 V vide.",
+        "Elle varie un peu au fil de la journée. Le bon repère est la "
+        "valeur de la fin de nuit : si elle baisse de jour en jour, le "
+        "panneau solaire ne suffit plus.",
+    ]),
+    ("La charge en %", [
+        "Une batterie de ce type est vide à 3,3 V, pas à 0 V : la vider "
+        "davantage l'abîmerait. Le 0 % correspond donc à 3,3 V, et le "
+        "100 % à 4,2 V.",
+        "Le pourcentage est une estimation tirée de la tension. Sous "
+        "5 %, un bandeau prévient sur la page Maintenant.",
+    ]),
+    ("Le courant", [
+        "Il dit dans quel sens circule l'énergie : positif quand le "
+        "panneau solaire recharge la batterie, négatif quand la station "
+        "la consomme.",
+        "La nuit, il est donc négatif, vers −45 mA, le temps de chaque "
+        "mesure. Au soleil, il remonte vers 0 : le panneau alimente la "
+        "station. Une batterie pleine ne se recharge plus, d'où un "
+        "courant rarement au-dessus de 0.",
     ]),
 ]
 
@@ -290,6 +257,16 @@ EXPLANATION_TABS = {
 }
 
 
+def unbreakable(text):
+    """A text of the help, with non-breaking spaces where French keeps the
+    words together: between a number and its unit ("1013 hPa"), and before
+    ":", which never starts a line. The justified text then never cuts
+    them apart."""
+    text = re.sub(r"(\d) (°C|hPa|kPa|V|mA|%|h|heures)(?!\w)",
+                  "\\1\u00a0\\2", text)
+    return text.replace(" :", "\u00a0:")
+
+
 def explanations():
     """The blocks of EXPLANATIONS: each one opens on a click on its
     title (the <details> element of HTML, without any callback). Each
@@ -298,7 +275,8 @@ def explanations():
     return [html.Details(
                 className=f"explanation for-{EXPLANATION_TABS[title]}",
                 children=[html.Summary(title),
-                          *[html.P(paragraph) for paragraph in paragraphs]])
+                          *[html.P(unbreakable(paragraph))
+                            for paragraph in paragraphs]])
             for title, paragraphs in EXPLANATIONS]
 
 # How the comparison is drawn in the Compare tab: the same color as the

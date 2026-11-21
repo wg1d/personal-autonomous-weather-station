@@ -685,9 +685,14 @@ html:has(.help:not(.hidden)) {
     transform: rotate(90deg);
 }
 
+/* The help justified, with the words cut at the end of a line (in
+   French, the language of the page), so that the gaps stay small on a
+   phone */
 .explanation p {
     color: var(--muted);
     line-height: 1.5;
+    text-align: justify;
+    hyphens: auto;
 }
 
 /* The Graphs tab: period buttons on the left, Today on the right */

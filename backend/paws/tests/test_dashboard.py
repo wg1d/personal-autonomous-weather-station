@@ -26,6 +26,7 @@ from paws_server.dashboard import (build_comparison, build_view,
                                    format_age, health,
                                    midnights, resolution, shown,
                                    parts_of, period_title, pressure_outlook,
+                                   unbreakable,
                                    shown_limits, start_of, trend,
                                    to_timestamp, trend_text,
                                    feels_text, forecast_note, meaning_text,
@@ -737,3 +738,10 @@ def test_heat_only_in_the_day_from_30_felt():
     assert heat_advice(hot, datetime(2026, 7, 1, 23, 0), sun) is None
     assert heat_advice({"feels_like_c": 26.0},
                        datetime(2026, 7, 1, 15, 0), sun) is None
+
+
+def test_help_keeps_numbers_with_their_units():
+    assert unbreakable("moins de 1000 hPa, 5 % et 3 heures : oui") == (
+        "moins de 1000\u00a0hPa, 5\u00a0% et 3\u00a0heures\u00a0: oui")
+    # A word that starts like a unit stays apart
+    assert unbreakable("les 3 Villes") == "les 3 Villes"
