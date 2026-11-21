@@ -341,32 +341,41 @@ body {
     gap: 4px 12px;
 }
 
-.hero-changes {
-    text-align: right;
-    font-size: 0.95rem;
-}
-
-/* Below the curve: the extremes of the day, the sunrise and the sunset */
-.hero-day {
-    font-size: 0.95rem;
-}
-
-.sun-events {
-    display: flex;
-    gap: 14px;
+/* The minimum and maximum of the last 24 hours, below each small curve,
+   written alike on the top card and on the tiles */
+.extremes {
+    margin-top: 6px;
+    font-size: 0.85rem;
+    line-height: 1.4;
     color: var(--muted);
 }
 
-/* On a phone, the line below the curve a little smaller, so that the
-   extremes and the times of the sun share one line */
-@media (max-width: 600px) {
-    .hero-day {
-        font-size: 0.85rem;
-    }
+/* "Sur 24 h", a little smaller than the values below it */
+.extremes-label {
+    font-size: 0.8rem;
+}
 
-    .sun-events {
-        gap: 10px;
-    }
+/* The minimum on the left, the maximum on the right; on a narrow
+   screen, the maximum goes below, rather than cutting either of them */
+.extremes-row {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    column-gap: 12px;
+}
+
+.extremes-row span {
+    white-space: nowrap;
+}
+
+/* The sunrise and the sunset, at the right end of "Maintenant", in
+   the size and the case of the text */
+.sun-events {
+    display: flex;
+    gap: 12px;
+    margin-left: auto;
+    text-transform: none;
+    letter-spacing: normal;
 }
 
 .sun-event {
@@ -391,10 +400,6 @@ body {
 .hero-unit {
     font-size: 1.6rem;
     color: var(--muted);
-}
-
-.hero-line {
-    font-size: 0.95rem;
 }
 
 .muted {
@@ -453,10 +458,6 @@ body {
 .forecast-line {
     color: var(--muted);
     font-size: 0.85rem;
-}
-
-.hero-line:empty {
-    display: none;
 }
 
 /* The small curves: SVG images, stretched to the width of their block */
