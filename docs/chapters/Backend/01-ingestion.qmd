@@ -53,6 +53,8 @@ uvicorn exists with optional extras (`uvicorn[standard]`), which make it a littl
 - the validity flag, `0` or `1`;
 - the values: a number, or an empty field when the sensor did not answer. An empty field becomes `None`, stored as `NULL`, never as `0`: a temperature of 0 °C is a real value.
 
+Since version 1.1.0, `parse_rows()` also accepts the [CSV format v2](../Architecture/Phase-04/00-3-data-and-upload.qmd#data-format-v2), which adds the voltage and the current of the battery: the header of the request tells which format follows, and the rows of v1 are stored with an empty battery. The database gets the two columns at its next start (`ALTER TABLE ... ADD COLUMN`), empty for the rows already stored.
+
 If anything is wrong, it raises a `FormatError` and returns nothing: the request is refused **as a whole**, and no row is stored. The station gets an error, does not move its cursor, and sends the same rows at the next upload. Storing the correct rows and dropping the others would instead lose data without anyone noticing.
 
 ::: {.callout-tip collapse="true"}

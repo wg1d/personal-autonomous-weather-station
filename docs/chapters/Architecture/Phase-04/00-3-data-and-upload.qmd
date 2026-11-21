@@ -26,6 +26,26 @@ A row is about 50 bytes: 96 rows per day represent about 5 KB per day, less than
 
 When new sensors are added, the file format changes: the firmware then writes to a new file (`measurements_v2.csv`) with the new columns. A file never mixes two formats.
 
+## Data Format (v2) {#data-format-v2}
+
+The [battery monitor](../../Outdoor/01-power.qmd#the-battery-monitor) of the outdoor station adds two columns, at the end of the row, in the firmware of version 1.1.0:
+
+```csv
+timestamp,time_valid,temperature_c,humidity_pct,pressure_hpa,battery_v,battery_ma
+2026-11-15T10:15:00Z,1,12.68,82.69,998.43,4.12,-23.30
+```
+
+| Column | Content | Unit |
+|--------|---------|------|
+| `battery_v` | Voltage of the battery | volts (V) |
+| `battery_ma` | Current of the battery: positive when it charges, negative when the station draws from it | milliamperes (mA) |
+
+The columns of v1 keep their place and their meaning: a program that reads the first five columns reads a file of v2 the same way. A sensor that does not answer still gives an empty field, for the battery as for the air.
+
+The rows of v2 go to a new file, `/measurements_v2.csv`, with an upload cursor of its own, `/upload_v2.idx`: a position in bytes only means something in its own file. The file of v1 stays in the memory of the station, with the rows already sent; the delete button of the maintenance page removes it with the others.
+
+Each request starts with the header line of its file: the server tells the two formats apart by it, and accepts both. A station that still writes v1 keeps working.
+
 ## Upload Protocol {#upload-protocol}
 
 The PoC sent the whole CSV file at every upload, and the dummy server overwrote its copy each time. This protocol replaces it with three goals: send only the new rows, never lose data (N1), and survive an interruption at any moment. It is also the **contract with the Phase 5 backend**.
