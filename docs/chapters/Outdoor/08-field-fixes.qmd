@@ -114,7 +114,7 @@ The specification of the I2C bus gives the cure, the *bus clear* ([NXP UM10204](
 
 These lines are also a **diagnostic**. If three chips are silent again while the log says nothing about the bus, the bus was free: the cause is then the power of the modules, or a cable, not a chip stuck in the middle of a byte.
 
-The failure cannot be provoked on the bench: the bus clear was added in version 1.1.0, and its first trace will come from the garden. The [Station tab](../Backend/02-1-now.qmd) of the dashboard lists these lines among the problems of the log, in French.
+The failure cannot be provoked on the bench: the bus clear was added in version 1.1.0, and its first trace will come from the garden. The [Station tab](../Backend/02-7-station.qmd) of the dashboard lists these lines among the problems of the log, in French.
 
 ## Checking it
 
@@ -138,4 +138,4 @@ pixi run api-docs
 
 ## Next Steps
 
-The station now reports its battery, and tells in its log what went wrong. The dashboard shows both in its Station tab, described with the other tabs in [B2 · Dashboard](../Backend/02-1-now.qmd).
+The station now reports its battery, and tells in its log what went wrong. The dashboard shows both in its Station tab: [B2 · Station](../Backend/02-7-station.qmd).

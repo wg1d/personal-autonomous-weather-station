@@ -142,7 +142,7 @@ Over the first week, the voltage at the end of the night, the lowest of the day,
 
 The panel fills the battery again every day, even under the grey sky of November. At night, the current read at each wake-up stays near −45 mA, the station awake; on sunny days, it rises to a few milliamperes above 0: the battery is full, and the charger no longer charges it.
 
-The Station tab of the dashboard draws these curves (see [B2 · Dashboard](../Backend/02-1-now.qmd)).
+The [Station tab](../Backend/02-7-station.qmd) of the dashboard draws these curves.
 
 ## Troubleshooting
 

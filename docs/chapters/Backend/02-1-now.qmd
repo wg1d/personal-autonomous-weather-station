@@ -1,16 +1,17 @@
 # B2 · The Dashboard and the Weather Now {.unnumbered}
 
-Step B1 stores the data of the station on the server. Step B2 shows it in a dashboard, opened in a browser on a computer or a phone of the home network. The dashboard has five tabs, one per chapter of B2:
+Step B1 stores the data of the station on the server. Step B2 shows it in a dashboard, opened in a browser on a computer or a phone of the home network. The dashboard has six tabs, one per chapter of B2:
 
 - **Maintenant** (Now), this chapter: the weather of the moment, and the forecast of the next hours;
 - **Courbes** (Graphs): the curves of temperature, humidity and pressure, from a few hours to several years;
 - **Conseils** (Advice): what to wear, whether to hang out the laundry, whether to water the garden;
+- **Station**: the battery of the station, and the problems told by its log;
 - **Comparer** (Compare): two days, weeks, months or years drawn over each other;
 - **Données** (Data): the export of the measurements, the last backup, and the files of the station sent by hand.
 
 This chapter builds the page itself, then its first tab: the last measurement and the health of the station (BF3 · Dashboard, BF4 · Health of the station), and the values the backend computes from the measurements.
 
-> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.0.0/backend/paws)
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.1.0/backend/paws)
 
 ## The page
 
@@ -37,7 +38,7 @@ The dashboard is served by the backend itself, on the same port as the API: `htt
 
 Dash runs on Flask, an older kind of Python web application, called *WSGI*; FastAPI is an *ASGI* application, its newer version. The `a2wsgi` package lets FastAPI serve the Dash application under `/dashboard`, so that the API and the dashboard share one service and one port (BN2 · Light). `main.py` also reads the place of the station from the environment: its altitude, for the pressure at sea level, and its latitude and longitude, for the sun (see [Setting the Station Location](../Appendix/08-station-location.qmd)):
 
-```{.python include="../../_versions/v1.0.0/backend/paws/paws_server/main.py"}
+```{.python include="../../_versions/v1.1.0/backend/paws/paws_server/main.py"}
 ```
 
 ## The Now tab
@@ -45,18 +46,21 @@ Dash runs on Flask, an older kind of Python web application, called *WSGI*; Fast
 From the top to the bottom:
 
 - **A red warning**, only when the station is silent: after 2 hours without a new row, a red band appears at the top of the page, for example "Aucune nouvelle mesure depuis 3 h 05 min : vérifiez la station." The station uploads every hour: 2 hours without data mean that it missed an upload.
+- **An amber warning**, about the station itself: the air sensor that stopped answering, a battery below 3.6 V, or problems in its log in the last 24 hours (see [the Station tab](02-7-station.qmd)). A cross closes it; it comes back only for a new reason, such as a new problem in the log: the browser keeps the reasons it was closed for.
 - **A blue warning**, only when it freezes, or may freeze in the night (see [Frost](#frost)).
 - **The summary**, on the top card:
-  - today, and the time of the last measurement with a dot, green while the station sends its data, red when it is silent; the station measures every 15 minutes, so the page shows the last measurement, not the weather of this very second;
+  - today, and the time of the last measurement with a dot, green while the station sends its data, red when it is silent; the station measures every 15 minutes, so the page shows the last measurement, not the weather of this very second. Then the charge of the battery, after a small battery icon rather than a word, so that the line fits on the width of a phone;
   - the temperature in large, with its change over 3 hours and the difference with yesterday at the same time on its right;
   - the feels-like temperature, only in the heat, when it differs from the temperature;
   - a small curve of the last 24 hours;
   - the minimum and maximum of the day, and the times of the sunrise and the sunset; after the sunset, the sunset of today and the sunrise of tomorrow;
   - the forecast of the barometer, with an icon, the part of the day it covers, and the dew or the fog to expect.
 - **The Humidity and Pressure tiles**, laid out alike: the value, its change over 3 hours, a small curve of the last 24 hours, one line that tells what the value means, and the minimum and maximum of the day.
-- **The help button** `?`, at the top right, opens a sheet that explains how to read each value, in blocks closed until clicked:
+- **The help button** `?`, at the top right, opens a sheet that explains how to read each value, in blocks closed until clicked; its title and its cross stay at the top while the blocks scroll below them. The Station tab has its own help button, which shows its own block:
 
 ![The help sheet, with its first block open](../../assets/images/B2-1_help_phone.png){width=300}
+
+The weather is the one of the **last measurement of the air**. If the air sensor stops answering, the rows that come keep the battery and the health of the station, but no temperature: the page then keeps the last values the sensor gave, and the amber warning tells their time, such as "Le capteur d'air ne répond plus : valeurs de 10:45.", rather than showing nothing.
 
 The page follows a simple rule: **the tiles tell the present, the forecast tells what comes next.** The Pressure tile says that the pressure is high and falls slowly, not that it will rain; the forecast, at the bottom of the top card, says it.
 
@@ -75,7 +79,7 @@ The sensor measures three quantities: the temperature, the relative humidity and
 
 Each function returns `None` when a measurement it needs is missing.
 
-```{.python include="../../_versions/v1.0.0/backend/paws/paws_server/weather.py"}
+```{.python include="../../_versions/v1.1.0/backend/paws/paws_server/weather.py"}
 ```
 
 These values are not stored: the database keeps only what the station measured. SQLite computes them when the dashboard reads the rows: `database.py` gives the functions of `weather.py` to SQLite (`create_function()`), and the queries call them like functions of SQL. A better formula only needs a new version of the backend: the old measurements then get the new values too.
@@ -105,20 +109,22 @@ The level of the pressure is said low below 1006 hPa, and high above 1020 hPa: t
 | The page is read | The title |
 |------------------|-----------|
 | from midnight to 6:00 | Ce matin (this morning) |
-| from 6:00 to noon | Cet après-midi (this afternoon) |
-| from noon to 18:00 | Ce soir et cette nuit (this evening and night) |
-| from 18:00 to midnight | Demain matin (tomorrow morning) |
+| from 6:00 to 14:00 | Cet après-midi (this afternoon) |
+| from 14:00 to 19:00 | Ce soir et cette nuit (this evening and night) |
+| from 19:00 to midnight | Demain matin (tomorrow morning) |
+
+At noon, the afternoon is still to come: the title only turns to the evening at 14:00.
 
 Below the text of the forecast:
 
 - **the rain**, only when the text does not already speak of it: "Pluie peu probable" under "Beau temps", nothing more under "Beau, averses possibles". A fall of the pressure of more than 3.5 hPa in 3 hours, which the Met Office calls a quick fall, makes rain probable, whatever the text;
-- **the night**, from noon to 6:00: on a clear and calm night, the air seldom cools much below its dew point, where its water condenses and gives back heat. The line gives the dew point as the lowest temperature to expect, with dew, frost or fog "possible on a clear night"; "probable" when the air is already within 2 °C of its dew point. This is a rule of thumb of the forecasters, an estimate: clouds and wind keep the night warmer, and the station measures neither. In the morning, a line appears only when the air is nearly saturated.
+- **the night**, under "Ce soir et cette nuit", "Demain matin" and "Ce matin": on a clear and calm night, the air seldom cools much below its dew point, where its water condenses and gives back heat. The line gives the dew point as the lowest temperature to expect, with dew, frost or fog "possible on a clear night"; "probable" when the air is already within 2 °C of its dew point. This is a rule of thumb of the forecasters, an estimate: clouds and wind keep the night warmer, and the station measures neither. Under "Cet après-midi", a line appears only when the air is nearly saturated. The line starts with "Cette nuit" under "Ce soir et cette nuit", and with "D'ici là" (until then) under the two others: under "Demain matin", "en fin de nuit" would read as the end of tomorrow night.
 
 The icon of the sky comes with each of the 32 forecasts of the method: a sun, a sun and a cloud, a cloud with rain, a cloud with lightning. They are icons of the [Lucide](https://lucide.dev) set, colored for this page: the sun in yellow, the cloud in grey, the rain in the blue of the humidity.
 
 **The sun.** `sky.py` computes the sunrise and the sunset from the date and the position of the station, with the *sunrise equation*: the position of the Earth on its orbit gives the declination of the sun, how far north or south of the equator it stands, then the angle the Earth turns between the sunrise and noon at this latitude. The sun rises when its top edge appears: its centre is then 0.833° below the horizon, its radius plus the bending of light by the air. The result is precise to about a minute.
 
-```{.python include="../../_versions/v1.0.0/backend/paws/paws_server/sky.py"}
+```{.python include="../../_versions/v1.1.0/backend/paws/paws_server/sky.py"}
 ```
 
 `sky.py` also computes the phase of the moon. The page no longer shows it: it said nothing about the weather.
@@ -144,12 +150,14 @@ These limits are our estimate, from the rule of the night above: the air of the 
 - `sparkline()` draws a small curve as an SVG image: a text that describes the line, which the browser draws at any size, without any file;
 - `hero()` builds the top card, and `tiles()` the tiles.
 
-`build_view()` gathers everything the page shows, from the database and the current time: the tests call it directly, without a browser. The callback `update()` calls it when the page opens and every 5 minutes. The help sheet opens and closes in the browser itself, with a small function in JavaScript (a *clientside callback*): there is nothing to ask the server.
+`build_now()` gathers everything the Now and Advice tabs show, from the database, the current time and the end of the log; `build_graphs()` the graphs of the Courbes and Station tabs, for the period shown. The tests call them directly, without a browser. Two callbacks call them: `update_now()` when the page opens and every 5 minutes, `update_graphs()` also when the period shown changes. A drag of the graphs only computes the graphs: on the server, computing the whole page at each drag left the graphs of a phone empty for seconds.
+
+`database.last_row()` gives the last row received, for the health of the station, or, with a column, the last row that has a value for it: `last_row(connection, "temperature_c")` is the last measurement of the air, `last_row(connection, "battery_v")` the last of the battery. `air_note()` writes the warning when the two differ, and `station_banner()` gathers the reasons of the amber warning; `station_key()` sums them up, so that a warning closed by hand stays closed until they change. The help sheet opens and closes in the browser itself, with a small function in JavaScript (a *clientside callback*): there is nothing to ask the server.
 
 ::: {.callout-note collapse="true"}
 ## dashboard.py
 
-```{.python include="../../_versions/v1.0.0/backend/paws/paws_server/dashboard.py"}
+```{.python include="../../_versions/v1.1.0/backend/paws/paws_server/dashboard.py"}
 ```
 :::
 
@@ -164,7 +172,7 @@ The rules inside `@media (max-width: 600px)` only apply to a narrow screen, such
 ::: {.callout-note collapse="true"}
 ## style.css
 
-```{.css include="../../_versions/v1.0.0/backend/paws/paws_server/assets/style.css"}
+```{.css include="../../_versions/v1.1.0/backend/paws/paws_server/assets/style.css"}
 ```
 :::
 
@@ -188,7 +196,7 @@ Without the station, the database of the development computer is empty. A small 
 ::: {.callout-note collapse="true"}
 ## make_test_data.py
 
-```{.python include="../../_versions/v1.0.0/backend/paws/dev/make_test_data.py"}
+```{.python include="../../_versions/v1.1.0/backend/paws/dev/make_test_data.py"}
 ```
 :::
 
@@ -223,6 +231,8 @@ pixi run deploy-backend
 | No sunrise or sunset | The position of the station is missing from `~/paws/station.env` (see [Setting the Station Location](../Appendix/08-station-location.qmd)). |
 | The pressure at sea level equals the measured pressure | The altitude is missing from `~/paws/station.env`. |
 | No forecast | The forecast needs the change of the pressure over 3 hours: it appears 3 hours after the first measurements. |
+| "Le capteur d'air ne répond plus" | The last rows have no values of the air: the BME280 or its cable (see [O7 · Field Fixes](../Outdoor/08-field-fixes.qmd)). The page shows its last values. |
+| A warning closed comes back | It has a new reason: a new problem in the log, or the battery below 3.6 V. |
 | The times are one or two hours off | The server is not set to the local time zone: `timedatectl` on the server shows it, `sudo timedatectl set-timezone Europe/Paris` sets it. |
 
 ## Next Steps
