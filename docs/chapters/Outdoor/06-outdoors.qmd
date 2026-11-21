@@ -54,4 +54,4 @@ From 08:15, the wake-ups follow the alarm of the clock, every 15 minutes, and la
 
 ## Next Steps
 
-The station collects data. The next firmware steps add the battery monitor, the INA219.
+The station collects data. The [next step](07-battery-monitor.qmd) adds the battery monitor, the INA219, which tells how full the battery is.

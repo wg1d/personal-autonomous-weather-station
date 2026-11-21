@@ -142,6 +142,10 @@ website:
             text: "O4 – Shelter"
           - href: chapters/Outdoor/06-outdoors.qmd
             text: "O5 – Outdoors"
+          - href: chapters/Outdoor/07-battery-monitor.qmd
+            text: "O6 – Battery Monitor"
+          - href: chapters/Outdoor/08-field-fixes.qmd
+            text: "O7 – Field Fixes"
       - section: "Appendices"
         contents:
           - section: "Electronics Notes"

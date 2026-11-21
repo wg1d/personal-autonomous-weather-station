@@ -1,0 +1,160 @@
+# O6 · Battery Monitor {.unnumbered}
+
+The station runs on its battery, charged by the sun. Until now, nothing told how full the battery was: a station that empties its battery in December would simply fall silent. The [Power](01-power.qmd#the-battery-monitor) chapter planned a **battery monitor**, the INA219, between the charger and the battery: at each wake-up, it measures the voltage and the current of the battery, and the station sends them with the weather.
+
+This chapter solders and wires the INA219, adds it to the firmware, tests it on the bench, then puts the station back in the garden.
+
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.1.0/firmware/paws)
+
+## Soldering
+
+The generic INA219 module comes with its pins and its screw terminal apart (see the [parts list](02-parts-list.qmd)). Three things are soldered, all **without the battery nearby**:
+
+- **the row of pins** on the side of the I2C bus: VCC, GND, SCL and SDA, where the Grove cable plugs in;
+- **the screw terminal** with two screws, VIN+ and VIN−, on the other side: the current of the battery goes through it;
+- **two wires on the small JST-PH socket** supplied with the second JST-PH cable (see the [wiring](01-power.qmd#wiring)): the battery will plug into this socket. Its + wire goes to VIN−, its − wire to the lever connector.
+
+The battery plug itself is never cut: the two wires of a LiPo battery are always live, and if they touched while being stripped, the battery could heat up, swell, or catch fire. The only cable that is cut is a new JST-PH cable, without any battery at its end.
+
+## Wiring
+
+The wiring follows the [Power](01-power.qmd#wiring) chapter:
+
+- the red wire of the JST-PH cable plugged into the BATT socket of the charger goes into **VIN+**;
+- the + wire of the socket of the battery goes into **VIN−**;
+- the two − wires, of the cable and of the socket, go into a **lever connector**: the − of the battery goes straight back to the charger;
+- a Grove cable joins the pins of the INA219 to the **hub of the sealed box**, where the clock already is.
+
+The current of the battery then flows through the shunt of the INA219, from VIN+ to VIN− when the battery charges. The battery is plugged into its socket **last**, once everything is screwed.
+
+Only the sealed box needs to come indoors: the battery, the charger and the XIAO are in it. The solar panel and the BME280 stay in the shelter. Two cables are unplugged at the box: the plug of the panel, and the Grove cable that goes up to the BME280. The box comes in **just after the hourly upload**: the rows measured since the upload would otherwise stay in the memory of the station (see [the new file](#the-new-file)).
+
+## The firmware
+
+### The adapter
+
+The firmware reads the INA219 with the [Adafruit INA219](https://github.com/adafruit/Adafruit_INA219) library, added to `platformio.ini`:
+
+```{.cpp include="../../_versions/v1.1.0/firmware/paws/src/adapters/Ina219Battery.h"}
+```
+
+- **`setCalibration_16V_400mA()`**: the range of the chip. The battery stays below 4.3 V, and its current, between the panel and the awake station, below 400 mA; the finest step of the chip is then about 0.1 mA.
+- **`getBusVoltage_V()`**: the voltage on the side of the battery, VIN−, against the ground of the station: the voltage of the battery.
+- **`getCurrent_mA()`**: positive from VIN+ to VIN−, from the charger to the battery: positive when the battery charges, negative when the station draws from it.
+- **`powerSave(true)`**: the power-down mode of the chip until the next wake-up, about 6 µA instead of about 1 mA, according to its datasheet. `begin()` wakes it up at the next measurement.
+
+A chip that does not answer at once is asked again, up to three times, 50 ms apart; the [next chapter](08-field-fixes.qmd) explains why.
+
+### One sensor for the core
+
+The core of the firmware knows a single sensor, behind the `ISensor` interface, which gives one `Measurement` per wake-up (see the [ports and adapters](../Architecture/Phase-04/00-4-structure-and-verification.qmd)). The battery adds two fields to the measurement, `batteryV` and `batteryMa`, and a new adapter reads both chips behind the same interface:
+
+```{.cpp include="../../_versions/v1.1.0/firmware/paws/src/adapters/StationSensors.h"}
+```
+
+The state machine does not change. Each part fails on its own: without the BME280, the battery is still read, and the other way round. A value that could not be read stays missing (`NaN`), and becomes an empty field in the CSV row.
+
+### The new file
+
+The row gains two columns: the [data format v2](../Architecture/Phase-04/00-3-data-and-upload.qmd). A file never mixes two formats: the rows of v2 go to a new file, `/measurements_v2.csv`, with an upload cursor of its own, `/upload_v2.idx`, since a position in bytes only means something in its own file. The first row of the new file starts at the cursor 0.
+
+The file of v1 stays in the memory of the station, untouched. Its rows were sent, except those measured since the last upload: the new firmware never sends them. Bringing the box in just after an upload leaves none, or one. The delete button of the maintenance page removes the files of v1 with the others.
+
+The server accepts both formats, told apart by the header of each request (see [B1 · Ingestion](../Backend/01-ingestion.qmd#the-csv-format)): it must be deployed first, before the station sends v2.
+
+## Flashing
+
+The switch of the Grove Shield is set to **OFF** before the USB cable is plugged in, as for every flash (see [Power](01-power.qmd#from-the-charger-to-the-board)).
+
+Outdoors, the station sleeps almost all the time, and its USB port disappears with it: the computer sees no port. Two small buttons on the XIAO itself, on each side of its USB connector, put it in its **programming mode**, where it stays awake and waits for a firmware:
+
+1. hold the **B** button (BOOT);
+2. press and release the **R** button (RESET);
+3. release **B**.
+
+The port appears (`/dev/ttyACM0` on Linux), and the bench version is sent:
+
+```bash
+pixi run pio run -d firmware/paws -e xiao-bench -t upload
+```
+
+After the upload, the XIAO may stay in its programming mode: one press on **R** starts the new firmware.
+
+## On the bench
+
+### On the USB cable
+
+With the switch on OFF, the XIAO runs from the USB cable, and the battery only feeds the charger, through the INA219. The first rows show the voltage of the battery, and a current of 0 mA: the battery gives nothing to the station.
+
+```text
+   BME280 not responding
+-> STORE
+   stored: 2026-11-15T10:04:08Z,1,,,,4.18,0.00
+```
+
+The BME280 does not answer, since its cable is unplugged: its three fields are empty, but the battery is read. The log also shows `restart: power on` after each press on R (see the [next chapter](08-field-fixes.qmd#the-reason-of-a-restart)).
+
+### On the battery
+
+The USB cable is unplugged **first**, then the switch is set to ON: the station now runs from its battery. The bench version uploads every 5 minutes; the rows on the server showed:
+
+| Time (UTC) | Battery | Current |
+|------------|---------|---------|
+| 09:55 → 09:57 | 4.18 V | 0.0 mA (USB, switch OFF) |
+| 09:58 → 10:00 | 4.12 V | −44 mA (battery) |
+
+- **The sign is right**: negative when the station draws from the battery. A positive current here would mean that VIN+ and VIN− are swapped.
+- **−44 mA** is the station awake, Wi-Fi included, close to the 50 mA of the [Power](01-power.qmd#its-limits) chapter.
+- **The voltage falls from 4.18 V to 4.12 V** as soon as the battery gives current: the internal resistance of the battery lowers its voltage under a load. The charge read from the voltage is an estimate for this reason too.
+
+## Back in the garden
+
+The firmware of the station, with the periods of 15 minutes and one hour, is sent the same way, switch on OFF and buttons B and R:
+
+```bash
+pixi run pio run -d firmware/paws -e xiao -t upload
+```
+
+Then, in this order: the USB cable is unplugged, the switch set to ON, the Grove cable of the BME280 and the plug of the panel plugged back, and the box closed in the shelter.
+
+The rows measured on the bench were removed from the database afterwards, as for the bench tests before the data collection: their weather was the one of a room.
+
+### The first rows
+
+The first upload, at the next full hour, brought complete rows, the air and the battery together:
+
+| Time (UTC) | Temperature | Humidity | Pressure | Battery | Current |
+|------------|-------------|----------|----------|---------|---------|
+| 10:15 | 12.68 °C | 82.69 % | 998.43 hPa | 4.12 V | −23.3 mA |
+| 10:30 | 12.84 °C | 82.30 % | 998.26 hPa | 4.15 V | −24.7 mA |
+| 10:45 | 13.04 °C | 82.05 % | 998.24 hPa | 4.15 V | −24.8 mA |
+| 11:00 | 13.36 °C | 81.98 % | 998.03 hPa | 4.15 V | −22.8 mA |
+
+The current is half the one of the bench: the panel gives part of it. The charger, a bq24074, feeds the station from the panel first, and from the battery only for what the panel cannot give: on that grey day, the panel gave about 20 mA, the battery the rest. The current of the battery only becomes positive when the panel gives more than the awake station draws, and the battery is not full.
+
+### The first week
+
+Over the first week, the voltage at the end of the night, the lowest of the day, stayed the same from one morning to the next:
+
+| Morning (06:30 UTC) | 16 Nov | 17 | 18 | 19 | 20 | 21 |
+|---------------------|--------|----|----|----|----|----|
+| Voltage | 4.10 V | 4.10 V | 4.11 V | 4.10 V | 4.10 V | 4.10 V |
+
+The panel fills the battery again every day, even under the grey sky of November. At night, the current read at each wake-up stays near −45 mA, the station awake; on sunny days, it rises to a few milliamperes above 0: the battery is full, and the charger no longer charges it.
+
+The Station tab of the dashboard draws these curves (see [B2 · Dashboard](../Backend/02-1-now.qmd)).
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+|---------|---------------|
+| `INA219 not responding` in the log | Its Grove cable, or its pins: check the soldering and the cable. Its address is 0x40 (A0 and A1 left open): the [Bench Check](../Appendix/06-bench-check.qmd) lists it. |
+| The current is positive at night | VIN+ and VIN− are swapped: VIN+ goes to the charger, VIN− to the battery. |
+| The voltage is near 0 V | The battery does not go through the INA219: check the socket of the battery, and its wire in VIN−. |
+| 0 mA with the station running | The station runs from the USB cable, or the battery is full in the sun: unplug the USB cable and set the switch to ON. |
+| The computer sees no port | The XIAO sleeps: hold B, press R, release B. |
+| Nothing happens after the upload | The XIAO stayed in its programming mode: press R. |
+
+## Next Steps
+
+The [next chapter](08-field-fixes.qmd) gathers what the first weeks outdoors taught: the sensors asked again, the reason of each restart in the log, and an I2C bus that a chip can block.

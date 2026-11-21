@@ -1,0 +1,141 @@
+# O7 · Field Fixes {.unnumbered}
+
+On the bench, the station ran for days without a fault. Outdoors, its log showed, now and then, a wake-up where nothing answered. This chapter gathers three changes of the firmware made from what the station did in the garden: the sensors asked again, the reason of each restart written in the log, and an I2C bus freed when a chip blocks it.
+
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`firmware/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.1.0/firmware/paws)
+
+## What the log showed
+
+The log of each wake-up reaches the server with the measurements (see [Log](../Architecture/Phase-04/06-2-log.qmd)). Twice in its first three weeks outdoors, on 4 and 15 November, one wake-up looked like this one (15 November, times in UTC):
+
+```text
+=== 2026-11-15T19:15:00Z ===
+-> BOOT
+-> MEASURE
+-> STORE
+   stored: 2026-11-15T19:15:00Z,1,12.69,84.54,999.37,4.12,-44.50
+-> SCHEDULE
+   alarm set for 19:30:00
+-> SLEEP
+   awake for 499 ms
+
+=== 1970-01-01T00:00:00Z ===
+   DS3231 not responding
+-> BOOT
+-> MEASURE
+   BME280 not responding
+   INA219 not responding
+-> STORE
+   stored: 1970-01-01T00:00:00Z,0,,,,,
+-> UPLOAD
+   Wi-Fi connected in 699 ms
+   ...
+-> SCHEDULE
+-> SLEEP
+   awake for 12017 ms
+
+=== 2026-11-15T19:45:12Z ===
+-> BOOT
+-> MEASURE
+-> STORE
+   stored: 2026-11-15T19:45:12Z,1,12.62,86.52,999.66,4.12,-44.70
+-> SCHEDULE
+   alarm set for 20:00:00
+```
+
+At 19:30, the alarm of the clock woke the station up, and then **the three chips of the I2C bus were silent together**: the clock, the BME280 and the INA219. Without the clock, the station did not know the time: its row is dated 1970, the start of the time of the computers, and marked as unreliable (`time_valid` 0), so the dashboard does not show it. Without the clock, no alarm could be set either: the **safety timer** of the ESP32 woke the station up 15 minutes later, at 19:45:12, and everything worked again (N2 · Always wake up again, see the [requirements](../Architecture/Phase-04/00-1-requirements.qmd)). One measurement was lost.
+
+The three changes below answer this log.
+
+## The sensors asked again
+
+A chip may miss a request, for example while the bus settles after the wake-up. A row without values is lost for good; a few milliseconds are not. Each chip is now asked up to three times, 50 ms apart, before the log says that it does not answer. The two values are in `Board.h`:
+
+```cpp
+const int kSensorTries = 3;
+const uint32_t kSensorRetryDelayMs = 50;
+```
+
+A chip that answers at once, almost always, costs nothing more. A silent chip costs at most 0.1 s of wake-up, about 0.001 mAh: nothing, next to the 14 mAh a day of the station (see [Power](01-power.qmd)).
+
+The log of 15 November is the one of the firmware that already asked three times: the chips stayed silent. Asking again did not help, because the cause was elsewhere.
+
+## The reason of a restart
+
+A wake-up from the deep sleep is the normal start of the station. Any other start, a power cut, a crash or the watchdog, tells something about the station. The ESP32 keeps the reason of its last start, which `esp_reset_reason()` gives. At the start of each wake-up, `main.cpp` writes it in the log, except for the normal wake-up:
+
+```cpp
+void reportResetReason() {
+    const char* reason = nullptr;
+    switch (esp_reset_reason()) {
+        case ESP_RST_DEEPSLEEP: return;  // the normal wake-up
+        case ESP_RST_POWERON:   reason = "power on"; break;
+        case ESP_RST_EXT:       reason = "reset pin"; break;
+        case ESP_RST_SW:        reason = "restart by the firmware"; break;
+        case ESP_RST_PANIC:     reason = "crash of the firmware"; break;
+        case ESP_RST_INT_WDT:
+        case ESP_RST_TASK_WDT:
+        case ESP_RST_WDT:       reason = "watchdog"; break;
+        case ESP_RST_BROWNOUT:  reason = "brownout, the voltage fell"; break;
+        default:                reason = "unknown"; break;
+    }
+    console.printf("   restart: %s\n", reason);
+}
+```
+
+On the XIAO, the R button and the switch of the Grove Shield both give `restart: power on`, as during the installation of the [battery monitor](07-battery-monitor.qmd). A `watchdog` or a `brownout` outdoors would point to a firmware stuck, or to a battery too weak.
+
+The wake-up of 15 November at 19:30 wrote no reason: it was a normal wake-up from the deep sleep. The station had not restarted; its chips were silent.
+
+## The I2C bus
+
+### Two lines, shared
+
+The clock, the BME280 and the INA219 talk to the ESP32 on the same two wires, the **I2C bus**: SCL, the clock line, and SDA, the data line. Both rest **high**, at 3.3 V, held there by resistors on the modules. To talk, the ESP32 or a chip pulls a line **low**, towards the ground; nobody ever drives a line high, the resistors do. The ESP32 gives the rhythm on SCL, one pulse per bit, and the chips read or write SDA at each pulse.
+
+A chip that answers holds SDA low for the bits 0 of its byte. If the ESP32 stops in the middle, because it went to sleep or restarted while the chip answered, the chip keeps SDA low, and waits for the rest of the pulses. SDA then stays low for every chip: the bus is blocked, and **none of the chips answers**, whatever the number of tries. This is the trace of the log: three chips silent together, a common cause.
+
+### The bus clear
+
+The specification of the I2C bus gives the cure, the *bus clear* ([NXP UM10204](https://www.nxp.com/docs/en/user-guide/UM10204.pdf), section 3.1.16): the ESP32 sends clock pulses on SCL, up to 9, the 8 bits of a byte and its acknowledge, until the chip finishes its byte and releases SDA; then a **STOP condition**, SDA rising while SCL is high, ends the exchange for every chip on the bus.
+
+```{.cpp include="../../_versions/v1.1.0/firmware/paws/src/adapters/I2cBus.h"}
+```
+
+- The pins are set in **open drain** (`OUTPUT_OPEN_DRAIN`) during the clear: the ESP32 only pulls the line low or lets it go, as the chips do. A chip that holds the line low is never driven against.
+- `freeI2cBus()` is called at the start of each wake-up, before the clock is read, and before each new try of a silent chip.
+- When both lines are high, the bus is free, the function writes nothing, and the cost is a few microseconds.
+- When a line was held low, the log tells it, and whether the bus could be freed:
+
+```text
+   I2C bus held low (SDA low, SCL high): freeing it
+   I2C bus freed after 3 clock pulses
+```
+
+These lines are also a **diagnostic**. If three chips are silent again while the log says nothing about the bus, the bus was free: the cause is then the power of the modules, or a cable, not a chip stuck in the middle of a byte.
+
+The failure cannot be provoked on the bench: the bus clear was added in version 1.1.0, and its first trace will come from the garden. The [Station tab](../Backend/02-1-now.qmd) of the dashboard lists these lines among the problems of the log, in French.
+
+## Checking it
+
+The adapters talk to the hardware: they are checked on the board, not by the tests of the computer, which cover the core. Once the station runs version 1.1.0, a normal wake-up must not change: no new line in the log, the same time awake, about half a second without upload. The build of both stations, the tests of the core and the documentation of the API run in the CI, as for every change:
+
+```bash
+pixi run build-firmware
+pixi run test
+pixi run api-docs
+```
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+|---------|---------------|
+| `I2C bus held low` then `freed` | A chip was stuck in the middle of a byte, and the bus was freed: nothing to do. If it comes back often, check the Grove cables. |
+| `I2C bus still held low after 9 clock pulses` | A line stays low: a chip that does not release it, a short circuit, or a module without power. Check the cables and the 3.3 V of the hub. |
+| All the chips silent, and nothing about the bus | The bus was free: the power of the modules, or a cable unplugged. |
+| `restart: brownout, the voltage fell` | The voltage fell below what the ESP32 needs, for example a weak battery when the Wi-Fi starts: check its charge in the Station tab. |
+| `restart: watchdog` | A wake-up lasted more than 10 minutes, and the watchdog restarted the station (see [Robustness](../Architecture/Phase-04/06-1-robustness.qmd)). |
+
+## Next Steps
+
+The station now reports its battery, and tells in its log what went wrong. The dashboard shows both in its Station tab, described with the other tabs in [B2 · Dashboard](../Backend/02-1-now.qmd).
