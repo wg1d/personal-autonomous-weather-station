@@ -68,6 +68,12 @@ pixi run pio run -d firmware/paws -e esp32-bench -t upload
 
 In VS Code with the PlatformIO extension, choose `env:esp32` or `env:esp32-bench` in the status bar.
 
+The outdoor station, on its XIAO ESP32-S3, uses the `xiao` and `xiao-bench` environments. Set the switch of the Grove Shield to OFF before plugging the USB cable. The XIAO sleeps almost all the time, and its USB port disappears with it: hold its **B** button, press and release **R**, then release **B**, and it waits for the firmware. After the upload, press **R** once to start it:
+
+```bash
+pixi run pio run -d firmware/paws -e xiao -t upload
+```
+
 The Proof of Concept sketches (`firmware/PoC/`) are flashed the same way, with their own folder after `-d`.
 
 The Wi-Fi sketches read their credentials from a git-ignored `secrets.h`: copy `secrets.example.h` to `secrets.h` in the sketch folder and fill in your values. If `secrets.h` is missing, `pixi run build-firmware` creates it from the example, with placeholder values that only allow the sketch to compile.
@@ -149,7 +155,7 @@ The primary goal of this project is to build a full, end-to-end weather station,
 | 3 | Wi-Fi & Data Transmission | ESP32 automated Wi-Fi push + phone-based gateway fallback | 🟢 Done |
 | 4 | Firmware Architecture | State machine design + modular firmware rewrite with host tests | 🟢 Done |
 | 5 | Backend MVP | Server at home + SQLite database + dashboard + daily backup | 🟢 Done |
-| 6 | Outdoor station | Soldered board, weatherproof enclosure, radiation shield (Stevenson screen), solar panel + battery, Wi-Fi range | 🟡 In progress (outdoors since October 2026; battery monitor to come) |
+| 6 | Outdoor station | Soldered board, weatherproof enclosure, radiation shield (Stevenson screen), solar panel + battery with its monitor, Wi-Fi range | 🟢 Done (v1.1.0) |
 | 7 | Data collection | The station outdoors for months: power through the seasons, failures, outliers | 🟡 In progress (since 28 October 2026) |
 | 8 | Forecasting | A forecast learned from the data (LSTM), checked against the observed weather; it must beat the barometer forecast (Zambretti method) already on the dashboard | ⬜ Planned |
 | 9 | Sensor: Light | Waterproof BH1750 probe: clear or cloudy sky | 💭 Idea |
