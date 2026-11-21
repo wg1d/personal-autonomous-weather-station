@@ -234,19 +234,30 @@ EXPLANATIONS = [
         "une gelée possible. Les nuages et le vent la rendent moins "
         "probable, mais la station ne les mesure pas.",
     ]),
-    ("La batterie", [
-        "La tension dit la charge de la batterie : environ 4,2 V pleine, "
-        "3,7 V à moitié, 3,3 V presque vide. Le pourcentage affiché est "
-        "une estimation tirée de la tension, avec la table habituelle des "
-        "fabricants de batteries LiPo.",
-        "Le courant est positif quand le panneau solaire charge la "
-        "batterie, négatif quand la station puise dedans. Il est mesuré "
-        "pendant le réveil de la station, qui consomme alors environ "
-        "45 mA : par ciel couvert, le panneau ne suffit pas, et le courant "
-        "reste négatif ; une batterie pleine ne se charge plus, et le "
-        "courant reste proche de 0.",
-        "Sous 3,6 V, la batterie est presque vide : un bandeau l'annonce "
-        "sur la page Maintenant.",
+    ("La tension", [
+        "La tension de la batterie, en volts, baisse à mesure qu'elle se "
+        "vide : environ 4,2 V pleine, 3,7 V à moitié, 3,3 V vide.",
+        "Elle baisse aussi un peu quand la station consomme, pendant la "
+        "mesure : le minimum de la fin de nuit est le meilleur repère, "
+        "d'un jour à l'autre.",
+    ]),
+    ("La charge en %", [
+        "Une batterie LiPo est vide vers 3,3 V, pas à 0 V : la descendre "
+        "plus bas l'abîme, et son circuit de protection la coupe avant. "
+        "0 % correspond donc à 3,3 V, et 100 % à 4,2 V.",
+        "Entre les deux, le pourcentage est une estimation tirée de la "
+        "tension, avec la table habituelle des fabricants. Sous 3,6 V, "
+        "environ 5 %, un bandeau l'annonce sur la page Maintenant.",
+    ]),
+    ("Le courant", [
+        "Le courant dit dans quel sens l'énergie circule : positif quand "
+        "le panneau solaire charge la batterie, négatif quand la station "
+        "puise dedans.",
+        "Il est mesuré pendant le réveil de la station, qui consomme alors "
+        "environ 45 mA. La nuit, ou par ciel couvert, il est donc négatif. "
+        "Au soleil, il remonte vers 0 : le panneau alimente la station. "
+        "Une batterie pleine ne se charge plus, et le courant dépasse "
+        "rarement 0.",
     ]),
     ("La température ressentie", [
         "Au-dessus de 27 °C, l'humidité freine l'évaporation de la sueur : "
@@ -273,7 +284,9 @@ EXPLANATION_TABS = {
     "Les conseils du soir": "advice",
     "Les conseils d'arrosage et de linge": "advice",
     "La tenue et la course à pied": "advice",
-    "La batterie": "station",
+    "La tension": "station",
+    "La charge en %": "station",
+    "Le courant": "station",
 }
 
 
@@ -480,17 +493,47 @@ def resolution(length):
     return "days"
 
 
+def recent_words(length):
+    """The period that ends now, in words, such as "Dernières 24 h",
+    "7 derniers jours" or "12 derniers mois": rounded to hours up to
+    2 days, to days up to 2 months, to months beyond."""
+    hours = round(length.total_seconds() / 3600)
+    if hours < 48:
+        return f"Dernières {hours} h"
+    days = round(hours / 24)
+    if days < 60:
+        return f"{days} derniers jours"
+    months = round(days / (365 / 12))
+    return f"{months} derniers mois"
+
+
 def period_title(view, now):
-    """Writes the period shown in the Graphs tab, above the graphs, with
-    the day of the week: "jeu. 29 oct., 14:30 → ven. 30 oct., 14:30" up to
-    2 days, "mer. 30 sept. 2026 → ven. 30 oct. 2026" beyond. While it
-    shows the present, its end is written "maintenant"."""
+    """Writes the period shown in the Graphs tab, above the graphs, short
+    enough for one line on a phone. While it shows the present, in words
+    (see recent_words()); in the past, its start and its end, with the
+    hours up to 2 days, such as "13 nov. 23:15" and "→ 14 nov. 23:15" on
+    two lines, the days
+    up to 2 months, such as "7 → 14 nov.", the months beyond, such as
+    "nov. 2025 → nov. 2026". The exact times are in the bubble of the
+    graphs."""
     start, stop = shown(view, now)
+    if view["end"] is None:
+        return recent_words(stop - start)
     first, last = to_local(start), to_local(stop)
-    form = "%a %d %b, %H:%M" if stop - start <= timedelta(days=2) \
-        else "%a %d %b %Y"
-    end = "maintenant" if view["end"] is None else french_date(last, form)
-    return f"{french_date(first, form)} → {end}"
+    if stop - start <= timedelta(days=2):
+        # Too long for one line on a phone: cut before the arrow, rather
+        # than anywhere
+        return [french_date(first, '%-d %b %H:%M'), html.Br(),
+                f"→ {french_date(last, '%-d %b %H:%M')}"]
+    if stop - start < timedelta(days=60):
+        if first.year != last.year:
+            return (f"{french_date(first, '%-d %b %Y')} → "
+                    f"{french_date(last, '%-d %b %Y')}")
+        if first.month == last.month:
+            return f"{first.day} → {french_date(last, '%-d %b')}"
+        return (f"{french_date(first, '%-d %b')} → "
+                f"{french_date(last, '%-d %b')}")
+    return f"{french_date(first, '%b %Y')} → {french_date(last, '%b %Y')}"
 
 
 def span_label(start, stop):
@@ -1522,6 +1565,15 @@ def moved(values, points, offset):
             for row in values]
 
 
+# The quantities drawn over a long period with one value of each day,
+# without band, and which one: the band of the battery mixes its night and
+# its day. The voltage at the end of the night, its lowest, tells its
+# health from one day to the next; the mean current tells whether the day
+# charged the battery (above 0) or emptied it (below)
+DAILY_ONLY = {"battery_v": ("min", "minimum du jour"),
+              "battery_ma": ("avg", "moyenne du jour")}
+
+
 def _curves(values, points, quantity, axes, label=None, compared=False):
     """The curves of one quantity, for one period.
 
@@ -1554,6 +1606,11 @@ def _curves(values, points, quantity, axes, label=None, compared=False):
                  "x": [row["local_time"] for row in values],
                  "y": [row[column] for row in values]}]
     x = [day["day"] for day in values]
+    if column in DAILY_ONLY:
+        daily, words = DAILY_ONLY[column]
+        return [{**common, "x": x, "line": line,
+                 "y": [day[f"{column}_{daily}"] for day in values],
+                 "name": f"{title} : {words}"}]
     curves = []
     if not compared:
         # The minimum first, without a line, then the maximum, filled down
@@ -1594,9 +1651,12 @@ def graph_title(quantity, extras, days=False):
     names of the computed quantities drawn with it, in their color:
     "Point de rosée · Ressenti (pointillés, dès 27 °C)". With days (one
     point per day), a line below the name tells how to read the band."""
-    _, name, unit, _ = quantity
+    column, name, unit, _ = quantity
     title = f"{name} ({unit})"
-    if days:
+    if days and column in DAILY_ONLY:
+        title += ("<br><span style='font-size:13px'>"
+                  f"{DAILY_ONLY[column][1]}</span>")
+    elif days:
         title += ("<br><span style='font-size:13px'>bande : min – max du "
                   "jour</span>")
     names = []
@@ -1899,9 +1959,10 @@ BATTERY_LOW_V = 3.6
 
 # The days of the log shown in the Station tab, and the part of the end of
 # the log that is read for them: the log grows by about 33 KB a day (600
-# KB in 18 days on the server), about 230 KB for 7 days
-LOG_DAYS = 7
-LOG_TAIL_BYTES = 256 * 1024
+# KB in 18 days on the server), about 100 KB for 3 days. Older problems
+# are in the whole log, which the tab downloads
+LOG_DAYS = 3
+LOG_TAIL_BYTES = 128 * 1024
 # The problems of the last hours are told on the Now tab, from a shorter
 # end of the log: the Now tab is the first page opened
 LOG_RECENT = timedelta(hours=24)
@@ -1933,16 +1994,20 @@ def battery_charge(voltage):
 
 
 def battery_tile(battery, now):
-    """The Battery tile of the Station tab: (headline, lines), such as
-    ("4,12 V · environ 95 %", ["Mesure de 11:15"]), from the last row
-    with a value of the battery (see database.last_row())."""
+    """The Battery tile of the Station tab: (headline, lines, state), such
+    as ("4,12 V · environ 95 %", ["Mesure de 11:15"], "ok"), from the last
+    row with a value of the battery (see database.last_row()). state is
+    the one of the status line of the other tabs: "ok", or "stale" after
+    STALE_AFTER without a new measurement; None without measurement."""
     if battery is None:
         return ("Pas encore de mesure",
                 ["La station n'envoie pas encore la tension de sa "
-                 "batterie : l'INA219 n'est pas encore installé."])
+                 "batterie : l'INA219 n'est pas encore installé."], None)
     voltage = battery["battery_v"]
+    age = now - parse_timestamp(battery["timestamp"])
     return (f"{number(voltage, 2)} V · environ {battery_charge(voltage)} %",
-            [f"Mesure de {measured_at(battery, now)}"])
+            [f"Mesure de {measured_at(battery, now)}"],
+            "stale" if age > STALE_AFTER else "ok")
 
 
 def problem_text(line):
@@ -2047,7 +2112,8 @@ def station_key(battery, recent_problems, note=""):
 
 
 def build_station(connection, log_text, now, problems=None):
-    """Computes the tiles of the Station tab: "battery" (headline, lines),
+    """Computes the tiles of the Station tab: "battery" (headline, lines,
+    state),
     and "log": (ok, headline, lines), from the end of the log, log_text,
     or from its problems already found (problems, see log_problems() and
     log_tile())."""
@@ -2959,9 +3025,14 @@ def create_dashboard(open_database, log_path, backup_status,
                                    station_problems(now))
         finally:
             connection.close()
-        headline, lines = result["battery"]
+        headline, lines, state = result["battery"]
+        # The time of the measurement as in the other tabs: a dot, green,
+        # or red when the station is silent
         battery = [html.Div(headline, className="tile-headline"),
                    *[html.Div(line, className="tile-line muted")
+                     if state is None else
+                     html.Div([html.Span(className="dot"), line],
+                              className=f"status {state}")
                      for line in lines]]
         ok, headline, lines = result["log"]
         # A dot, green or red, before the headline, as for the health of
