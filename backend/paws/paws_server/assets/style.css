@@ -290,6 +290,12 @@ body {
     font-size: 0.85rem;
 }
 
+/* The charge of the battery in the status line: its icon and its value
+   never part, at the end of the line or on the next one */
+.status-battery {
+    white-space: nowrap;
+}
+
 /* The icon of the battery in the status line, the height of its text */
 .status-icon {
     display: inline-block;
@@ -960,6 +966,12 @@ button:disabled {
 
     .hero-value {
         font-size: 3.4rem;
+    }
+
+    /* A smaller status line on a phone, so that it fits on one line,
+       even with a battery at 100 % */
+    .status {
+        font-size: 0.8rem;
     }
 
     .steps {

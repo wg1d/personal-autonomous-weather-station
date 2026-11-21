@@ -2687,11 +2687,12 @@ def create_dashboard(open_database, log_path, backup_status,
         status = [html.Span(className="dot"), result["status"]]
         if result["battery"] is not None:
             # The charge of the battery, after an icon rather than a word,
-            # so that the line fits on the width of a phone
-            status += [" · ", html.Span(className="icon icon-station "
-                                        "status-icon",
-                                        title="Charge de la batterie"),
-                       f"{result['battery']} %"]
+            # so that the line fits on the width of a phone, and kept
+            # in one piece, which never breaks between the icon and "%"
+            status += [" · ", html.Span(className="status-battery", children=[
+                html.Span(className="icon icon-station status-icon",
+                          title="Charge de la batterie"),
+                f"{result['battery']} %"])]
         frost_class = "frost" if result["frost"] else "frost hidden"
         # The advice reads the last measurement of the air: its time, red
         # when the station is silent or the air sensor stopped answering
