@@ -264,7 +264,7 @@ def test_condition_of_the_moment_only_for_a_saturated_air():
 def test_temperature_against_yesterday():
     last = {"temperature_c": 17.1}
     assert yesterday_text(last, {"temperature_c": 15.0}) == (
-        "+2,1 °C vs hier")
+        "+2,1 °C par rapport à hier à cette heure")
     assert yesterday_text(last, None) == ""
 
 
@@ -326,12 +326,13 @@ def test_trend_text():
 
 
 def test_pressure_tells_what_its_change_brings():
-    assert pressure_outlook(0.04) == "Stable : peu de changement du temps"
-    assert pressure_outlook(1.5) == (
-        "En légère hausse : peu de changement du temps")
-    assert pressure_outlook(-2.0) == "En baisse : le temps se dégrade souvent"
-    assert pressure_outlook(-4.1) == "En forte baisse : pluie et vent probables"
-    assert pressure_outlook(-6.5) == "En très forte baisse : risque de tempête"
+    assert pressure_outlook(0.04) == "Tendance : peu de changement du temps"
+    assert pressure_outlook(1.5) == "Tendance : peu de changement du temps"
+    assert pressure_outlook(2.0) == "Tendance : amélioration probable"
+    assert pressure_outlook(-2.0) == (
+        "Tendance : le temps se dégrade souvent")
+    assert pressure_outlook(-4.1) == "Tendance : pluie et vent probables"
+    assert pressure_outlook(-6.5) == "Tendance : risque de tempête"
     assert pressure_outlook(None) == ""
 
 
@@ -358,8 +359,12 @@ def test_extremes_over_the_rows_of_the_last_24_hours():
     # The same rows as the small curve, across midnight
     assert extremes(rows, "temperature_c") == (
         (2.0, "23:45"), (15.9, "14:00"))
-    assert extremes_text(rows, "temperature_c") == (
-        "Sur 24 h : min 2,0 à 23:45 · max 15,9 à 14:00")
+    assert extremes_text(rows, "temperature_c", "°C") == (
+        "min 2,0 °C à 23:45", "max 15,9 °C à 14:00")
+    assert extremes_text([{"local_time": "2026-10-05 04:45:00",
+                           "sea_level_hpa": 1014.24}], "sea_level_hpa",
+                         "hPa")[0] == "min 1014,2 hPa à 04:45"
+    assert extremes_text([], "temperature_c", "°C") is None
     assert extremes([], "temperature_c") is None
 
 

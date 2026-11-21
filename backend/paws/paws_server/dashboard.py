@@ -595,29 +595,26 @@ def extremes(rows, column):
 # tendencies, not forecasts: the sentences say "often" or "probable"
 PRESSURE_STEADY = 0.1
 PRESSURE_OUTLOOK = [
-    (1.5, "En légère hausse : peu de changement du temps",
-     "En légère baisse : peu de changement du temps"),
-    (3.5, "En hausse : amélioration probable",
-     "En baisse : le temps se dégrade souvent"),
-    (6.0, "En forte hausse : éclaircies, souvent avec du vent",
-     "En forte baisse : pluie et vent probables"),
-    (None, "En très forte hausse : vent fort probable",
-     "En très forte baisse : risque de tempête"),
+    (1.5, "peu de changement du temps", "peu de changement du temps"),
+    (3.5, "amélioration probable", "le temps se dégrade souvent"),
+    (6.0, "éclaircies, souvent avec du vent", "pluie et vent probables"),
+    (None, "vent fort probable", "risque de tempête"),
 ]
 
 
 def pressure_outlook(change):
-    """What the change of the pressure over 3 hours (in hPa) usually
-    brings, for the Pressure tile, such as "En baisse : le temps se
-    dégrade souvent"; "" without change."""
+    """What the change of the pressure over 3 hours (in hPa), written on
+    the right of the tile, usually brings, such as "Tendance : le temps
+    se dégrade souvent"; "" without change. The change itself is not
+    repeated."""
     if change is None:
         return ""
     size = round(abs(change), 1)
     if size < PRESSURE_STEADY:
-        return "Stable : peu de changement du temps"
+        return "Tendance : peu de changement du temps"
     for limit, rising, falling in PRESSURE_OUTLOOK:
         if limit is None or size <= limit:
-            return rising if change > 0 else falling
+            return "Tendance : " + (rising if change > 0 else falling)
 
 
 def humidity_state(last):
@@ -1084,32 +1081,32 @@ def sparkline(rows, column, color):
 # The period of the small curves and of their extremes, written once below
 # each curve
 SPAN_LABEL = "Sur 24 h"
-# The same, shorter, on the top card, where it shares its line with the
-# times of the sun
-SPAN_SHORT = "24 h"
 
 
-def extremes_text(rows, column):
-    """The minimum and maximum of the last 24 hours, such as "Sur 24 h :
-    min 7,0 à 02:30 · max 18,4 à 11:45", or "" without values: the same
-    period as the small curve above them."""
+def extremes_text(rows, column, unit):
+    """The minimum and maximum of the last 24 hours, with their units and
+    times, such as ("min 7,0 °C à 02:30", "max 18,4 °C à 11:45"), or None
+    without values: the same period as the small curve above them."""
     pair = extremes(rows, column)
     if pair is None:
-        return ""
+        return None
     (low, low_time), (high, high_time) = pair
-    return (f"{SPAN_LABEL} : min {number(low)} à {low_time} · "
-            f"max {number(high)} à {high_time}")
+    return (f"min {number(low)} {unit} à {low_time}",
+            f"max {number(high)} {unit} à {high_time}")
 
 
-def extremes_short(rows, column):
-    """The minimum and maximum of the last 24 hours, in short, such as
-    "24 h : min 7,0° · max 18,4°", or "" without values. Arrows would
-    read as the change of the temperature, written above with them."""
-    pair = extremes(rows, column)
-    if pair is None:
-        return ""
-    (low, _), (high, _) = pair
-    return f"{SPAN_SHORT} : min {number(low)}° · max {number(high)}°"
+def extremes_block(rows, column, unit):
+    """The extremes below a curve, alike on the top card and on the tiles:
+    "Sur 24 h" in small, then the minimum and the maximum side by side,
+    in two columns (see extremes_text()); nothing without values."""
+    texts = extremes_text(rows, column, unit)
+    if texts is None:
+        return []
+    return [html.Div(className="extremes", children=[
+        html.Div(SPAN_LABEL, className="extremes-label"),
+        html.Div(className="extremes-row",
+                 children=[html.Span(text) for text in texts]),
+    ])]
 
 
 def curve(rows, column, color):
@@ -1158,39 +1155,38 @@ def sun_marks(sun):
 
 def hero(last, rows, forecast=None, yesterday="", sun=(), daylight=True):
     """The top of the Now tab, the summary, laid out as the tiles: the
-    temperature in large, with its change and the comparison with
-    yesterday (yesterday, see yesterday_text()) on its right, the
-    feels-like temperature when it differs, its curve, then the extremes
-    of the day and the sunrise and sunset (sun, see sun_events()) on one
-    line, then the forecast of the barometer (see forecast()). The two
-    parts are named, "Maintenant" and "Prévision", each with the icon of
-    its sky: for the moment, the sun or the moon (daylight), since the
-    station does not see the clouds."""
+    name "Maintenant", with the sun or the moon (daylight), since the
+    station does not see the clouds, and on its right the sunrise and
+    sunset (sun, see sun_events()); the temperature in large, with its
+    change over 3 hours on its right; its curve; then, as the line of
+    meaning of a tile, the comparison with yesterday (yesterday, see
+    yesterday_text()) and the feels-like temperature when it differs,
+    then the extremes; at the bottom, the forecast of the barometer (see
+    forecast())."""
     if last is None:
         return []
     column, _, unit, color = QUANTITIES[0]
     value = "–" if last[column] is None else number(last[column])
+    meaning = " · ".join(text for text in (yesterday, feels_text(last))
+                         if text)
     return [
         html.Div(className="section-label", children=[
             html.Img(src="/dashboard/assets/icons/sky-"
                      + ("sun" if daylight else "moon") + ".svg",
                      alt="", className="section-icon"),
-            "Maintenant"]),
+            "Maintenant",
+            html.Div(sun_marks(sun), className="sun-events"),
+        ]),
         html.Div(className="hero-row", children=[
             html.Div(className="hero-value", children=[
                 value, html.Span(f" {unit}", className="hero-unit")]),
-            html.Div(className="hero-changes", children=[
-                html.Div(trend_text(trend(rows, last, column), unit)),
-                html.Div(yesterday, className="muted"),
-            ]),
+            html.Div(trend_text(trend(rows, last, column), unit),
+                     className="tile-line"),
         ]),
-        html.Div(feels_text(last), className="hero-line"),
-        html.Div(now_condition(last), className="hero-line"),
         *curve(rows, column, color),
-        html.Div(className="hero-row hero-day", children=[
-            html.Div(extremes_short(rows, column)),
-            html.Div(sun_marks(sun), className="sun-events"),
-        ]),
+        html.Div(meaning, className="tile-line"),
+        html.Div(now_condition(last), className="tile-line"),
+        *extremes_block(rows, column, unit),
         *forecast_block(forecast),
     ]
 
@@ -1233,8 +1229,7 @@ def tiles(last, rows, changes):
             *curve(rows, column, color),
             html.Div(meaning_text(last, column, changes.get(column)),
                      className="tile-line"),
-            html.Div(extremes_text(rows, column),
-                     className="tile-line muted"),
+            *extremes_block(rows, column, unit),
         ]))
     return result
 
@@ -1405,14 +1400,15 @@ def forecast(last, changes, local_now):
 
 def yesterday_text(last, yesterday):
     """The temperature now against yesterday at the same time, such as
-    "+2,1 °C vs hier", or "" without a row of yesterday."""
+    "+2,1 °C par rapport à hier à cette heure", or "" without a row of
+    yesterday."""
     if yesterday is None or last["temperature_c"] is None \
             or yesterday["temperature_c"] is None:
         return ""
     change = last["temperature_c"] - yesterday["temperature_c"]
     if round(change, 1) == 0:
-        return "comme hier"
-    return f"{number(change, sign=True)} °C vs hier"
+        return "Comme hier à cette heure"
+    return f"{number(change, sign=True)} °C par rapport à hier à cette heure"
 
 
 # Frost: the ground, and the plants on it, cool down below the air
