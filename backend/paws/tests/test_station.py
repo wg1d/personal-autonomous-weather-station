@@ -35,11 +35,15 @@ def test_charge_of_the_battery_from_its_voltage():
 
 def test_battery_tile_gives_the_voltage_and_its_time():
     battery = {"timestamp": "2026-11-14T21:45:00Z", "battery_v": 4.12}
-    headline, lines = battery_tile(battery, NOW)
+    headline, lines, state = battery_tile(battery, NOW)
     assert headline == "4,12 V · environ 90 %"
-    assert lines[0].startswith("Mesure de ")
-    headline, lines = battery_tile(None, NOW)
+    assert lines[0].startswith("Mesure de ") and state == "ok"
+    # After 2 hours without a new measurement, the dot turns red
+    old = {"timestamp": "2026-11-14T08:00:00Z", "battery_v": 4.12}
+    assert battery_tile(old, NOW)[2] == "stale"
+    headline, lines, state = battery_tile(None, NOW)
     assert headline == "Pas encore de mesure" and "INA219" in lines[0]
+    assert state is None
 
 
 def test_air_note_when_the_last_rows_have_no_air():
@@ -66,10 +70,10 @@ def test_problems_in_french_newest_first():
     assert shown[-1][1] == "Redémarrage : chute de tension"
     assert shown[1] == ("après 12 nov. 09:00", "DS3231 ne répond pas")
     ok, headline, lines = log_tile(shown)
-    assert not ok and headline == "4 problèmes sur 7 jours"
+    assert not ok and headline == "4 problèmes sur 3 jours"
     # Every problem is listed: the box scrolls
     assert len(lines) == 4
-    assert log_tile([]) == (True, "Aucun problème sur 7 jours", [])
+    assert log_tile([]) == (True, "Aucun problème sur 3 jours", [])
 
 
 def test_log_read_from_the_start_of_an_entry(tmp_path):

@@ -25,7 +25,7 @@ from paws_server.dashboard import (build_comparison, build_view,
                                    heat_advice,
                                    format_age, health,
                                    midnights, resolution, shown,
-                                   parts_of, pressure_outlook,
+                                   parts_of, period_title, pressure_outlook,
                                    shown_limits, start_of, trend,
                                    to_timestamp, trend_text,
                                    feels_text, forecast_note, meaning_text,
@@ -393,6 +393,31 @@ def test_long_silence_is_counted_in_days():
 
 
 # --- Navigation ----------------------------------------------------------------
+
+def test_period_title_fits_on_one_line():
+    now = datetime(2026, 11, 14, 22, 0, tzinfo=timezone.utc)
+    assert period_title({"length": 86400, "end": None}, now) == (
+        "Dernières 24 h")
+    assert period_title({"length": 7 * 86400, "end": None}, now) == (
+        "7 derniers jours")
+    assert period_title({"length": 365 * 86400, "end": None}, now) == (
+        "12 derniers mois")
+    assert period_title({"length": 12 * 3600, "end": None}, now) == (
+        "Dernières 12 h")
+    # In the past: the hours, the days, or the months
+    short = period_title({"length": 86400, "end": "2026-11-14T10:00:00Z"},
+                         now)
+    assert (short[0], short[2]) == ("13 nov. 10:00", "→ 14 nov. 10:00")
+    assert period_title({"length": 7 * 86400,
+                         "end": "2026-11-14T10:00:00Z"}, now) == (
+        "7 → 14 nov.")
+    assert period_title({"length": 30 * 86400,
+                         "end": "2026-11-14T10:00:00Z"}, now) == (
+        "15 oct. → 14 nov.")
+    assert period_title({"length": 365 * 86400,
+                         "end": "2026-11-14T10:00:00Z"}, now) == (
+        "nov. 2025 → nov. 2026")
+
 
 def test_period_shown_ends_now_by_default():
     start, stop = shown({"length": 7 * 86400, "end": None}, NOW)
