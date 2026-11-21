@@ -36,6 +36,7 @@ import base64
 import calendar
 import math
 import os
+import re
 from datetime import date, datetime, timedelta, timezone
 from urllib.parse import quote
 
@@ -1787,6 +1788,18 @@ def problem_text(line):
         return "Wi-Fi injoignable"
     if line == "NTP not answering":
         return "L'heure par internet (NTP) ne répond pas"
+    # The I2C bus freed by the firmware (see its I2cBus.h), such as
+    # "I2C bus held low (SDA low, SCL high): freeing it"
+    held = re.match(r"I2C bus held low \(SDA (\w+), SCL (\w+)\)", line)
+    if held:
+        level = {"low": "bas", "high": "haut"}
+        return (f"Bus I2C bloqué (SDA {level.get(held.group(1), '?')}, "
+                f"SCL {level.get(held.group(2), '?')}) : débloqué par la "
+                "station")
+    still = re.match(r"I2C bus still held low after (\d+) clock pulses", line)
+    if still:
+        return (f"Bus I2C toujours bloqué après {still.group(1)} "
+                "impulsions : vérifiez les câbles et l'alimentation")
     return line
 
 

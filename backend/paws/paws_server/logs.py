@@ -73,7 +73,7 @@ def merge(path, text):
 # words written by the firmware (see its console messages)
 PROBLEMS = ("not responding", "timed out", "cannot ", "not mounted",
             "NOT stored", "not answering", "not reachable", "too long",
-            "restart:")
+            "restart:", "I2C bus held low", "still held low")
 # The answer of the server to an upload, such as "server answered 400"
 ANSWER = re.compile(r"server answered (\d+)")
 # The time of an entry, in its first line

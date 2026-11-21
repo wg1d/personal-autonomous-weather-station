@@ -95,3 +95,18 @@ def test_banner_for_the_air_a_low_battery_or_recent_problems():
     assert station_key(full, problem) != station_key(
         full, [("21:15", "BME280 ne répond pas")] + problem)
 
+
+def test_i2c_bus_freed_by_the_station_is_a_problem():
+    log = """=== 2026-11-15T19:30:00Z ===
+   I2C bus held low (SDA low, SCL high): freeing it
+   I2C bus freed after 3 clock pulses
+=== 2026-11-15T19:45:00Z ===
+   I2C bus held low (SDA low, SCL low): freeing it
+   I2C bus still held low after 9 clock pulses
+"""
+    shown = log_problems(log, datetime(2026, 11, 7, tzinfo=timezone.utc))
+    assert [text for _, text in shown] == [
+        "Bus I2C toujours bloqué après 9 impulsions : vérifiez les câbles "
+        "et l'alimentation",
+        "Bus I2C bloqué (SDA bas, SCL bas) : débloqué par la station",
+        "Bus I2C bloqué (SDA bas, SCL haut) : débloqué par la station"]
