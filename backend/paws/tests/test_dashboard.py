@@ -12,7 +12,8 @@ from paws_server.dashboard import (build_comparison, build_view,
                                    clothes_advice, running_advice,
                                    compare_after_move,
                                    compare_dates, coverage_text,
-                                   day_extremes,
+                                   extremes, extremes_text,
+                                   now_condition,
                                    dew_comfort, forecast, french_date,
                                    frost_advice, number,
                                    stored_text, sun_events, value_range,
@@ -22,7 +23,7 @@ from paws_server.dashboard import (build_comparison, build_view,
                                    watering_advice,
                                    format_age, health,
                                    midnights, resolution, shown,
-                                   parts_of, pressure_state,
+                                   parts_of, pressure_outlook,
                                    shown_limits, start_of, trend,
                                    to_timestamp, trend_text,
                                    feels_text, forecast_note, meaning_text,
@@ -154,9 +155,9 @@ def test_clothes_repeat_the_forecast():
     assert forecast_note(fair, {"dew_point_c": 5.0}) == (
         "Cet après-midi, assez beau, s'améliorant : prévoyez une couche à "
         "retirer.")
-    evening = ("Demain matin", "Beau temps", "sun", [])
+    evening = ("Demain matin", "Ensoleillé", "sun", [])
     assert forecast_note(evening, {"dew_point_c": 4.6}) == (
-        "La nuit, vers 5 °C au plus bas : couvrez-vous si vous rentrez "
+        "Cette nuit, minimum vers 5 °C : couvrez-vous si vous rentrez "
         "tard.")
     rain = ("Cet après-midi", "Pluie fréquente", "cloud-rain", [])
     assert forecast_note(rain, {"dew_point_c": 5.0}) is None
@@ -206,15 +207,16 @@ def test_forecast_names_the_part_of_the_day_ahead():
             "dew_point_c": 6.2}
     steady = {"sea_level_hpa": 0.0}
     assert forecast(last, steady, datetime(2026, 7, 1, 10, 30)) == (
-        "Cet après-midi", "Beau temps stable", "sun",
-        ["Pluie peu probable"])
+        "Cet après-midi", "Ensoleillé, temps stable", "sun",
+        ["Risque de pluie : faible"])
     # At noon and in the early afternoon, the afternoon is still to come
     assert forecast(last, steady, datetime(2026, 7, 1, 12, 5))[0] == (
         "Cet après-midi")
     assert forecast(last, steady, datetime(2026, 7, 1, 13, 50))[0] == (
         "Cet après-midi")
-    assert forecast(last, steady, datetime(2026, 7, 1, 15, 0))[0] == (
-        "Ce soir et cette nuit")
+    # In the evening, the words and the icon of a night sky
+    assert forecast(last, steady, datetime(2026, 7, 1, 15, 0))[:3] == (
+        "Ce soir et cette nuit", "Ciel dégagé, temps stable", "moon")
     assert forecast(last, steady, datetime(2026, 7, 1, 21, 0))[0] == (
         "Demain matin")
     assert forecast(last, steady, datetime(2026, 7, 1, 3, 0))[0] == (
@@ -229,27 +231,31 @@ def test_forecast_names_the_part_of_the_day_ahead():
 
 
 
-def test_dew_outlook_for_the_night_and_the_morning():
+def test_dew_outlook_for_the_night():
     dry = {"temperature_c": 15.0, "dew_point_c": 5.6}
     near = {"temperature_c": 7.0, "dew_point_c": 5.6}
     assert dew_outlook(dry, datetime(2026, 7, 1, 21, 0)) == (
-        "D'ici là : vers 6 °C au plus bas, rosée ou brouillard "
-        "possibles par ciel clair")
-    # In the afternoon, the title is "Ce soir et cette nuit"
-    assert dew_outlook(dry, datetime(2026, 7, 1, 15, 0)).startswith(
-        "Cette nuit : ")
-    assert dew_outlook(near, datetime(2026, 7, 1, 21, 0)).endswith(
-        "rosée ou brouillard probables")
-    assert "givre" in dew_outlook({"temperature_c": 4.0,
-                                   "dew_point_c": -1.0},
-                                  datetime(2026, 7, 1, 21, 0))
-    # In the morning and at noon, only when the air is nearly saturated
-    assert dew_outlook(dry, datetime(2026, 7, 1, 9, 0)) == ""
-    assert dew_outlook(dry, datetime(2026, 7, 1, 12, 5)) == ""
-    assert dew_outlook(near, datetime(2026, 7, 1, 9, 0)) == (
-        "Rosée ou brouillard probables")
+        "Minimum vers 6 °C, rosée possible")
+    assert dew_outlook(dry, datetime(2026, 7, 1, 15, 0)) == (
+        "Minimum vers 6 °C, rosée possible")
+    assert dew_outlook(near, datetime(2026, 7, 1, 21, 0)) == (
+        "Minimum vers 6 °C, brouillard ou rosée probables")
+    assert "gelée blanche" in dew_outlook({"temperature_c": 4.0,
+                                           "dew_point_c": -1.0},
+                                          datetime(2026, 7, 1, 21, 0))
+    # Under "Cet après-midi", nothing: the fog of the moment is told
+    # with the conditions of the moment
+    assert dew_outlook(near, datetime(2026, 7, 1, 9, 0)) == ""
     assert dew_outlook({"temperature_c": None, "dew_point_c": 5.6},
                        datetime(2026, 7, 1, 21, 0)) == ""
+
+
+def test_condition_of_the_moment_only_for_a_saturated_air():
+    assert now_condition({"temperature_c": 7.0, "dew_point_c": 5.6}) == (
+        "Air saturé : brouillard ou rosée probables")
+    assert "givre" in now_condition({"temperature_c": -1.0,
+                                     "dew_point_c": -2.0})
+    assert now_condition({"temperature_c": 15.0, "dew_point_c": 5.6}) == ""
 
 
 def test_temperature_against_yesterday():
@@ -316,16 +322,14 @@ def test_trend_text():
     assert trend_text(None, "%") == ""
 
 
-def test_pressure_state_follows_the_scale():
-    assert pressure_state(1013.0, 0.04) == "Pression moyenne · stable"
-    assert pressure_state(1025.0, 1.5) == (
-        "Pression haute · en légère hausse")
-    assert pressure_state(1000.0, -4.1) == (
-        "Pression basse · en forte baisse")
-    assert pressure_state(990.0, -6.5) == (
-        "Pression basse · en très forte baisse")
-    assert pressure_state(1013.0, None) == "Pression moyenne"
-    assert pressure_state(None, 1.0) == ""
+def test_pressure_tells_what_its_change_brings():
+    assert pressure_outlook(0.04) == "Stable : peu de changement du temps"
+    assert pressure_outlook(1.5) == (
+        "En légère hausse : peu de changement du temps")
+    assert pressure_outlook(-2.0) == "En baisse : le temps se dégrade souvent"
+    assert pressure_outlook(-4.1) == "En forte baisse : pluie et vent probables"
+    assert pressure_outlook(-6.5) == "En très forte baisse : risque de tempête"
+    assert pressure_outlook(None) == ""
 
 
 def test_humidity_state_tells_how_the_air_feels():
@@ -343,14 +347,17 @@ def test_feels_like_only_when_it_differs():
     assert feels_text({"temperature_c": 12.0, "feels_like_c": None}) == ""
 
 
-def test_extremes_of_the_local_day_only():
+def test_extremes_over_the_rows_of_the_last_24_hours():
     rows = [{"local_time": "2026-10-04 23:45:00", "temperature_c": 2.0},
             {"local_time": "2026-10-05 04:45:00", "temperature_c": 5.3},
             {"local_time": "2026-10-05 09:00:00", "temperature_c": None},
             {"local_time": "2026-10-05 14:00:00", "temperature_c": 15.9}]
-    assert day_extremes(rows, "2026-10-05", "temperature_c") == (
-        (5.3, "04:45"), (15.9, "14:00"))
-    assert day_extremes(rows, "2026-10-06", "temperature_c") is None
+    # The same rows as the small curve, across midnight
+    assert extremes(rows, "temperature_c") == (
+        (2.0, "23:45"), (15.9, "14:00"))
+    assert extremes_text(rows, "temperature_c") == (
+        "Sur 24 h : min 2,0 à 23:45 · max 15,9 à 14:00")
+    assert extremes([], "temperature_c") is None
 
 
 def test_health_without_data_warns():
