@@ -2,7 +2,7 @@
 
 The measurements of the station answer questions of every day: what to wear to go out, or to go running? Can the laundry dry outside? Does the garden need water? The third tab of the dashboard, **Conseils** (Advice), answers them, each in a tile, with the reason of its answer.
 
-The advice used to sit on the Now tab, below the weather. It made the page long, and mixed the weather with what to do about it: it has a tab of its own.
+The advice has a tab of its own: on the Now tab, below the weather, it would make the page long, and mix the weather with what to do about it.
 
 > **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.2.0/backend/paws)
 
@@ -39,32 +39,32 @@ The station has no rain gauge: it cannot tell whether it rained, only whether th
 
 | Temperature felt | Clothes | Why, on the tile |
 |------------------|---------|------------------|
-| below 0 °C | Manteau, bonnet et gants (coat, hat and gloves) | il gèle : couvrez la tête, les mains et le cou |
-| 0 to 8 °C | Manteau et écharpe (coat and scarf) | il fait froid : couvrez-vous bien |
-| 8 to 14 °C | Veste ou pull épais (jacket or thick sweater) | c'est frais |
-| 14 to 19 °C | Pull léger ou veste légère (light sweater or jacket) | c'est doux |
-| 19 to 25 °C | Tee-shirt | il fait bon |
-| 25 °C and more | Tenue légère et claire (light clothes, in pale colors) | il fait chaud : buvez souvent |
+| below 0 °C | Manteau, bonnet et gants (coat, hat and gloves) | gel, couvrez la tête, les mains et le cou |
+| 0 to 8 °C | Manteau et écharpe (coat and scarf) | temps froid, couvrez-vous bien |
+| 8 to 14 °C | Veste ou pull épais (jacket or thick sweater) | temps frais |
+| 14 to 19 °C | Pull léger ou veste légère (light sweater or jacket) | temps doux |
+| 19 to 25 °C | Tee-shirt | temps agréable |
+| 25 °C and more | Tenue légère et claire (light clothes, in pale colors) | temps chaud, buvez régulièrement |
 
 The limits are our estimate. The wind makes the cold feel stronger, and the station does not measure it: on a windy day, one more layer. From 22 °C, in the day, the tile adds a cap against the sun (our estimate); when rain is probable or possible, an umbrella.
 
-The clothes follow the temperature of the moment, and the [forecast](02-6-barometer-forecast.qmd), on the Now tab, may announce a fair afternoon: "11 °C, c'est frais" next to "Cet après-midi : beau" would read as a contradiction. A line repeats what the forecast means for the clothes (`forecast_note()`):
+The clothes follow the temperature of the moment, and the [forecast](02-6-barometer-forecast.qmd), on the Now tab, may announce a fair afternoon: "11 °C : temps frais" next to a forecast of "Éclaircies, en amélioration" for the afternoon would read as a contradiction. A line repeats what the forecast means for the clothes (`forecast_note()`):
 
 - under "Cet après-midi", when the sky of the forecast is fair: "Cet après-midi, éclaircies, en amélioration : prévoyez une couche à retirer" (plan a layer to take off);
 - in the evening, the lowest temperature of the night, the same as the line of the forecast: "Cette nuit, minimum vers 5 °C : couvrez-vous si vous rentrez tard".
 
 The station forecasts no temperature for the afternoon: the line only repeats the forecast, without a figure of its own.
 
-**To run**, the body warms up with the effort, but not at once: at the start, the air feels as cold for a runner as for anyone. A runner wears about **one layer less** than to go out. An earlier version dressed the runner as if it were 10 °C warmer, a rule often given to runners: at 9 °C, it advised shorts and a T-shirt next to a jacket to go out, which read as a contradiction, and felt too light at the start. The clothes now follow the air:
+**To run**, the body warms up with the effort, but not at once: at the start, the air feels as cold for a runner as for anyone. A runner wears about **one layer less** than to go out, and the clothes follow the temperature of the air:
 
 | Air | Clothes | Why, on the tile |
 |-----|---------|------------------|
-| below 0 °C | Collant, veste, bonnet et gants (tights, jacket, hat and gloves) | il gèle : couvrez la tête et les mains, même en courant |
-| 0 to 5 °C | Collant, manches longues et gants (tights, long sleeves and gloves) | il fait froid : on se réchauffe vite, mais pas tout de suite |
-| 5 to 10 °C | Collant et manches longues (tights and long sleeves) | c'est frais : une couche de moins que pour sortir |
-| 10 to 15 °C | Short ou collant, manches longues (shorts or tights, long sleeves) | on se réchauffe vite : une couche légère suffit |
-| 15 to 22 °C | Short et tee-shirt (shorts and T-shirt) | pas besoin de se couvrir pour courir |
-| 22 °C and more | Short et débardeur (shorts and vest) | le plus léger possible, et de l'eau |
+| below 0 °C | Collant, veste, bonnet et gants (tights, jacket, hat and gloves) | gel : couvrez la tête et les mains, même en courant |
+| 0 to 5 °C | Collant, manches longues et gants (tights, long sleeves and gloves) | temps froid : l'effort réchauffe, mais pas dès le départ |
+| 5 to 10 °C | Collant et manches longues (tights and long sleeves) | temps frais : une couche de moins que pour sortir |
+| 10 to 15 °C | Short ou collant, manches longues (shorts or tights, long sleeves) | l'effort réchauffe vite : une couche légère suffit |
+| 15 to 22 °C | Short et tee-shirt (shorts and T-shirt) | une tenue légère suffit |
+| 22 °C and more | Short et débardeur (shorts and vest) | tenue la plus légère possible ; emportez de l'eau |
 
 These limits are our estimate.
 
@@ -104,7 +104,7 @@ Plants draw water from the soil, and lose it through their leaves: the drier the
 
 Greenhouse growers keep the deficit between about 0.8 and 1.2 kPa for most crops: below 0.4 kPa, the plants hardly transpire and fungal diseases spread; above 1.6 kPa, they close their pores to keep their water. The limits of the tile follow these orders of magnitude; for a garden, they are our estimate.
 
-Then the good moment: in the morning, until 3 hours after the sunrise, or in the evening, from 2 hours before the sunset. In the heat of the day, the water evaporates before it reaches the roots. These hours are our estimate, from the usual advice of gardeners to water in the cool of the morning or the evening. When the pressure falls fast, the tile adds that the rain might water in its place.
+Then the good moment: in the morning, until 3 hours after the sunrise, or in the evening, from 2 hours before the sunset. In the heat of the day, the water evaporates before it reaches the roots. These hours are our estimate, from the usual advice of gardeners to water in the cool of the morning or the evening. When the pressure falls fast, the tile adds that a rain might make watering useless.
 
 The station measures neither the rain nor the soil: the tile tells when watering is useful, if the soil is dry. Touching the soil, with a finger, remains the test.
 
@@ -117,7 +117,7 @@ The tile compares the air outside with the air of a room at 20 °C and 50 %, abo
 | The air outside | On the tile |
 |-----------------|-------------|
 | at least 1 g/m³ below the room | Bon moment pour aérer, with the humidity it would have once warmed up |
-| about as much water as the room, or more | Pas le moment d'aérer longtemps: a few minutes, for fresh air |
+| about as much water as the room, or more | Aération courte conseillée: a few minutes are enough to renew the air |
 | 25 °C and more | Aérez tôt le matin: the air no longer cools the home |
 
 The margin of 1 g/m³ is ours: airing is advised only when it clearly helps. The station does not measure the air of the house: a home that is colder, or more humid, gains more.
