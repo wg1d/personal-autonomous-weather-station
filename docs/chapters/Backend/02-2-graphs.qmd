@@ -2,7 +2,7 @@
 
 The [first chapter of B2](02-1-now.qmd) builds the page and its Now tab. The second tab, **Courbes** (Graphs), draws the temperature, the humidity and the pressure over a chosen period, from a few hours to several years (BF3 · Dashboard): to see the day that just passed, the weather systems of a week, or the seasons.
 
-> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.2.0/backend/paws)
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.2.1/backend/paws)
 
 ## The tab
 
@@ -42,7 +42,7 @@ A period that ends now is shown whole, even when it starts before the first meas
 
 The graphs read the database with these functions of `database.py`:
 
-```{.python include="../../_versions/v1.2.0/backend/paws/paws_server/database.py"}
+```{.python include="../../_versions/v1.2.1/backend/paws/paws_server/database.py"}
 ```
 
 - **`last_row()`** gives the last measurement, for the Now tab and the health of the station.

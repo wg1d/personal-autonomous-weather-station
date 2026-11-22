@@ -11,7 +11,7 @@ Step B1 stores the data of the station on the server. Step B2 shows it in a dash
 
 This chapter builds the page itself, then its first tab: the last measurement and the health of the station (BF3 · Dashboard, BF4 · Health of the station), and the values the backend computes from the measurements.
 
-> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.2.0/backend/paws)
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.2.1/backend/paws)
 
 ## The page
 
@@ -38,7 +38,7 @@ The dashboard is served by the backend itself, on the same port as the API: `htt
 
 Dash runs on Flask, an older kind of Python web application, called *WSGI*; FastAPI is an *ASGI* application, its newer version. The `a2wsgi` package lets FastAPI serve the Dash application under `/dashboard`, so that the API and the dashboard share one service and one port (BN2 · Light). `main.py` also reads the place of the station from the environment: its altitude, for the pressure at sea level, and its latitude and longitude, for the sun (see [Setting the Station Location](../Appendix/08-station-location.qmd)):
 
-```{.python include="../../_versions/v1.2.0/backend/paws/paws_server/main.py"}
+```{.python include="../../_versions/v1.2.1/backend/paws/paws_server/main.py"}
 ```
 
 ## The Now tab
@@ -91,7 +91,7 @@ The sensor measures three quantities: the temperature, the relative humidity and
 
 Each function returns `None` when a measurement it needs is missing.
 
-```{.python include="../../_versions/v1.2.0/backend/paws/paws_server/weather.py"}
+```{.python include="../../_versions/v1.2.1/backend/paws/paws_server/weather.py"}
 ```
 
 These values are not stored: the database keeps only what the station measured. SQLite computes them when the dashboard reads the rows: `database.py` gives the functions of `weather.py` to SQLite (`create_function()`), and the queries call them like functions of SQL. A better formula only needs a new version of the backend: the old measurements then get the new values too.
@@ -137,7 +137,7 @@ The icon of the sky comes with each of the 32 forecasts of the method: a sun, a 
 
 **The sun.** `sky.py` computes the sunrise and the sunset from the date and the position of the station, with the *sunrise equation*: the position of the Earth on its orbit gives the declination of the sun, how far north or south of the equator it stands, then the angle the Earth turns between the sunrise and noon at this latitude. The sun rises when its top edge appears: its centre is then 0.833° below the horizon, its radius plus the bending of light by the air. The result is precise to about a minute.
 
-```{.python include="../../_versions/v1.2.0/backend/paws/paws_server/sky.py"}
+```{.python include="../../_versions/v1.2.1/backend/paws/paws_server/sky.py"}
 ```
 
 `sky.py` also computes the phase of the moon. The page no longer shows it: it said nothing about the weather.
@@ -170,7 +170,7 @@ These limits are our estimate, from the rule of the night above: the air of the 
 ::: {.callout-note collapse="true"}
 ## dashboard.py
 
-```{.python include="../../_versions/v1.2.0/backend/paws/paws_server/dashboard.py"}
+```{.python include="../../_versions/v1.2.1/backend/paws/paws_server/dashboard.py"}
 ```
 :::
 
@@ -185,7 +185,7 @@ The rules inside `@media (max-width: 600px)` only apply to a narrow screen, such
 ::: {.callout-note collapse="true"}
 ## style.css
 
-```{.css include="../../_versions/v1.2.0/backend/paws/paws_server/assets/style.css"}
+```{.css include="../../_versions/v1.2.1/backend/paws/paws_server/assets/style.css"}
 ```
 :::
 
@@ -211,7 +211,7 @@ Without the station, the database of the development computer is empty. A small 
 ::: {.callout-note collapse="true"}
 ## make_test_data.py
 
-```{.python include="../../_versions/v1.2.0/backend/paws/dev/make_test_data.py"}
+```{.python include="../../_versions/v1.2.1/backend/paws/dev/make_test_data.py"}
 ```
 :::
 
