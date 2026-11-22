@@ -136,7 +136,7 @@ EXPLANATIONS = [
     ("L'humidité relative", [
         "C'est la quantité d'eau dans l'air, comparée au maximum qu'il "
         "peut contenir à sa température. L'air froid en contient peu : la "
-        "nuit, l'humidité monte souvent juste parce que l'air se "
+        "nuit, l'humidité monte souvent uniquement parce que l'air se "
         "refroidit.",
         "Pour savoir si l'air est vraiment humide, regardez plutôt le "
         "point de rosée.",
@@ -162,15 +162,15 @@ EXPLANATIONS = [
     ]),
     ("La température ressentie", [
         "Par forte chaleur, l'humidité empêche la sueur de s'évaporer : le "
-        "corps se refroidit mal, et on a plus chaud que ne le dit le "
-        "thermomètre. Le ressenti s'affiche à partir de 27 °C, quand il "
-        "diffère de la température.",
+        "corps se refroidit mal, et la chaleur ressentie dépasse la "
+        "température mesurée. Le ressenti s'affiche à partir de 27 °C, "
+        "quand il diffère de la température.",
         "Par temps froid, le ressenti dépend surtout du vent, que la "
         "station ne mesure pas : il n'est pas affiché.",
     ]),
     ("Le déficit de pression de vapeur", [
-        "Il dit à quel point l'air est « assoiffé » : plus il est grand, "
-        "plus l'air sèche vite les plantes, le sol et le linge. Il "
+        "Il mesure le pouvoir asséchant de l'air : plus il est grand, plus "
+        "l'air sèche vite les plantes, le sol et le linge. Il "
         "s'exprime en kilopascals (kPa).",
         "Il tient compte de la température, contrairement à l'humidité : "
         "à 80 % d'humidité, l'air sèche bien plus vite à 30 °C qu'à 5 °C.",
@@ -179,13 +179,14 @@ EXPLANATIONS = [
         "de la sécheresse de l'air.",
     ]),
     ("Les conseils d'arrosage et de linge", [
-        "L'arrosage regarde l'air le plus sec des dernières 24 heures. La "
+        "Le conseil d'arrosage se fonde sur l'air le plus sec des dernières "
+        "24 heures. La "
         "station ne mesure ni la pluie ni la terre : touchez-la avant "
         "d'arroser. Arrosez tôt le matin ou en soirée, quand l'eau "
         "s'évapore moins.",
-        "Le linge regarde l'air du moment. Une pression qui baisse vite "
-        "annonce souvent la pluie. Le vent et le soleil sèchent aussi, "
-        "mais la station ne les mesure pas.",
+        "Le conseil de séchage se fonde sur l'air du moment. Une pression "
+        "qui baisse vite annonce souvent la pluie. Le vent et le soleil "
+        "sèchent aussi, mais la station ne les mesure pas.",
     ]),
     ("L'aération", [
         "L'air qui entre se réchauffe, et son humidité baisse. En hiver, "
@@ -199,16 +200,16 @@ EXPLANATIONS = [
     ("Les conseils du soir", [
         "Le pare-brise : quand une gelée est possible dans la nuit, la "
         "voiture garée dehors givre souvent avant le matin.",
-        "Le dîner dehors : proposé entre 16 h et 21 h, quand on ressent "
-        "entre 18 et 30 °C et qu'aucune pluie n'est annoncée.",
+        "Le dîner dehors : proposé entre 16 h et 21 h, quand la température "
+        "ressentie est entre 18 et 30 °C et qu'aucune pluie n'est annoncée.",
     ]),
     ("La tenue et la course à pied", [
         "La tenue suit la température ressentie : manteau sous 8 °C, "
         "veste jusqu'à 14 °C, pull léger jusqu'à 19 °C, tee-shirt "
         "au-delà. La station ne mesure pas le vent : par jour de vent, "
         "ajoutez une couche.",
-        "Pour courir, une couche de moins que pour sortir : le corps se "
-        "réchauffe vite. Au-delà de 30 °C ressentis, courez tôt le "
+        "Pour la course à pied, une couche de moins : l'effort réchauffe "
+        "le corps. Au-delà de 30 °C ressentis, courez tôt le "
         "matin.",
     ]),
     ("La tension", [
@@ -671,7 +672,7 @@ def watering_moment(local_now, sun):
         return " ce soir", (f"Attendez {evening_start:%H:%M} : en pleine "
                             "journée, l'eau s'évapore avant d'atteindre "
                             "les racines.")
-    return " ce soir", "C'est le bon moment, le soleil chauffe peu."
+    return " ce soir", "Moment favorable : le soleil chauffe peu."
 
 
 def watering_advice(rows, changes, local_now=None, sun=None):
@@ -702,8 +703,8 @@ def watering_advice(rows, changes, local_now=None, sun=None):
     detail += when
     pressure = changes.get("sea_level_hpa")
     if pressure is not None and pressure < -RAIN_PRESSURE_DROP:
-        detail += " La pression baisse vite : la pluie pourrait arroser "\
-                  "à votre place."
+        detail += " La pression baisse vite : une pluie pourrait rendre "\
+                  "l'arrosage inutile."
     return headline, detail
 
 
@@ -738,8 +739,8 @@ def laundry_advice(last, changes, local_now=None, sun=None):
         hang_out = sunrise + LAUNDRY_MORNING
         if local_now < sunrise or local_now >= sunset:
             day = "demain" if local_now >= sunset else "ce matin"
-            return ("Pas de séchage la nuit", "L'air fraîchit et "
-                    "l'humidité monte : un linge resté dehors se mouille. "
+            return ("Pas de séchage la nuit", "L'air fraîchit et devient "
+                    "humide : le linge étendu dehors ne sèche plus. "
                     f"Étendez-le {day} vers {hang_out:%H:%M}.")
         if local_now >= sunset - LAUNDRY_EVENING:
             return ("À rentrer", f"Le soleil se couche à {sunset:%H:%M} : "
@@ -748,7 +749,7 @@ def laundry_advice(last, changes, local_now=None, sun=None):
     if temperature is not None and dew is not None \
             and temperature - dew <= DEW_SPREAD_C:
         return ("À rentrer", "L'air est saturé : le linge ne sèche plus, "
-                "et la rosée va le mouiller.")
+                "et la rosée le mouillera.")
     deficit = last["vpd_kpa"]
     if deficit is None:
         return None
@@ -820,15 +821,16 @@ def airing_advice(last):
                 "aux heures chaudes, et aérez quand l'air est le plus frais.")
     room = weather.absolute_humidity(ROOM_C, ROOM_HUMIDITY_PCT)
     if water > room - AIRING_MARGIN_GM3:
-        return ("Pas le moment d'aérer longtemps", "L'air dehors contient "
-                f"{number(water)} g/m³ d'eau, autant qu'une maison : aérer "
-                "ne l'assèche pas. Aérez quelques minutes, pour l'air frais.")
+        return ("Aération courte conseillée", "L'air extérieur contient "
+                f"{number(water)} g/m³ d'eau, autant que l'air intérieur : "
+                "aérer n'asséchera pas le logement. Quelques minutes "
+                "suffisent pour renouveler l'air.")
     # The relative humidity of the air outside, once warmed up to the room
     warmed = round(100 * water / weather.absolute_humidity(ROOM_C, 100))
-    return ("Bon moment pour aérer", "L'air dehors ne contient que "
+    return ("Bon moment pour aérer", "L'air extérieur ne contient que "
             f"{number(water)} g/m³ d'eau : réchauffé à {number(ROOM_C, 0)} "
-            f"°C, il n'aurait que {warmed} % d'humidité. Aérer assèche la "
-            "maison.")
+            f"°C, il n'aurait que {warmed} % d'humidité. Aérer asséchera le "
+            "logement.")
 
 
 def windscreen_advice(last, local_now):
@@ -863,7 +865,7 @@ def dinner_advice(last, changes, local_now):
         return None
     return ("Soirée agréable pour dîner dehors",
             f"{number(temperature, 0)} °C et pas de pluie annoncée. Une "
-            "petite laine après le coucher du soleil.")
+            "vêtement chaud après le coucher du soleil.")
 
 
 def heat_advice(last, local_now, sun):
@@ -874,8 +876,8 @@ def heat_advice(last, local_now, sun):
     if feels is None or feels < RUNNING_HOT_C or not is_day(local_now, sun):
         return None
     return ("Gardez la maison au frais",
-            f"On ressent {number(feels, 0)} °C : fermez volets et fenêtres "
-            "aux heures chaudes, buvez souvent, et évitez l'effort au "
+            f"{number(feels, 0)} °C ressentis : fermez volets et fenêtres "
+            "aux heures chaudes, buvez régulièrement, et évitez l'effort au "
             "soleil.")
 
 
@@ -893,12 +895,12 @@ def is_day(local_now, sun):
 # makes the cold feel stronger: a windy day needs one layer more
 CLOTHES = [
     (0, "Manteau, bonnet et gants",
-     "il gèle : couvrez la tête, les mains et le cou."),
-    (8, "Manteau et écharpe", "il fait froid : couvrez-vous bien."),
-    (14, "Veste ou pull épais", "c'est frais."),
-    (19, "Pull léger ou veste légère", "c'est doux."),
-    (25, "Tee-shirt", "il fait bon."),
-    (None, "Tenue légère et claire", "il fait chaud : buvez souvent."),
+     "gel, couvrez la tête, les mains et le cou."),
+    (8, "Manteau et écharpe", "temps froid, couvrez-vous bien."),
+    (14, "Veste ou pull épais", "temps frais."),
+    (19, "Pull léger ou veste légère", "temps doux."),
+    (25, "Tee-shirt", "temps agréable."),
+    (None, "Tenue légère et claire", "temps chaud, buvez régulièrement."),
 ]
 # Above this temperature, in °C, a cap protects from the sun
 CAP_C = 22
@@ -951,10 +953,10 @@ def clothes_advice(last, changes, local_now, sun, prediction=None):
     for limit, clothes, why in CLOTHES:
         if limit is None or temperature < limit:
             break
-    notes = [f"{number(temperature, 0)} °C{felt}, {why}",
+    notes = [f"{number(temperature, 0)} °C{felt} : {why}",
              forecast_note(prediction, last)]
     if temperature >= CAP_C and is_day(local_now, sun):
-        notes.append("Une casquette au soleil.")
+        notes.append("Un chapeau ou une casquette au soleil.")
     notes.append(rain_note(rain_expected(last, changes), "un parapluie"))
     return clothes, [note for note in notes if note is not None]
 
@@ -966,15 +968,16 @@ def clothes_advice(last, changes, local_now, sun, prediction=None):
 # estimate, as the limits)
 RUNNING_CLOTHES = [
     (0, "Collant, veste, bonnet et gants",
-     "il gèle : couvrez la tête et les mains, même en courant."),
+     "gel : couvrez la tête et les mains, même en courant."),
     (5, "Collant, manches longues et gants",
-     "il fait froid : on se réchauffe vite, mais pas tout de suite."),
+     "temps froid : l'effort réchauffe, mais pas dès le départ."),
     (10, "Collant et manches longues",
-     "c'est frais : une couche de moins que pour sortir."),
+     "temps frais : une couche de moins que pour sortir."),
     (15, "Short ou collant, manches longues",
-     "on se réchauffe vite : une couche légère suffit."),
-    (22, "Short et tee-shirt", "pas besoin de se couvrir pour courir."),
-    (None, "Short et débardeur", "le plus léger possible, et de l'eau."),
+     "l'effort réchauffe vite : une couche légère suffit."),
+    (22, "Short et tee-shirt", "une tenue légère suffit."),
+    (None, "Short et débardeur",
+     "tenue la plus légère possible ; emportez de l'eau."),
 ]
 # Above this temperature felt, in °C, running is hard on the heart: the
 # body cools badly
@@ -991,9 +994,9 @@ def running_advice(last, changes, local_now, sun):
         return None
     feels = last["feels_like_c"]
     if feels is not None and feels >= RUNNING_HOT_C:
-        return ("Trop chaud", [f"On ressent {number(feels, 0)} °C : le "
-                               "corps se refroidit mal. Courez tôt le "
-                               "matin, et buvez."])
+        return ("Trop chaud", [f"{number(feels, 0)} °C ressentis : le "
+                               "corps évacue mal la chaleur. Courez tôt "
+                               "le matin, et hydratez-vous."])
     for limit, clothes, why in RUNNING_CLOTHES:
         if limit is None or temperature < limit:
             break

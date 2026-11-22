@@ -114,7 +114,7 @@ def test_watering_advice_follows_the_hour():
     headline, detail = watering_advice(rows, {}, at(13), SUN)
     assert headline == "Conseillé ce soir" and "Attendez 15:30" in detail
     headline, detail = watering_advice(rows, {}, at(16), SUN)
-    assert headline == "Conseillé ce soir" and "bon moment" in detail
+    assert headline == "Conseillé ce soir" and "Moment favorable" in detail
     # Without the sun, no hour
     assert watering_advice(rows, {})[0] == "Conseillé"
 
@@ -128,19 +128,19 @@ def test_clothes_advice():
     steady = {"sea_level_hpa": 0.0}
     assert clothes_advice(air(-2.0), steady, at(13), SUN) == (
         "Manteau, bonnet et gants",
-        ["-2 °C, il gèle : couvrez la tête, les mains et le cou."])
+        ["-2 °C : gel, couvrez la tête, les mains et le cou."])
     assert clothes_advice(air(11.0), steady, at(13), SUN) == (
-        "Veste ou pull épais", ["11 °C, c'est frais."])
+        "Veste ou pull épais", ["11 °C : temps frais."])
     # A cap in the sun of a warm day, not at night
     assert clothes_advice(air(24.0), steady, at(13), SUN)[1] == [
-        "24 °C, il fait bon.", "Une casquette au soleil."]
+        "24 °C : temps agréable.", "Un chapeau ou une casquette au soleil."]
     assert clothes_advice(air(24.0), steady, at(22), SUN)[1] == [
-        "24 °C, il fait bon."]
+        "24 °C : temps agréable."]
     # The heat index counts more than the air
     assert clothes_advice(air(28.0, 31.0), steady, at(13), SUN)[:2] == (
         "Tenue légère et claire",
-        ["31 °C ressentis, il fait chaud : buvez souvent.",
-         "Une casquette au soleil."])
+        ["31 °C ressentis : temps chaud, buvez régulièrement.",
+         "Un chapeau ou une casquette au soleil."])
     # An umbrella when the pressure falls fast
     assert clothes_advice(air(11.0), {"sea_level_hpa": -4.0}, at(13),
                           SUN)[1][1:] == [
@@ -172,7 +172,7 @@ def test_running_advice():
     # At 9 °C, one layer less than to go out, not shorts
     assert running_advice(air(9.0), steady, at(13), SUN) == (
         "Collant et manches longues",
-        ["C'est frais : une couche de moins que pour sortir."])
+        ["Temps frais : une couche de moins que pour sortir."])
     assert running_advice(air(-3.0), steady, at(13), SUN)[0] == (
         "Collant, veste, bonnet et gants")
     assert running_advice(air(18.0), steady, at(13), SUN)[0] == (
@@ -707,7 +707,7 @@ def test_airing_dries_the_home_when_the_air_holds_little_water():
     assert headline == "Bon moment pour aérer" and "38 %" in detail
     assert airing_advice({"temperature_c": 22.0,
                           "absolute_humidity_gm3": 14.0})[0] == (
-        "Pas le moment d'aérer longtemps")
+        "Aération courte conseillée")
     assert airing_advice({"temperature_c": 28.0,
                           "absolute_humidity_gm3": 10.0})[0] == (
         "Aérez tôt le matin")
