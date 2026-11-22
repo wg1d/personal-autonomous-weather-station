@@ -4,7 +4,7 @@ The measurements of the station answer questions of every day: what to wear to g
 
 The advice has a tab of its own: on the Now tab, below the weather, it would make the page long, and mix the weather with what to do about it.
 
-> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.2.0/backend/paws)
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.2.1/backend/paws)
 
 ## The tab
 

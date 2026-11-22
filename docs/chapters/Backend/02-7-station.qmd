@@ -2,7 +2,7 @@
 
 The [battery monitor](../Outdoor/07-battery-monitor.qmd) sends the voltage and the current of the battery with each row, and the log of the station tells what went wrong (see [O7 · Field Fixes](../Outdoor/08-field-fixes.qmd)). The fourth tab of the dashboard, **Station**, shows both: the health of the station itself, after the weather it measures.
 
-> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.2.0/backend/paws)
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.2.1/backend/paws)
 
 ## The tab
 
@@ -58,7 +58,7 @@ The problems of the last 24 hours also show the amber warning of the Now tab, wh
 
 The Station tab is a part of `dashboard.py`, shown in the [first chapter](02-1-now.qmd#the-code), and of `logs.py`:
 
-```{.python include="../../_versions/v1.2.0/backend/paws/paws_server/logs.py"}
+```{.python include="../../_versions/v1.2.1/backend/paws/paws_server/logs.py"}
 ```
 
 - **`read_tail()`** reads the end of the log only, cut at the start of an entry: the log grows by about 33 KB a day on our server, and 3 days of it fit in 128 KB. The Now tab reads less, 64 KB, for its last 24 hours.

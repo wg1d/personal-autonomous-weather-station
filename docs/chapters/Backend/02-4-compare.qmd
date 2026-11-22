@@ -4,7 +4,7 @@ The fourth tab of the dashboard, **Comparer** (Compare), draws two periods over 
 
 The tab needs the width of a computer: on a phone, it is left out of the bar at the bottom of the screen.
 
-> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.2.0/backend/paws)
+> **Ready-to-use project:** The complete code of this step is available in the repository here: [`backend/paws`](https://github.com/wg1d/personal-autonomous-weather-station/tree/v1.2.1/backend/paws)
 
 ## The tab
 
